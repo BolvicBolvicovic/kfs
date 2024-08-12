@@ -1,13 +1,10 @@
 BINARY		=	boot/kfs.elf
 ISO			=	boot/kfs.iso
-CC			=	gcc
-OFLAGS		= 	-m32					\
-				-ffreestanding			\
+CC			=	./gcc_kfs/cross/bin/i386-elf-gcc
+OFLAGS		= 	-ffreestanding			\
 				-std=gnu99				
-CFLAGS		=	-m32					\
-				-ffreestanding			\
+CFLAGS		=	-ffreestanding			\
 				-nostdlib				\
-				-no-pie					\
 				-T linker/linker.ld
 
 CSRCS_NAMES	=	start kernel
@@ -20,11 +17,11 @@ all			:	required $(ISO)
 required	:
 	@if [ ! -d obj ]; then mkdir obj; fi
 
-$(ISO)		: $(BINARY)
+$(ISO)		:	binary
 	grub-mkrescue boot -o $@
 
-$(BINARY)	:	$(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) -o $@ -lgcc
+binary		:	$(OBJS)
+	$(CC) $(CFLAGS) $(OBJS) -o $(BINARY) -lgcc
 
 obj/%.o			: src/%.c
 	$(CC) $(OFLAGS) -c $^ -o $@
