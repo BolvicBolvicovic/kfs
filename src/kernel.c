@@ -1,12 +1,11 @@
 #include <stddef.h>
 #include <stdint.h>
-/*
+
 #if defined(__linux__)
 	#error "This code must be compiled with a cross-compiler"
 #elif !defined(__i386__)
 	#error "This code must be compiled with an x86-elf compiler"
 #endif
-*/
 volatile	uint16_t*	vga_buffer	= (uint16_t*)0xB8000;
 const		int			VGA_COLS	= 80;
 const		int			VGA_ROWS	= 25;

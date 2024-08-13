@@ -1,25 +1,26 @@
 .extern	kernel_main
-.global	start
+.global	_start
 .set	MB_MAGIC, 0x1BADB002
 .set	MB_FLAGS, (1 << 0) | (1 << 1)
-.set	MB_CHECKSUM, (0 - (MB_MAGIC + MB_FLAGS))
+.set	MB_CHECKSUM, -(MB_MAGIC + MB_FLAGS)
 		
 .section	.multiboot
-	.align	4
-	.long	MB_MAGIC
-	.long	MB_FLAGS
-	.long	MB_CHECKSUM
+.align	4
+.long	MB_MAGIC
+.long	MB_FLAGS
+.long	MB_CHECKSUM
 
 .section	.bss
-	.align	16
-	stack_bottom:
-		.skip	4096
-	stack_top:
+.align		16
+stack_bottom:
+	.skip	4096
+stack_top:
+
 .section	.text
-	start:
-		mov		$stack_top, %esp
-		call	kernel_main
-	hang:
-		cli
-		hlt
-		jmp		hang
+_start:
+	mov		$stack_top, %esp
+	call	kernel_main
+hang:
+	cli
+	hlt
+	jmp		hang
