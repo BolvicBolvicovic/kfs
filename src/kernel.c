@@ -1,19 +1,26 @@
 #include <stddef.h>
 #include <stdint.h>
+#include "kernel.h"
 
 #if defined(__linux__)
 	#error "This code must be compiled with a cross-compiler"
 #elif !defined(__i386__)
 	#error "This code must be compiled with an x86-elf compiler"
 #endif
+
 volatile	uint16_t*	vga_buffer	= (uint16_t*)0xB8000;
 const		int			VGA_COLS	= 80;
 const		int			VGA_ROWS	= 25;
 			int			term_col	= 0;
 			int			term_row	= 0;
-			uint8_t		term_color	= 0x0F;
+			uint8_t		term_color	= 0;
+
+void    set_term_color(uint8_t foreground, uint8_t background) {
+   term_color = background << 4 | foreground; 
+}
 
 void	term_init() {
+    set_term_color(YELLOW, GREEN);
 	for (int col = 0; col < VGA_COLS; col++) {
 		for (int row = 0; row < VGA_ROWS; row++) {
 			const size_t	index = (VGA_COLS * row) + col;

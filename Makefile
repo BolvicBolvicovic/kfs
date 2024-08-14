@@ -1,6 +1,6 @@
 BINARY		=	isoroot/boot/kfs.elf
 ISO			=	isoroot/boot/kfs.iso
-CC			=	./gcc_kfs/cross/bin/i386-elf-gcc
+CC			=	./gcc_kfs/bin/i386-elf-gcc
 OFLAGS		= 	-ffreestanding			\
 				-std=gnu99				
 CFLAGS		=	-ffreestanding			\
