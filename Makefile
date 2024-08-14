@@ -8,8 +8,7 @@ OFLAGS		= 	-ffreestanding			\
 CFLAGS		=	-ffreestanding			\
 				-nostdlib				\
 				-O2						\
-				-T linker/linker.ld		\
-				$(LIBS)
+				-T linker/linker.ld	
 
 
 CSRCS_NAMES	=	start kernel
@@ -27,7 +26,7 @@ $(ISO)		:	$(BINARY)
 	grub-mkrescue isoroot/boot -o $@
 
 $(BINARY)	:	required $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) -o $@ -lgcc
+	$(CC) $(CFLAGS) $(OBJS) $(LIBS) -o $@ -lgcc
 
 obj/%.o			: src/%.c
 	$(CC) $(OFLAGS) -c $^ -o $@
