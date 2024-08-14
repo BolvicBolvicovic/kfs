@@ -1,60 +1,43 @@
 #include "keyboard.h"
 
-//INTERUPTION DESCRIPTOR TABLE
-//
-static idt_gate_t	idt[256];
+#define BACKSPACE 0x0E
+#define ENTER 0x1C
 
-void	set_idt_gate(int n, uint32_t handler) {
-	idt[n].low_offset = LOW_16(handler);
-	idt[n].selector = 0x08;
-	idt[n].always0 = 0;
-	idt[n].flags = 0x8E;
-	// 0x8E = 1  00 0 1  110
-    //        P DPL 0 D Type
-	idt[n].high_offset = HIGH_16(handler);
+static char key_buffer[256];
+
+#define SC_MAX 57
+
+const char *sc_name[] = {"ERROR", "Esc", "1", "2", "3", "4", "5", "6",
+                         "7", "8", "9", "0", "-", "=", "Backspace", "Tab", "Q", "W", "E",
+                         "R", "T", "Y", "U", "I", "O", "P", "[", "]", "Enter", "Lctrl",
+                         "A", "S", "D", "F", "G", "H", "J", "K", "L", ";", "'", "`",
+                         "LShift", "\\", "Z", "X", "C", "V", "B", "N", "M", ",", ".",
+                         "/", "RShift", "Keypad *", "LAlt", "Spacebar"};
+const char sc_ascii[] = {'?', '?', '1', '2', '3', '4', '5', '6',
+                         '7', '8', '9', '0', '-', '=', '?', '?', 'Q', 'W', 'E', 'R', 'T', 'Y',
+                         'U', 'I', 'O', 'P', '[', ']', '?', '?', 'A', 'S', 'D', 'F', 'G',
+                         'H', 'J', 'K', 'L', ';', '\'', '`', '?', '\\', 'Z', 'X', 'C', 'V',
+                         'B', 'N', 'M', ',', '.', '/', '?', '?', '?', ' '};
+
+static void keyboard_callback(registers_t *regs) {
+    uint8_t scancode = port_byte_in(0x60);
+    if (scancode > SC_MAX) return;
+    if (scancode == BACKSPACE) {
+        if (backspace(key_buffer)) {
+            print_backspace();
+        }
+    } else if (scancode == ENTER) {
+        print_nl();
+        execute_command(key_buffer);
+        key_buffer[0] = '\0';
+    } else {
+        char letter = sc_ascii[(int) scancode];
+        append(key_buffer, letter);
+        char str[2] = {letter, '\0'};
+        print_string(str);
+    }
 }
 
-//INTERUPTION SERVICE ROUTINE
-
-static char*		exception_msg[] = {
-	"Division by zero",
-	"Debug",
-	"Non Maskable Interrupt",
-	"Breakpoint",
-	"Into Detected Overflow",
-	"Out of Bounds",
-	"Invalid Opcode",
-	"No Coprocessor",
-
-	"Double Fault",
-	"Coprocessor Segment Overrun",
-	"Bad TSS",
-	"Segment Not Present",
-	"Stack Fault",
-	"General Protection Fault",
-	"Page Fault",
-	"Unknown Interrupt",
-
-	"Coprocessor Fault",
-	"Alignment Check",
-	"Machine Check",
-	"Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-	"Reserved"
-};
-
-void	isr_handler(registers_t *r) {
-	term_print(exception_msg[r->int_no]);
-	term_putchar('\n');
+void init_keyboard() {
+    register_interrupt_handler(IRQ1, keyboard_callback);
 }

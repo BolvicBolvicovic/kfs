@@ -44,14 +44,8 @@ void	term_clear() {
 	set_cursor(get_offset(0, 0));
 }
 
-static void	ft_memcpy(char *dst, char *src, size_t n) {
-	for (size_t i = 0; i < n; i++) {
-		*(dst + i) = *(src + i);
-	}
-}
-
 static int		term_scroll(int offset) {
-	ft_memcpy(
+	memcpy(
 		(char*)(get_offset(0, 1) + VGA_MEMORY),
 		(char*)(get_offset(0, 0) + VGA_MEMORY),
 		2 * VGA_COLS * (VGA_ROWS - 1)
@@ -71,7 +65,8 @@ static inline int	move_offset_to_newline(int offset) {
 }
 
 inline void	term_print(const char* str, size_t n) {
-	int	offset = get_cursor();
+//	int	offset = get_cursor();
+    static int offset = 0;
 	for (size_t i = 0; str[i] && i < n; i++) {
 		if (offset >= VGA_ROWS * VGA_COLS * 2) offset = term_scroll(offset);
 		switch (str[i]) {
