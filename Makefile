@@ -1,5 +1,5 @@
-BINARY		=	boot/kfs.elf
-ISO			=	boot/kfs.iso
+BINARY		=	isoroot/boot/kfs.elf
+ISO			=	isoroot/boot/kfs.iso
 CC			=	./gcc_kfs/cross/bin/i386-elf-gcc
 OFLAGS		= 	-ffreestanding			\
 				-std=gnu99				
@@ -18,7 +18,7 @@ required	:
 	@if [ ! -d obj ]; then mkdir obj; fi
 
 $(ISO)		:	$(BINARY)
-	grub-mkrescue boot -o $@
+	grub-mkrescue isoroot/boot -o $@
 
 $(BINARY)	:	required $(OBJS)
 	$(CC) $(CFLAGS) $(OBJS) -o $@ -lgcc
