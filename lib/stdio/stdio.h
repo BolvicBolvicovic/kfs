@@ -1,0 +1,12 @@
+#ifndef STDIO_H
+#define STDIO_H
+
+#include <stdarg.h>
+#include <stddef.h>
+#include <limits.h>
+#include "../vga/vga.h"
+#include "../string/string.h"
+
+int printf(const char* restrict format, ...);
+
+#endif

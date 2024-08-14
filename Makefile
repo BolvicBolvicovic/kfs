@@ -1,7 +1,7 @@
 BINARY		=	isoroot/boot/kfs.elf
 ISO			=	isoroot/boot/kfs.iso
 CC			=	./gcc_kfs/bin/i386-elf-gcc
-LIBS		=	src/string.a src/stdlib.a
+LIBS		=	lib/stdio.a lib/string.a lib/stdlib.a lib/vga.a
 OFLAGS		= 	-ffreestanding			\
 				-O2						\
 				-std=gnu99				
@@ -20,7 +20,7 @@ all			:	 $(ISO)
 
 required	:
 	@if [ ! -d obj ]; then mkdir obj; fi
-	make -C src
+	make -C lib
 
 $(ISO)		:	$(BINARY)
 	grub-mkrescue isoroot/boot -o $@
@@ -40,7 +40,7 @@ clean		:
 	rm $(OBJS)
 
 fclean		: clean
-	make -C src fclean
+	make -C lib fclean
 	rm -d obj
 	@if [ -f $(ISO) ];then rm $(ISO); fi
 	rm $(BINARY)
