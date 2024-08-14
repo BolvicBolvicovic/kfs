@@ -17,6 +17,6 @@ void	set_idt_gate(int n, uint32_t handler) {
 
 void    load_idt() {
     idt_reg.base = (uint32_t) &idt;
-    idt_reg.limit = IDT_ENTRIES * sizeof(idt_gate_t) - 1;
+    idt_reg.limit = 256 * sizeof(idt_gate_t) - 1;
     asm volatile("lidt (%0)" : : "r" (&idt_reg)); //lidt = load interrupt descriptor table
 }

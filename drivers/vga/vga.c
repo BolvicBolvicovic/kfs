@@ -15,10 +15,11 @@ static void	set_cursor(int offset) {
 }
 
 static int	get_cursor() {
+    int offset = 0;
 	port_byte_out(VGA_CTRL_REGISTER, VGA_OFFSET_HIGH);
-	int	offset = port_byte_in(VGA_DATA_REGISTER) << 8;
+	offset |= port_byte_in(VGA_DATA_REGISTER) << 8;
 	port_byte_out(VGA_CTRL_REGISTER, VGA_OFFSET_LOW);
-	offset += port_byte_in(VGA_DATA_REGISTER);
+	offset |= port_byte_in(VGA_DATA_REGISTER);
 	return offset * 2;
 }
 
@@ -65,7 +66,7 @@ static inline int	move_offset_to_newline(int offset) {
 }
 
 inline void	term_print(const char* str, size_t n) {
-//	int	offset = get_cursor();
+   // int	offset = get_cursor();
     static int offset = 0;
 	for (size_t i = 0; str[i] && i < n; i++) {
 		if (offset >= VGA_ROWS * VGA_COLS * 2) offset = term_scroll(offset);

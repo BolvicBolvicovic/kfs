@@ -4,4 +4,6 @@
 #include "../lib/stdlib/stdlib.h"
 #include "../lib/stdio/stdio.h"
 #include "../drivers/vga/vga.h"
+#include "../drivers/cpu/cpu.h"
+#include "../drivers/keyboard/keyboard.h"
 #endif

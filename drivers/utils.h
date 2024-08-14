@@ -1,6 +1,7 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include "../lib/stdlib/stdlib.h"
 #include "../lib/string/string.h"
 
 inline unsigned char port_byte_in(unsigned short port) {

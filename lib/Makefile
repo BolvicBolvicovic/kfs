@@ -9,7 +9,7 @@ STD_OBJ	= stdlib/stdlib.o
 IO_SRC	= stdio/stdio.c
 IO_OBJ	= stdio/stdio.o
 
-AR		= ../gcc_kfs/bin/i386-elf-ar rc
+AR		= ../gcc_kfs/bin/i386-elf-ar rcs
 CC		= ../gcc_kfs/bin/i386-elf-gcc
 FLAGS	= -ffreestanding	\
 			-nostdlib		\

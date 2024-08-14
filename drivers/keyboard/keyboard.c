@@ -23,18 +23,17 @@ static void keyboard_callback(registers_t *regs) {
     uint8_t scancode = port_byte_in(0x60);
     if (scancode > SC_MAX) return;
     if (scancode == BACKSPACE) {
-        if (backspace(key_buffer)) {
-            print_backspace();
-        }
+    //    if (backspace(key_buffer)) {
+    //        print_backspace();
+    //    }
     } else if (scancode == ENTER) {
-        print_nl();
-        execute_command(key_buffer);
-        key_buffer[0] = '\0';
+        term_print("\n", 1);
+        //execute_command(key_buffer);
+      //  key_buffer[0] = '\0';
     } else {
         char letter = sc_ascii[(int) scancode];
-        append(key_buffer, letter);
-        char str[2] = {letter, '\0'};
-        print_string(str);
+    //    append(key_buffer, letter);
+        term_print(&letter, 1);
     }
 }
 

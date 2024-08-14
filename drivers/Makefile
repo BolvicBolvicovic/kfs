@@ -9,7 +9,7 @@ CPU_OBJ	= cpu/idt.o cpu/irq.o cpu/isr.o
 KEY_SRC	= keyboard/keyboard.c
 KEY_OBJ	= keyboard/keyboard.o
 
-AR		= ../gcc_kfs/bin/i386-elf-ar rc
+AR		= ../gcc_kfs/bin/i386-elf-ar rcs
 CC		= ../gcc_kfs/bin/i386-elf-gcc
 FLAGS	= -ffreestanding	\
 			-nostdlib		\
@@ -18,7 +18,7 @@ FLAGS	= -ffreestanding	\
 all: $(DRIVERS)
 
 $(DRIVERS): $(VGA_OBJ) cpu_asm $(CPU_OBJ) $(KEY_OBJ)
-	$(AR) $@ $(VGA_OBJ) $(CPU_OBJ) $(KEY_OBJ)
+	$(AR) $@ $(VGA_OBJ) $(CPU_OBJ) $(KEY_OBJ) cpu/ISR.o
 	
 $(VGA_OBJ): $(VGA_SRC)
 	$(CC) $(FLAGS) -c $^ -o $@
@@ -26,7 +26,7 @@ $(VGA_OBJ): $(VGA_SRC)
 cpu_asm:
 	$(CC) $(FLAGS) -c cpu/isr.s -o cpu/ISR.o
 
-$(CPU_OBJ): $(CPU_SRC)
+cpu/%.o: cpu/%.c
 	$(CC) $(FLAGS) -c $^ -o $@
 
 $(KEY_OBJ): $(KEY_SRC)
