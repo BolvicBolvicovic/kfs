@@ -1,11 +1,16 @@
 BINARY		=	isoroot/boot/kfs.elf
 ISO			=	isoroot/boot/kfs.iso
 CC			=	./gcc_kfs/bin/i386-elf-gcc
+LIBS		=	src/string.a src/stdlib.a
 OFLAGS		= 	-ffreestanding			\
+				-O2						\
 				-std=gnu99				
 CFLAGS		=	-ffreestanding			\
 				-nostdlib				\
-				-T linker/linker.ld
+				-O2						\
+				-T linker/linker.ld		\
+				$(LIBS)
+
 
 CSRCS_NAMES	=	start kernel
 CSRCS		=	$(addprefix src/, $(addsuffix .c, $(CSRCS_NAMES)))
@@ -16,6 +21,7 @@ all			:	 $(ISO)
 
 required	:
 	@if [ ! -d obj ]; then mkdir obj; fi
+	make -C src
 
 $(ISO)		:	$(BINARY)
 	grub-mkrescue isoroot/boot -o $@
@@ -35,6 +41,7 @@ clean		:
 	rm $(OBJS)
 
 fclean		: clean
+	make -C src fclean
 	rm -d obj
 	@if [ -f $(ISO) ];then rm $(ISO); fi
 	rm $(BINARY)

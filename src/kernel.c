@@ -1,6 +1,8 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "kernel.h"
+#include "string/string.h"
+#include "stdlib/stdlib.h"
 
 #if defined(__linux__)
 	#error "This code must be compiled with a cross-compiler"
@@ -20,7 +22,7 @@ void    set_term_color(uint8_t foreground, uint8_t background) {
 }
 
 void	term_init() {
-    set_term_color(YELLOW, GREEN);
+    set_term_color(RED, GREEN);
 	for (int col = 0; col < VGA_COLS; col++) {
 		for (int row = 0; row < VGA_ROWS; row++) {
 			const size_t	index = (VGA_COLS * row) + col;
@@ -64,4 +66,8 @@ void	kernel_main() {
 
 	term_print("Hello, World!\n");
 	term_print("Welcome to the kernel.\n");
+    term_print("You're great!\n");
+    char   bath[10];
+    strcpy(bath, "bath\n\0");
+    term_print(bath);
 }
