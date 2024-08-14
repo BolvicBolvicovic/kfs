@@ -57,6 +57,37 @@ void vmm_map_page(void* phys, void* virt) {
 	pt_entry_add_attrib(page, I86_PTE_PRESENT);
 }
 
+pt_entry* vmm_find_next_free() {
+    for (size_t i = 0; i < 1024; i++) {
+        if (_current_dir[i]) {
+            pt_entry* entry = pd_entry_pfn(_current_dir[i]);
+            for (size_t j = 0; j < 1024; j++) {
+                if (!entry[j]) {
+                    return entry + j;
+                }
+            }
+        }
+    }
+    return -1;
+}
+
+pt_entry* vmm_find_next_free_s(size_t nb_blocks) {
+    if (nb_blocks == 1) return vmm_find_next_free();
+    for (size_t i = 0; i < 1024; i++) {
+        if (_current_dir[i]) {
+            pt_entry* entry = pd_entry_pfn(_current_dir[i]);
+            for (size_t j = 0; j < 1024; j++) {
+                if (!entry[j]) {
+                    return entry + j;
+                }
+            }
+        }
+    }
+}
+
+void* kmalloc(size_t size) {
+}
+
 extern uint32_t start_kernel_virt;
 extern uint32_t start_kernel;
 

@@ -42,7 +42,7 @@ void	kernel_main(uint32_t magic, uint32_t addr) {
 	"mov $1, %eax\n"
 	"int $0x80"
     );
-    pmm_init(mem_size, bitmap);
+    pmm_init(mem_size, &bitmap);
 
     for (size_t i = 0; i < 15; i++) {
         if (region[i].type > 5)           region[i].type = MULTIBOOT_MEMORY_AVAILABLE;
@@ -55,6 +55,8 @@ void	kernel_main(uint32_t magic, uint32_t addr) {
     }
     pmm_deinit_region(0x10000, &end_kernel_virt - &start_kernel_virt);
     vmm_init();
+    void* caca = pmm_alloc_block();
+    printf("new alloc: %p\n", caca);
     asm volatile("sti\n\t");
     uint32_t cr0;
     asm volatile("mov %%cr0, %0" : "=r" (cr0));

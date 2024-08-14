@@ -18,16 +18,17 @@ int mmap_test(int bit) {
 } 
 
 int mmap_find_first_free() {
-    for (size_t i = 0; i < _memory_max_blocks / 32; i++) {
+    for (size_t i = 0; i < _memory_max_blocks - _memory_used_blocks; i++) {
         if (_memory_map[i] != 0xFFFFFFFF) {
-            for (size_t j = 0; j < 32; i++) {
-                int bit = 1 << j;
+            for (size_t j = 0; j < 32; j++) {
+                uint32_t bit = 1 << j;
                 if (!(_memory_map[i] & bit)) {
                     return i * 32 + j;
                 }
             }
         }
     }
+    return (-1);
 }
 
 int mmap_find_first_free_s (size_t size) {
@@ -40,13 +41,12 @@ int mmap_find_first_free_s (size_t size) {
 
 	for (size_t i = 0; i < _memory_max_blocks - _memory_used_blocks; i++)
 		if (_memory_map[i] != 0xffffffff)
-			for (int j=0; j<32; j++) {	//! test each bit in the dword
+			for (uint32_t j=0; j<32; j++) {	//! test each bit in the dword
 
-				int bit = 1<<j;
+				uint32_t bit = 1<<j;
 				if (! (_memory_map[i] & bit) ) {
 
-					int startingBit = i*32;
-					startingBit+=bit;		//get the free bit in the dword at index i
+					uint32_t startingBit = i*32 + j;
 
 					uint32_t free=0; //loop through each bit to see if its enough space
 					for (uint32_t count=0; count<=size;count++) {
@@ -55,7 +55,7 @@ int mmap_find_first_free_s (size_t size) {
 							free++;	// this bit is clear (free frame)
 
 						if (free==size)
-							return i*4*8+j; //free count==size needed; return index
+							return startingBit; //free count==size needed; return index
 					}
 				}
 			}
@@ -98,6 +98,7 @@ void* pmm_alloc_block() {
     mmap_set(frame);
     uint32_t addr = frame * PMM_BLOCK_SIZE;
     _memory_used_blocks++;
+    printf("new pmm alloc : %p\n", (void *)addr);
     return (void*)addr;
 }
 
@@ -108,6 +109,7 @@ void* pmm_alloc_blocks(size_t nb_blocks) {
     for (size_t i = 0; i < nb_blocks; i++) mmap_set(frame + i);
     uint32_t addr = frame * PMM_BLOCK_SIZE;
     _memory_used_blocks += nb_blocks;
+    printf("new pmm alloc+: %p\n", (void *)addr);
     return (void*)addr;
 }
 
