@@ -2,12 +2,12 @@ BINARY		=	isoroot/boot/kfs.elf
 ISO			=	kfs.iso
 CC			=	./gcc_kfs/bin/i386-elf-gcc
 LD			=	./gcc_kfs/bin/i386-elf-ld
-LIBS		=	lib/libc.a drivers/drivers.a #memory/memory.a
+LIBS		=	lib/libc.a drivers/drivers.a memory/memory.a
 CFLAGS		= 	-ffreestanding			\
 				-g	\
 				-O2 \
 				-std=gnu99				
-LFLAGS		=	-T linker/linker.ld --whole-archive
+LFLAGS		=	-Map=output.map -T linker/linker.ld --whole-archive
 
 SRCS_DIR	=	kernel/
 CSRCS_NAMES	=	start kernel
@@ -21,7 +21,7 @@ required	:
 	@if [ ! -d obj ]; then mkdir obj; fi
 	make -C lib
 	make -C drivers
-#	make -C memory
+	make -C memory
 
 $(ISO)		:	$(BINARY)
 	grub-mkrescue -o $@ isoroot
