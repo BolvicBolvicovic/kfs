@@ -34,5 +34,6 @@ enum vga_color {
 void	term_clear();
 void	term_print(const char* str, size_t n);
 void    term_backspace();
+int     start_of_line(int offset);
 
 #endif

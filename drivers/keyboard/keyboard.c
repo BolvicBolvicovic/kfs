@@ -1,6 +1,7 @@
 #include "keyboard.h"
 
 #define BACKSPACE 0x0E
+#define ENTER 0x1C
 #define SC_MAX 57
 
 /*const char *sc_name[] = {"ERROR", "Esc", "1", "2", "3", "4", "5", "6",
@@ -22,8 +23,13 @@ static void keyboard_callback(registers_t* regs) {
     if (scancode > SC_MAX) return;
     if (scancode == BACKSPACE) {
         term_backspace();
+        cmd_add_char(sc_ascii[scancode]);
+    } else if (scancode == ENTER) {
+        term_print(&sc_ascii[scancode], 1);
+        exec_command();
     } else {
         term_print(&sc_ascii[scancode], 1);
+        cmd_add_char(sc_ascii[scancode]);
     }
 }
 

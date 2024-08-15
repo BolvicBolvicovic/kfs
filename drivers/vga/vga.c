@@ -70,7 +70,7 @@ static inline int	move_offset_to_newline(int offset) {
 	return get_offset(0, get_row(offset) + 1);
 }
 
-static inline int   start_of_line(int offset) {
+inline int   start_of_line(int offset) {
     if (offset % (2 * VGA_COLS) == 0) return 1;
     return 0;
 }
