@@ -33,6 +33,11 @@ static void	term_put_entry_at(unsigned char c, uint8_t color, size_t offset) {
 	vga_memory[offset + 1] = color;
 }
 
+static uint8_t term_get_entry_at(size_t offset) {
+	unsigned char* vga_memory = (unsigned char*)VGA_MEMORY;
+    return vga_memory[offset];
+}
+
 static inline int	get_offset(int col, int row) {
 	return 2 * (row * VGA_COLS + col);
 }
@@ -63,6 +68,19 @@ static inline int	get_row(int offset) {
 
 static inline int	move_offset_to_newline(int offset) {
 	return get_offset(0, get_row(offset) + 1);
+}
+
+static inline int   start_of_line(int offset) {
+    if (offset % (2 * VGA_COLS) == 0) return 1;
+    return 0;
+}
+
+void    term_backspace() {
+    int offset = get_cursor() - 2;
+    if (offset >= 0 && !start_of_line(offset + 2)) {
+        term_put_entry_at(' ', term_color, offset);
+        set_cursor(offset);
+    }
 }
 
 inline void	term_print(const char* str, size_t n) {
