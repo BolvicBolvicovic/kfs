@@ -9,6 +9,7 @@ void	kernel_main() {
 	term_clear();
 	isr_install();
 	//init_keyboard();
-	init_timer(10000);
-	asm volatile("sti");
+	init_timer(50);
+    printf("Hello Kernel!\n");
+	asm volatile("sti\n\t");
 }

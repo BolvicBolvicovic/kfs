@@ -4,7 +4,7 @@ static uint32_t tick = 0;
 
 static void timer_callback(registers_t* regs) {
 	tick++;
-	printf("tick: %d\n", tick);
+	//printf("tick: %d\n", tick);
 }
 
 void init_timer(uint32_t frequency) {

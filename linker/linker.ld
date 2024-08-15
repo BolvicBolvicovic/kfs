@@ -1,27 +1,28 @@
+OUTPUT_FORMAT(elf32-i386)
 ENTRY(_start)
-
+phys = 0x00100000;
 SECTIONS
 {
-	. = 2M;
-	.text BLOCK(128K) : ALIGN(4K)
+	.text phys : AT(phys)
 	{
+        code = .;
 		*(.multiboot)
 		*(.text)
-	}
-
-	.rodata BLOCK(128K) : ALIGN(4K)
-	{
 		*(.rodata)
+        . = ALIGN(4096);
 	}
-
-	.data BLOCK(128K) : ALIGN(4K)
+	.data : AT(phys + (data - code))
 	{
+        data = .;
 		*(.data)
+        . = ALIGN(4096);
 	}
 
-	.bss BLOCK(128K) : ALIGN(4K)
+	.bss : AT(phys + (bss - code))
 	{
-		*(COMMON)
+        bss = .;
 		*(.bss)
+        . = ALIGN(4096);
 	}
+    end = .;
 }

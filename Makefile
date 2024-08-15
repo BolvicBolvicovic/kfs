@@ -34,7 +34,8 @@ obj/%.o		: $(SRCS_DIR)%.c
 obj/%.o		: $(SRCS_DIR)%.s
 	$(CC) $(OFLAGS) -c $^ -o $@
 
-binary		:	$(BINARY)
+qemu		: $(ISO)
+	qemu-system-i386 -cdrom $^
 
 clean		:
 	rm -rf $(OBJS)

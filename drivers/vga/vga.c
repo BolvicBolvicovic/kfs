@@ -47,8 +47,8 @@ void	term_clear() {
 
 static int		term_scroll(int offset) {
 	memcpy(
-		(char*)(get_offset(0, 1) + VGA_MEMORY),
 		(char*)(get_offset(0, 0) + VGA_MEMORY),
+		(char*)(get_offset(0, 1) + VGA_MEMORY),
 		2 * VGA_COLS * (VGA_ROWS - 1)
 	);
 	for (int col = 0; col < VGA_COLS; col++) {
