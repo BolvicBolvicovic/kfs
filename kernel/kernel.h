@@ -7,5 +7,5 @@
 #include "../drivers/descriptor/descriptor.h"
 #include "../drivers/keyboard/keyboard.h"
 #include "../drivers/pit/pit.h"
-#include "../memory/paging/paging.h"
+//#include "../memory/paging/paging.h"
 #endif

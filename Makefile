@@ -2,7 +2,7 @@ BINARY		=	isoroot/boot/kfs.elf
 ISO			=	kfs.iso
 CC			=	./gcc_kfs/bin/i386-elf-gcc
 LD			=	./gcc_kfs/bin/i386-elf-ld
-LIBS		=	lib/libc.a drivers/drivers.a memory/memory.a
+LIBS		=	lib/libc.a drivers/drivers.a #memory/memory.a
 CFLAGS		= 	-ffreestanding			\
 				-g	\
 				-O2 \
@@ -21,7 +21,7 @@ required	:
 	@if [ ! -d obj ]; then mkdir obj; fi
 	make -C lib
 	make -C drivers
-	make -C memory
+	#make -C memory
 
 $(ISO)		:	$(BINARY)
 	grub-mkrescue -o $@ isoroot
