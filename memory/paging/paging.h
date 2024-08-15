@@ -10,24 +10,35 @@ uint32_t kmalloc(size_t size, int align, uint32_t* phys_addr);
 void init_kmalloc();
 
 typedef struct {
-	uint32_t present : 1;
-	uint32_t rw 	 : 1;
-	uint32_t user 	 : 1;
-	uint32_t accessed: 1;
-	uint32_t dirty 	 : 1;
-	uint32_t unused	 : 7;
-	uint32_t frame 	 : 20;
-} page_t;
+	uint8_t present : 1;
+	uint8_t rw 	    : 1;
+	uint8_t user 	: 1;
+    uint8_t pwt     : 1;
+    uint8_t pcd     : 1;
+	uint8_t accessed: 1;
+	uint8_t dirty 	: 1;
+    uint8_t pat     : 1;
+    uint8_t g       : 1;
+    uint8_t ignored2: 3;
+	uint32_t frame 	: 20;
+} __attribute__((packed)) page_t;
 
 typedef struct {
 	page_t pages[1024];
 } page_table_t;
 
 typedef struct {
-	page_table_t* 	tables[1024];
-	uint32_t 	physical_tables[1024];
-	uint32_t 	phys_addr;
-} page_directory_t;
+    uint8_t present : 1;
+    uint8_t rx      : 1;
+    uint8_t user    : 1;
+    uint8_t pwt     : 1;
+    uint8_t pcd     : 1;
+    uint8_t accessed: 1;
+    uint8_t ignored : 1;
+    uint8_t ps      : 1;
+    uint8_t ignored2: 4;
+    uint32_t p_table:20;
+} __attribute__((packed)) page_directory_t;
 
 void initialise_paging();
 void switch_page_dir(page_directory_t* new_dir);

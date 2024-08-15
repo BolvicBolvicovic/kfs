@@ -6,7 +6,7 @@
 #endif
 
 void	kernel_main() {
-	term_set_color(vga_entry_color(YELLOW, GREEN));
+	term_set_color(vga_entry_color(YELLOW, BLUE));
 	term_clear();
 	isr_install();
 	init_keyboard();

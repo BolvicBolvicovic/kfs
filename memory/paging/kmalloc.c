@@ -1,10 +1,10 @@
 #include "paging.h"
 
-extern uint8_t kheap_start;
+extern uint32_t endkernel;
 
 uint32_t placement_addr;
 
-void init_kmalloc() { placement_addr = (uint32_t)&kheap_start; }
+void init_kmalloc() { placement_addr = (uint32_t)&endkernel; }
 
 uint32_t kmalloc(size_t size, int align, uint32_t* phys_addr) {
 	if (align && (placement_addr & 0x00000FFF)) { // If addr not already page-aligned, align it

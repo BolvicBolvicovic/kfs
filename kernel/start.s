@@ -13,9 +13,6 @@
 stack_bottom:
 .skip	4096
 stack_top:
-kheap_start:
-.skip	4096
-kheap_end:
 
 .section	.text
 _start:
