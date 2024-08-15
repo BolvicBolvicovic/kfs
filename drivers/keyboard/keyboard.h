@@ -5,7 +5,6 @@
 #include "../descriptor/descriptor.h"
 
 void    init_keyboard();
-void    set_keyboard_index(size_t i);
 void    exec_command();
 void    cmd_add_char(uint8_t c);
 void    tests_string(int* total, int* success, int* failure);
@@ -18,7 +17,7 @@ typedef enum {
 typedef struct {
     char**  list;
     uint8_t current_item_index;
-    uint8_t list_vga_index;
+    size_t list_vga_index;
 } list_t;
 
 typedef union {
@@ -28,10 +27,15 @@ typedef union {
 
 typedef struct {
     screen_type_t type;
-    list_option_t lists[2];
+    list_option_t lists[3];
 } current_screen_t;
 
 
-list_option_t draw_list(char* name, char** list, uint8_t row, uint8_t col, uint8_t span);
+void            init_current_screen(enum vga_color fg, enum vga_color bg);
+list_option_t   draw_list(char* name, char** list, uint8_t list_index, uint8_t row, uint8_t col, uint8_t span);
+void            draw_line(char* line, uint8_t row, uint8_t col);
+void            draw_selector(size_t index);
+void            draw_name(char** list, size_t item_index, size_t vga_index);
+void            clear_selector(size_t index);
 
 #endif

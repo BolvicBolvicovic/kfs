@@ -22,10 +22,59 @@ const char sc_ascii[2][58] = {
 };
 
 static size_t keyboard_index = 0;
-current_screen_t current_screen = { .type = SHELL, .lists = { {.null = NULL}, {.null = NULL} } };
+static size_t settings_index = 0;
+current_screen_t current_screen = { .type = SHELL, .lists = { {.null = NULL}, {.null = NULL}, {.null = NULL} } };
 
-void    set_keyboard_index(size_t i) {
-    keyboard_index = i;
+static void handle_settings(uint8_t scancode) {
+    uint8_t list_limit = 0;
+    switch (sc_ascii[keyboard_index][scancode]) {
+        case 'Q':
+            term_set_color(vga_entry_color(current_screen.lists[1].list.current_item_index, current_screen.lists[0].list.current_item_index));
+            keyboard_index = current_screen.lists[2].list.current_item_index;
+            settings_index = 0;
+            term_clear();
+            enable_cursor();
+            current_screen.type = SHELL;
+            break;
+        case 'J' :
+            clear_selector(current_screen.lists[settings_index].list.list_vga_index);
+            if (settings_index == 0) settings_index = 2;
+            else settings_index -= 1;
+            draw_selector(current_screen.lists[settings_index].list.list_vga_index);
+            break;
+        case 'K' :
+            clear_selector(current_screen.lists[settings_index].list.list_vga_index);
+            if (settings_index == 2) settings_index = 0;
+            else settings_index += 1;
+            draw_selector(current_screen.lists[settings_index].list.list_vga_index);
+            break;
+        case 'H' :
+            if (settings_index == 2) list_limit = 1; else list_limit = 15;
+            clear_selector(current_screen.lists[settings_index].list.list_vga_index);
+            if (current_screen.lists[settings_index].list.current_item_index == 0)
+                current_screen.lists[settings_index].list.current_item_index = list_limit;
+            else current_screen.lists[settings_index].list.current_item_index -= 1;
+            draw_name(
+                current_screen.lists[settings_index].list.list,
+                current_screen.lists[settings_index].list.current_item_index,
+                current_screen.lists[settings_index].list.list_vga_index
+            );
+            draw_selector(current_screen.lists[settings_index].list.list_vga_index);
+            break;
+        case 'L' :
+            if (settings_index == 2) list_limit = 1; else list_limit = 15;
+            clear_selector(current_screen.lists[settings_index].list.list_vga_index);
+            if (current_screen.lists[settings_index].list.current_item_index == list_limit)
+                current_screen.lists[settings_index].list.current_item_index = 0;
+            else current_screen.lists[settings_index].list.current_item_index += 1;
+            draw_name(
+                current_screen.lists[settings_index].list.list,
+                current_screen.lists[settings_index].list.current_item_index,
+                current_screen.lists[settings_index].list.list_vga_index
+            );
+            draw_selector(current_screen.lists[settings_index].list.list_vga_index);
+            break;
+    }
 }
 
 static void keyboard_callback(registers_t* regs) {
@@ -44,11 +93,7 @@ static void keyboard_callback(registers_t* regs) {
             cmd_add_char(sc_ascii[keyboard_index][scancode]);
         }
     } else {
-        if (sc_ascii[keyboard_index][scancode] == 'Q') {
-            term_set_color(vga_entry_color(current_screen.lists[1].list.current_item_index, current_screen.lists[0].list.current_item_index));
-            term_clear();
-            current_screen.type = SHELL;
-        }
+        handle_settings(scancode);
     }
 }
 

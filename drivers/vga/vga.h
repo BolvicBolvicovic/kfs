@@ -33,9 +33,12 @@ enum vga_color {
 
 uint8_t vga_entry_color(enum vga_color fg, enum vga_color bg);
 void	term_set_color(uint8_t color);
+uint8_t term_get_color();
 void	term_clear();
 void	term_print(const char* str, size_t n);
 void    term_backspace();
 int     start_of_line(int offset);
+void    disable_cursor();
+void    enable_cursor();
 
 #endif

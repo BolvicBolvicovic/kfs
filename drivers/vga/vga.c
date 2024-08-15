@@ -2,8 +2,22 @@
 
 static		uint8_t		term_color	= 0x0;
 
+uint8_t     term_get_color() { return term_color; }
+
 inline uint8_t vga_entry_color(enum vga_color fg, enum vga_color bg) {
 	return fg | bg << 4;
+}
+
+void enable_cursor() {
+    port_byte_out(0x3D4, 0x0A);
+    port_byte_out(0x3D5, (port_byte_in(0x3D5) & 0xC0) | 0);
+    port_byte_out(0x3D4, 0x0B);
+    port_byte_out(0x3D5, (port_byte_in(0x3D5) & 0xE0) | 15);
+}
+
+void disable_cursor() {
+    port_byte_out(0x3D4, 0x0A);
+    port_byte_out(0x3D5, 0x20);
 }
 
 static void	set_cursor(int offset) {
