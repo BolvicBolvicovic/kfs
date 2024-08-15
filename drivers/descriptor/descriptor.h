@@ -60,12 +60,14 @@ typedef struct {
 	uint32_t	eip, cs, eflafs, useresp, ss;
 } registers_t;
 
+typedef void (*isr_t)(registers_t *);
+
 typedef struct {
-	uint16_t	low_offset;
+	uint16_t	base_low;
 	uint16_t	selector;
-	uint16_t	always0;
-	uint16_t	flags;
-	uint16_t	high_offset;
+	uint8_t	    always0;
+	uint8_t 	flags;
+	uint16_t	base_high;
 } __attribute__((packed)) idt_gate_t;
 
 typedef struct {
@@ -73,16 +75,16 @@ typedef struct {
     uint32_t    base;
 } __attribute__((packed)) idt_register_t;
 
-typedef void (*isr_t)(registers_t *);
 
 #define LOW_16(addr)	(uint16_t)((addr) & 0xFFFF)
 #define HIGH_16(addr)	(uint16_t)((addr >> 16) & 0xFFFF)
 
+void    init_idt();
+void    isr_install();
 void	set_idt_gate(int n, uint32_t handler);
 void    isr_handler(registers_t *r);
 void    irq_handler(registers_t *r);
 void    load_idt();
 void    register_interrupt_handler(uint8_t n, isr_t handler);
-void    isr_install();
 
 #endif

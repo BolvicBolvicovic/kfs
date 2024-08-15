@@ -3,8 +3,8 @@ DRIVERS	= drivers.a
 VGA_SRC	= vga/vga.c
 VGA_OBJ	= vga/vga.o
 
-CPU_SRC	= cpu/idt.c cpu/irq.c cpu/isr.c
-CPU_OBJ	= cpu/idt.o cpu/irq.o cpu/isr.o
+DES_SRC	= descriptor/idt.c descriptor/irq.c descriptor/isr.c descriptor/interrupt_handlers.s 
+DES_OBJ	= descriptor/idt.o descriptor/irq.o descriptor/isr.o descriptor/interrupt_handlers.o
 
 KEY_SRC	= keyboard/keyboard.c
 KEY_OBJ	= keyboard/keyboard.o
@@ -17,29 +17,28 @@ FLAGS	= -ffreestanding	\
 
 all: $(DRIVERS)
 
-$(DRIVERS): $(VGA_OBJ) cpu_asm $(CPU_OBJ) $(KEY_OBJ)
-	$(AR) $@ $(VGA_OBJ) $(CPU_OBJ) $(KEY_OBJ) cpu/ISR.o
+$(DRIVERS): $(VGA_OBJ) $(DES_OBJ) $(KEY_OBJ)
+	$(AR) $@ $(VGA_OBJ) $(DES_OBJ) $(KEY_OBJ)
 	
 $(VGA_OBJ): $(VGA_SRC)
 	$(CC) $(FLAGS) -c $^ -o $@
 
-cpu_asm:
-	$(CC) $(FLAGS) -c cpu/isr.s -o cpu/ISR.o
+descriptor/%.o: descriptor/%.c
+	$(CC) $(FLAGS) -c $^ -o $@
 
-cpu/%.o: cpu/%.c
+descriptor/%.o: descriptor/%.s
 	$(CC) $(FLAGS) -c $^ -o $@
 
 $(KEY_OBJ): $(KEY_SRC)
 	$(CC) $(FLAGS) -c $^ -o $@
 
 clean:
-	rm $(VGA_OBJ)
-	rm cpu/ISR.o
-	rm $(CPU_OBJ)
-	rm $(KEY_OBJ)
+	rm -rf $(VGA_OBJ)
+	rm -rf $(DES_OBJ)
+	rm -rf $(KEY_OBJ)
 
 fclean: clean
-	rm $(DRIVERS)
+	rm -rf $(DRIVERS)
 
 re: fclean all
 

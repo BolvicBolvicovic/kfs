@@ -28,3 +28,11 @@ inline void	memcpy(void* dest, const void* src, size_t n) {
 	unsigned char* s = (unsigned char*)src;
 	for (size_t i = 0; i < n; i++) d[i] = s[i];
 }
+
+inline void* memset(void* s, const int c, size_t n) {
+    uint8_t* us = (uint8_t*)s;
+    for (size_t i = 0; i < n; i++) {
+        us[i] = c;
+    }
+    return s;
+}

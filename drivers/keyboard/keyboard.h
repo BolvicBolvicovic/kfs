@@ -2,7 +2,7 @@
 #define KEYBOARD_H
 #include <stdint.h>
 #include "../vga/vga.h"
-#include "../cpu/cpu.h"
+#include "../descriptor/descriptor.h"
 
 #define IRQ1 33
 

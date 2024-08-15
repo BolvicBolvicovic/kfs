@@ -1,4 +1,4 @@
-#include "cpu.h"
+#include "descriptor.h"
 
 static isr_t interrupt_handlers[256];
 

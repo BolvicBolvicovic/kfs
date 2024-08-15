@@ -5,6 +5,7 @@ LD			=	./gcc_kfs/bin/i386-elf-ld
 LIBS		=	lib/libc.a drivers/drivers.a
 CFLAGS		= 	-ffreestanding			\
 				-O2						\
+				-g	\
 				-std=gnu99				
 LFLAGS		=	-T linker/linker.ld
 
