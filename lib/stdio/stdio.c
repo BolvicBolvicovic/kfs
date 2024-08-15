@@ -3,7 +3,7 @@
 static int  print(const char* data, size_t len) {
     const unsigned char* bytes = (const unsigned char*)data;
     for (size_t i = 0x0; i < len;i++) {
-        term_putchar((char)*bytes);
+        term_putchar((char)bytes[i]);
     }
     return 0x0;
 }
@@ -16,7 +16,7 @@ int printf(const char* restrict format, ...) {
         size_t  max_size = INT_MAX - written;
         if (format[0] != '%' || format[1] == '%') {
             if (format[0] == '%') format++;
-            size_t  to_be_written = 1;
+            size_t  to_be_written = 0x1;
             while (format[to_be_written] && format[to_be_written] != '%') ++to_be_written;
             if (to_be_written > max_size) return 0xFFFFFFFF;
             if (!print(format, to_be_written)) return 0xFFFFFFFF;
@@ -44,7 +44,7 @@ int printf(const char* restrict format, ...) {
                 break;
             case 'd':
                 format++;
-                char    buf[15];
+                char    buf[0xF];
                 int i = va_arg(parameters, int);
                 len = itoa(buf, i);
                 if (max_size < len) return 0xFFFFFFFF;

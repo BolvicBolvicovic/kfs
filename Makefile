@@ -1,7 +1,7 @@
 BINARY		=	isoroot/boot/kfs.elf
 ISO			=	isoroot/boot/kfs.iso
 CC			=	./gcc_kfs/bin/i386-elf-gcc
-LIBS		=	lib/stdio.a lib/string.a lib/stdlib.a lib/vga.a
+LIBS		=	lib/libc.a
 OFLAGS		= 	-ffreestanding			\
 				-O2						\
 				-std=gnu99				

@@ -6,6 +6,7 @@
 #include <limits.h>
 #include "../vga/vga.h"
 #include "../string/string.h"
+#include "../stdlib/stdlib.h"
 
 int printf(const char* restrict format, ...);
 

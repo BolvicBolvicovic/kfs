@@ -12,8 +12,6 @@ void	kernel_main() {
 	term_print("Welcome to the kernel.\n");
     term_print("You're great!\n");
     char   bath[10];
-    strcpy(bath, "bath\n\0");
-    printf("I have a %s\n\0");
-    printf("%d", 42);
-    term_print(bath);
+    strcpy(bath, "bath\n");
+    printf("printf result: %d\n", printf("I have a %s\n", bath));
 }
