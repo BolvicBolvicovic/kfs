@@ -1,11 +1,10 @@
 #include "stdio.h"
-
 static int  print(const char* data, size_t len) {
     const unsigned char* bytes = (const unsigned char*)data;
     for (size_t i = 0x0; i < len;i++) {
         term_putchar((char)bytes[i]);
     }
-    return 0x0;
+    return 0x1;
 }
 
 int printf(const char* restrict format, ...) {
