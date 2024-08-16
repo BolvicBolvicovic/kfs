@@ -23,7 +23,7 @@ inline  char*   strcpy(char* restrict dest, const char* restrict src) {
     return dest;
 }
 
-inline void	memcpy(void* dest, void* src, size_t n) {
+inline void	memcpy(void* dest, const void* src, size_t n) {
 	unsigned char* d = (unsigned char*)dest;
 	unsigned char* s = (unsigned char*)src;
 	for (size_t i = 0; i < n; i++) d[i] = s[i];

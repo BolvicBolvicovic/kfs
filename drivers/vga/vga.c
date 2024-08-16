@@ -30,28 +30,28 @@ void	term_set_color(uint8_t color) {
 	term_color = color;
 }
 
-void	term_clear() {
-	unsigned char* vga_memory = (unsigned char*)VGA_MEMORY;
-    term_color = vga_entry_color(RED, CYAN);
-	for (int index = 0; index < VGA_COLS * VGA_ROWS; index++) {
-		vga_memory[index] = ((uint16_t)term_color << 0x8) | ' ';
-	}
-}
-
 static void		term_put_entry_at(unsigned char c, uint8_t color, size_t offset) {
-	unsigned char* vga_memory = (unsigned char*)VGA_MEMORY;
+	uint16_t* vga_memory = (uint16_t*)VGA_MEMORY;
 	vga_memory[offset] = vga_entry(c, color);
 	vga_memory[offset + 1] = vga_entry(' ', color);
 }
 
 static inline int	get_offset(int col, int row) {
-	return 2 * row * (VGA_COLS + col);
+	return 2 * (row * VGA_COLS + col);
+}
+
+void	term_clear() {
+    term_color = vga_entry_color(RED, CYAN);
+	for (int index = 0; index < VGA_COLS * VGA_ROWS * 2; index++) {
+		term_put_entry_at(' ', term_color, index * 2);
+	}
+	set_cursor(get_offset(0, 0));
 }
 
 static int		term_scroll(int offset) {
 	memcpy(
 		(void*)(get_offset(0, 1) + VGA_MEMORY),
-		(void*)(get_offset(0, 0) + VGA_MEMORY),
+		(const void*)(get_offset(0, 0) + VGA_MEMORY),
 		2 * VGA_COLS * (VGA_ROWS - 1)
 	);
 	for (int col = 0; col < VGA_COLS; col++) {
@@ -62,13 +62,12 @@ static int		term_scroll(int offset) {
 
 
 static inline int	move_offset_to_newline(int offset) {
-	return 2 * VGA_COLS + offset;
+	return get_offset(0, offset / (2 * VGA_COLS) + 1);
 }
 
 void	term_putchar(char c) {
 	int	offset = get_cursor();
-	unsigned char	uc = c;
-	
+	unsigned char uc = (unsigned char)c;
 	if (offset >= VGA_ROWS * VGA_COLS * 2) offset = term_scroll(offset);
 	switch (uc) {
 		case '\n':

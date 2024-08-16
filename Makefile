@@ -18,8 +18,8 @@ all			:	 $(ISO)
 
 required	:
 	@if [ ! -d obj ]; then mkdir obj; fi
-	make -C drivers
 	make -C lib
+	make -C drivers
 
 $(ISO)		:	$(BINARY)
 	grub-mkrescue -o $@ isoroot

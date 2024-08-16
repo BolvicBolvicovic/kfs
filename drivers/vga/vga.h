@@ -3,7 +3,6 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "../utils.h"
-#include "../../lib/string/string.h"
 enum vga_color {
 	BLACK = 0,
 	BLUE = 1,
