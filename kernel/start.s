@@ -1,14 +1,11 @@
 .extern	kernel_main
 .global	_start
-.set	MB_MAGIC, 0x1BADB002
-.set	MB_FLAGS, (1 << 0) | (1 << 1)
-.set	MB_CHECKSUM, -(MB_MAGIC + MB_FLAGS)
 		
 .section	.multiboot
 .align	4
-.long	MB_MAGIC
-.long	MB_FLAGS
-.long	MB_CHECKSUM
+.long	0x1BADB002			# MAGIC
+.long	(1 << 0) | (1 << 1)	# FLAGS
+.long	-(0x1BADB002 + ((1 << 0) | (1 << 1))) # CHECKSUM
 
 .section	.bss
 .align		16

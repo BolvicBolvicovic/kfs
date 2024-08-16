@@ -3,5 +3,5 @@
 #include "../lib/string/string.h"
 #include "../lib/stdlib/stdlib.h"
 #include "../lib/stdio/stdio.h"
-#include "../lib/vga/vga.h"
+#include "../drivers/vga/vga.h"
 #endif

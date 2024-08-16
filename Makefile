@@ -1,18 +1,16 @@
 BINARY		=	isoroot/boot/kfs.elf
-ISO			=	isoroot/boot/kfs.iso
+ISO			=	kfs.iso
 CC			=	./gcc_kfs/bin/i386-elf-gcc
-LIBS		=	lib/libc.a
-OFLAGS		= 	-ffreestanding			\
+LD			=	./gcc_kfs/bin/i386-elf-ld
+LIBS		=	lib/libc.a drivers/drivers.a
+CFLAGS		= 	-ffreestanding			\
 				-O2						\
 				-std=gnu99				
-CFLAGS		=	-ffreestanding			\
-				-nostdlib				\
-				-O2						\
-				-T linker/linker.ld	
+LFLAGS		=	-T linker/linker.ld
 
-
+SRCS_DIR	=	kernel/
 CSRCS_NAMES	=	start kernel
-CSRCS		=	$(addprefix src/, $(addsuffix .c, $(CSRCS_NAMES)))
+CSRCS		=	$(addprefix $(SRCS_DIR), $(addsuffix .c, $(CSRCS_NAMES)))
 OBJS		=	$(addprefix obj/, $(addsuffix .o, $(CSRCS_NAMES)))
 
 
@@ -20,18 +18,19 @@ all			:	 $(ISO)
 
 required	:
 	@if [ ! -d obj ]; then mkdir obj; fi
+	make -C drivers
 	make -C lib
 
 $(ISO)		:	$(BINARY)
-	grub-mkrescue isoroot/boot -o $@
+	grub-mkrescue -o $@ isoroot
 
 $(BINARY)	:	required $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) $(LIBS) -o $@ -lgcc
+	$(LD) $(LFLAGS) $(OBJS) $(LIBS) -o $@
 
-obj/%.o			: src/%.c
-	$(CC) $(OFLAGS) -c $^ -o $@
+obj/%.o			: $(SRCS_DIR)%.c
+	$(CC) $(CFLAGS) -c $^ -o $@
 
-obj/%.o			: src/%.s
+obj/%.o			: $(SRCS_DIR)%.s
 	$(CC) $(OFLAGS) -c $^ -o $@
 
 binary		:	$(BINARY)
@@ -41,6 +40,7 @@ clean		:
 
 fclean		: clean
 	make -C lib fclean
+	make -C drivers fclean
 	rm -d obj
 	@if [ -f $(ISO) ];then rm $(ISO); fi
 	rm $(BINARY)

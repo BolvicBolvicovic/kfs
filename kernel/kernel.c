@@ -6,7 +6,7 @@
 #endif
 
 void	kernel_main() {
-	term_init();
+	term_clear();
 
 	term_print("Hello, World!\n");
 	term_print("Welcome to the kernel.\n");

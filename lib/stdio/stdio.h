@@ -4,7 +4,7 @@
 #include <stdarg.h>
 #include <stddef.h>
 #include <limits.h>
-#include "../vga/vga.h"
+#include "../../drivers/vga/vga.h"
 #include "../string/string.h"
 #include "../stdlib/stdlib.h"
 
