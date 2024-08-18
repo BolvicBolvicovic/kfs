@@ -26,11 +26,10 @@ enum vga_color {
 #define VGA_DATA_REGISTER	0x3D5
 #define VGA_OFFSET_LOW		0x0F
 #define VGA_OFFSET_HIGH		0x0E
-#define VGA_MEMORY			0xB8000
-#define VGA_COLS			0x50
-#define VGA_ROWS			0x19
+#define VGA_MEMORY		0xB8000
+#define VGA_COLS		0x50
+#define VGA_ROWS		0x19
 
 void	term_clear();
-void	term_putchar(char c);
-void	term_print(const char* str);
+void	term_print(const char* str, size_t n);
 #endif
