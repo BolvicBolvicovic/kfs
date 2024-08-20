@@ -12,6 +12,7 @@ KEY_OBJ	= keyboard/keyboard.o
 AR		= ../gcc_kfs/bin/i386-elf-ar rcs
 CC		= ../gcc_kfs/bin/i386-elf-gcc
 FLAGS	= -ffreestanding	\
+	  -g \
 			-nostdlib		\
 			-O2						
 

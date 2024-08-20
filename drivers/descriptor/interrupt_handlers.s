@@ -34,7 +34,7 @@ isr_common_stub:
 
 	# remove int_no and err_code from stack
 	add		$8, %esp
-    sti
+	sti
 	iret
 irq_common_stub:
     # 1. Save CPU state

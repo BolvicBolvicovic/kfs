@@ -54,6 +54,21 @@ extern void irq14();
 extern void irq15();
 
 typedef struct {
+	uint16_t	limit_low;
+	uint16_t	base_low;
+	uint8_t		base_middle;
+	uint8_t		access;
+	uint8_t		granularity;
+	uint8_t		base_high;
+
+} __attribute__((packed)) gdt_gate_t;
+
+typedef struct {
+	uint16_t	limit;
+	uint32_t	base;
+} __attribute__((packed)) gdt_register_t;
+
+typedef struct {
 	uint32_t	ds;
 	uint32_t	edi, esi, ebp, esp, ebx, edx, ecx, eax;
 	uint32_t	int_no, err_code;
@@ -79,6 +94,7 @@ typedef struct {
 #define LOW_16(addr)	(uint16_t)((addr) & 0xFFFF)
 #define HIGH_16(addr)	(uint16_t)((addr >> 16) & 0xFFFF)
 
+void	init_gdt();
 void    init_idt();
 void    isr_install();
 void	set_idt_gate(int n, uint32_t handler);

@@ -8,6 +8,7 @@
 void	kernel_main() {
 	term_clear();
     isr_install();
+    asm volatile("int $0x03");
     //asm volatile("sti");
     init_keyboard();
     printf("This should work: %s", "test");
