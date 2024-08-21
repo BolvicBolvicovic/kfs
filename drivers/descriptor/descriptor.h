@@ -77,7 +77,7 @@ typedef struct {
 	uint32_t	eip, cs, eflafs, useresp, ss;
 } registers_t;
 
-typedef void (*isr_t)(registers_t);
+typedef void (*isr_t)(registers_t*);
 
 typedef struct {
 	uint16_t	base_low;
@@ -117,8 +117,8 @@ void	init_gdt();
 void    init_idt();
 void    isr_install();
 void	set_idt_gate(int n, uint32_t handler);
-void    isr_handler(registers_t r);
-void    irq_handler(registers_t r);
+void    isr_handler(registers_t* r);
+void    irq_handler(registers_t* r);
 void    register_interrupt_handler(uint8_t n, isr_t handler);
 
 #endif

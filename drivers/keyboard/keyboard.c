@@ -19,7 +19,7 @@ const char sc_ascii[] = {'?', '?', '1', '2', '3', '4', '5', '6',
                          'H', 'J', 'K', 'L', ';', '\'', '`', '?', '\\', 'Z', 'X', 'C', 'V',
                          'B', 'N', 'M', ',', '.', '/', '?', '?', '?', ' '};
 
-static void keyboard_callback(registers_t regs) {
+static void keyboard_callback(registers_t* regs) {
     uint8_t scancode = port_byte_in(0x60);
     asm volatile("cli");
     if (scancode > SC_MAX) return;

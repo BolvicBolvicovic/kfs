@@ -30,10 +30,12 @@ isr_common_stub:
 	mov	%ax, %es
 	mov	%ax, %fs
 	mov	%ax, %gs
+	push %esp
 
 	call	isr_handler
 
 	# restore original segment pointers segment and registers
+	add $4, %esp
 	pop	%eax
 	mov	%ax, %ds
 	mov	%ax, %es
@@ -56,11 +58,13 @@ irq_common_stub:
     mov %ax, %es
     mov %ax, %fs
     mov %ax, %gs
+    push %esp
 
     # 2. Call C handler
     call irq_handler # Different than the ISR code
 
     # 3. Restore state
+    add $4, %esp
     pop %ebx
     mov %bx, %ds
     mov %bx, %es

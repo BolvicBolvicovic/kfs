@@ -40,8 +40,8 @@ static char*		exception_msg[] = {
     "Reserved"
 };
 
-void	isr_handler(registers_t r) {
-    printf("Number: %d | Message: %s\n", r.int_no, exception_msg[r.int_no]);
+void	isr_handler(registers_t* r) {
+    printf("Number: %d | Message: %s\n", r->int_no, exception_msg[r->int_no]);
 }
 
 void isr_install() {
