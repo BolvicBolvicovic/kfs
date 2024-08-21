@@ -4,8 +4,6 @@
 #include "../vga/vga.h"
 #include "../descriptor/descriptor.h"
 
-#define IRQ1 33
-
 void init_keyboard();
 
 #endif

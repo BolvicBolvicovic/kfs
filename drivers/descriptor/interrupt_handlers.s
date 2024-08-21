@@ -1,41 +1,51 @@
 .extern isr_handler
 .extern irq_handler
-.global idt_flush
+.global gdt_flush
 
-idt_flush:
-    mov     8(%esp), %eax
-    lidt    (%eax)
-    ret
+gdt_flush:
+	mov	4(%esp), %eax
+	lgdt	(%eax)
+
+	mov	$0x10, %ax
+	mov	%ax, %ds
+	mov	%ax, %es
+	mov	%ax, %fs
+	mov	%ax, %gs
+	mov	%ax, %ss
+	jmp	$0x08, $.flush
+.flush:
+	ret
 
 isr_common_stub:
 	# push all general purpuse registers
 	pusha
 
 	# push data segment selector
-	mov		%ds, %ax
+	mov	%ds, %ax
 	push	%eax
 
 	# use kernel data segment
-	mov		$0x10, %ax
-	mov		%ax, %ds
-	mov		%ax, %es
-	mov		%ax, %fs
-	mov		%ax, %gs
+	mov	$0x10, %ax
+	mov	%ax, %ds
+	mov	%ax, %es
+	mov	%ax, %fs
+	mov	%ax, %gs
 
 	call	isr_handler
 
 	# restore original segment pointers segment and registers
-	pop		%eax
-	mov		%ax, %ds
-	mov		%ax, %es
-	mov		%ax, %fs
-	mov		%ax, %gs
+	pop	%eax
+	mov	%ax, %ds
+	mov	%ax, %es
+	mov	%ax, %fs
+	mov	%ax, %gs
 	popa
 
 	# remove int_no and err_code from stack
-	add		$8, %esp
+	add	$0x08, %esp
 	sti
 	iret
+
 irq_common_stub:
     # 1. Save CPU state
     pusha
@@ -48,9 +58,7 @@ irq_common_stub:
     mov %ax, %gs
 
     # 2. Call C handler
-    push %esp
     call irq_handler # Different than the ISR code
-    pop %ebx  # Different than the ISR code
 
     # 3. Restore state
     pop %ebx
@@ -60,6 +68,7 @@ irq_common_stub:
     mov %bx, %gs
     popa
     add $8, %esp
+    sti
     iret
 
 .global isr0
@@ -98,16 +107,16 @@ irq_common_stub:
 # 0: Divide By Zero Exception
 isr0:
     cli
-	push	 $0
-	push	 $0
-	jmp		isr_common_stub
+    push	 $0
+    push	 $0
+    jmp		isr_common_stub
 
 # 1: Debug Exception
 isr1:
     cli
-	push	 $0
-	push	 $1
-	jmp		isr_common_stub
+    push	 $0
+    push	 $1
+    jmp		isr_common_stub
 
 # 2: Non Maskable Interrupt Exception
 isr2:
@@ -333,81 +342,97 @@ isr31:
 
 # IRQ handlers
 irq0:
+	cli
 	push  $0
 	push  $32
 	jmp irq_common_stub
 
 irq1:
+	cli
 	push  $1
 	push  $33
 	jmp irq_common_stub
 
 irq2:
+	cli
 	push  $2
 	push  $34
 	jmp irq_common_stub
 
 irq3:
+	cli
 	push  $3
 	push  $35
 	jmp irq_common_stub
 
 irq4:
+	cli
 	push  $4
 	push  $36
 	jmp irq_common_stub
 
 irq5:
+	cli
 	push  $5
 	push  $37
 	jmp irq_common_stub
 
 irq6:
+	cli
 	push  $6
 	push  $38
 	jmp irq_common_stub
 
 irq7:
+	cli
 	push  $7
 	push  $39
 	jmp irq_common_stub
 
 irq8:
+	cli
 	push  $8
 	push  $40
 	jmp irq_common_stub
 
 irq9:
+	cli
 	push  $9
 	push  $41
 	jmp irq_common_stub
 
 irq10:
+	cli
 	push  $10
 	push  $42
 	jmp irq_common_stub
 
 irq11:
+	cli
 	push  $11
 	push  $43
 	jmp irq_common_stub
 
 irq12:
+	cli
 	push  $12
 	push  $44
 	jmp irq_common_stub
 
 irq13:
+	cli
 	push  $13
 	push  $45
 	jmp irq_common_stub
 
 irq14:
+	cli
 	push  $14
 	push  $46
 	jmp irq_common_stub
 
 irq15:
+	cli
 	push  $15
 	push  $47
 	jmp irq_common_stub

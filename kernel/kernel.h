@@ -6,4 +6,5 @@
 #include "../drivers/vga/vga.h"
 #include "../drivers/descriptor/descriptor.h"
 #include "../drivers/keyboard/keyboard.h"
+#include "../drivers/pit/pit.h"
 #endif

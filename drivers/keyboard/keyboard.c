@@ -19,8 +19,9 @@ const char sc_ascii[] = {'?', '?', '1', '2', '3', '4', '5', '6',
                          'H', 'J', 'K', 'L', ';', '\'', '`', '?', '\\', 'Z', 'X', 'C', 'V',
                          'B', 'N', 'M', ',', '.', '/', '?', '?', '?', ' '};
 
-static void keyboard_callback(registers_t *regs) {
+static void keyboard_callback(registers_t regs) {
     uint8_t scancode = port_byte_in(0x60);
+    asm volatile("cli");
     if (scancode > SC_MAX) return;
     if (scancode == BACKSPACE) {
     //    if (backspace(key_buffer)) {
@@ -31,12 +32,12 @@ static void keyboard_callback(registers_t *regs) {
         //execute_command(key_buffer);
       //  key_buffer[0] = '\0';
     } else {
-        char letter = sc_ascii[(int) scancode];
+    //    char letter = sc_ascii[(int) scancode];
     //    append(key_buffer, letter);
-        term_print(&letter, 1);
+        printf("%s", sc_name[scancode]);
     }
 }
 
 void init_keyboard() {
-    register_interrupt_handler(IRQ1, keyboard_callback);
+    register_interrupt_handler(IRQ1, &keyboard_callback);
 }

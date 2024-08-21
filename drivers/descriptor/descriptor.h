@@ -2,7 +2,9 @@
 #define CPU_H
 #include <stdint.h>
 #include "../utils.h"
-#include "../vga/vga.h"
+#include "../../lib/stdlib/stdlib.h"
+#include "../../lib/stdio/stdio.h"
+#include "../../lib/string/string.h"
 
 extern void isr0();
 extern void isr1();
@@ -75,7 +77,7 @@ typedef struct {
 	uint32_t	eip, cs, eflafs, useresp, ss;
 } registers_t;
 
-typedef void (*isr_t)(registers_t *);
+typedef void (*isr_t)(registers_t);
 
 typedef struct {
 	uint16_t	base_low;
@@ -94,13 +96,29 @@ typedef struct {
 #define LOW_16(addr)	(uint16_t)((addr) & 0xFFFF)
 #define HIGH_16(addr)	(uint16_t)((addr >> 16) & 0xFFFF)
 
+#define IRQ0 32
+#define IRQ1 33
+#define IRQ2 34
+#define IRQ3 35
+#define IRQ4 36
+#define IRQ5 37
+#define IRQ6 38
+#define IRQ7 39
+#define IRQ8 40
+#define IRQ9 41
+#define IRQ10 42
+#define IRQ11 43
+#define IRQ12 44
+#define IRQ13 45
+#define IRQ14 46
+#define IRQ15 47
+
 void	init_gdt();
 void    init_idt();
 void    isr_install();
 void	set_idt_gate(int n, uint32_t handler);
-void    isr_handler(registers_t *r);
-void    irq_handler(registers_t *r);
-void    load_idt();
+void    isr_handler(registers_t r);
+void    irq_handler(registers_t r);
 void    register_interrupt_handler(uint8_t n, isr_t handler);
 
 #endif

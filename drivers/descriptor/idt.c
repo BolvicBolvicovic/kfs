@@ -2,8 +2,6 @@
 
 //INTERUPTION DESCRIPTOR TABLE
 
-extern void (idt_flush(uint32_t));
-
 static idt_gate_t	    idt[256];
 static idt_register_t   idt_reg;
 
@@ -46,7 +44,48 @@ void    init_idt() {
     set_idt_gate(30, (uint32_t) isr30);
     set_idt_gate(31, (uint32_t) isr31);
 
-    idt_flush((uint32_t)&idt_reg);
+	// PIC1 is 0x21 and PIC2 is 0xA1 (PIC = Programable Interrupt Controller)
+	// We send them Initialization Command Words (ICW)
+
+	// ICW1
+    port_byte_out(0x20, 0x11);
+    port_byte_out(0xA0, 0x11);
+
+    // ICW2
+    port_byte_out(0x21, 0x20);
+    port_byte_out(0xA1, 0x28);
+
+    // ICW3
+    port_byte_out(0x21, 0x04);
+    port_byte_out(0xA1, 0x02);
+
+    // ICW4
+    port_byte_out(0x21, 0x01);
+    port_byte_out(0xA1, 0x01);
+
+    // OCW1 (Operational Command Word) It enables all IRCs.
+    port_byte_out(0x21, 0x0);
+    port_byte_out(0xA1, 0x0);
+
+        // Install the IRQs
+    set_idt_gate(32, (uint32_t)irq0);
+    set_idt_gate(33, (uint32_t)irq1);
+    set_idt_gate(34, (uint32_t)irq2);
+    set_idt_gate(35, (uint32_t)irq3);
+    set_idt_gate(36, (uint32_t)irq4);
+    set_idt_gate(37, (uint32_t)irq5);
+    set_idt_gate(38, (uint32_t)irq6);
+    set_idt_gate(39, (uint32_t)irq7);
+    set_idt_gate(40, (uint32_t)irq8);
+    set_idt_gate(41, (uint32_t)irq9);
+    set_idt_gate(42, (uint32_t)irq10);
+    set_idt_gate(43, (uint32_t)irq11);
+    set_idt_gate(44, (uint32_t)irq12);
+    set_idt_gate(45, (uint32_t)irq13);
+    set_idt_gate(46, (uint32_t)irq14);
+    set_idt_gate(47, (uint32_t)irq15);
+
+    asm volatile("lidt (%0)" : : "r" (&idt_reg));
 }
 
 void	set_idt_gate(int n, uint32_t handler) {
@@ -58,11 +97,5 @@ void	set_idt_gate(int n, uint32_t handler) {
     //        P DPL 0 D Type
     // In user-mode, we should uncomment the OR bellow.
     // It sets interrupt gate's privilege to lvl 3.
-	idt[n].base_high = HIGH_16(handler)/* | 0x60 */;
-}
-
-void    load_idt() {
-    idt_reg.base = (uint32_t) &idt;
-    idt_reg.limit = 256 * sizeof(idt_gate_t) - 1;
-    asm volatile("lidt (%0)" : : "r" (&idt_reg)); //lidt = load interrupt descriptor table
+    idt[n].base_high = HIGH_16(handler)/* | 0x60 */;
 }

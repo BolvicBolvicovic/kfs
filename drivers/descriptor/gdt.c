@@ -1,6 +1,6 @@
 #include "descriptor.h"
 
-static gdt_register_t	gdt[5];
+static gdt_gate_t	gdt[5];
 static gdt_register_t	gdt_reg;
 
 extern void	gdt_flush(uint32_t);
@@ -16,5 +16,14 @@ static void	set_gdt_gate(int num, uint32_t base, uint32_t limit, uint8_t access,
 }
 
 void	init_gdt() {
-	//TODO
+	gdt_reg.limit	= (sizeof(gdt_gate_t) * 5) - 1;
+	gdt_reg.base	= (uint32_t)&gdt;
+
+	set_gdt_gate(0, 0, 0, 0, 0);
+	set_gdt_gate(1, 0, 0xFFFFFFFF, 0x9A, 0xCF);
+	set_gdt_gate(2, 0, 0xFFFFFFFF, 0x92, 0xCF);
+	set_gdt_gate(3, 0, 0xFFFFFFFF, 0xFA, 0xCF);
+	set_gdt_gate(4, 0, 0xFFFFFFFF, 0xF2, 0xCF);
+
+	gdt_flush((uint32_t)&gdt_reg);
 }

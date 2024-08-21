@@ -15,9 +15,7 @@ stack_top:
 
 .section	.text
 _start:
-	mov		$stack_top, %esp
-	call	kernel_main
-hang:
+	mov	$stack_top, %esp
 	cli
-	hlt
-	jmp		hang
+	call	kernel_main
+	jmp	.

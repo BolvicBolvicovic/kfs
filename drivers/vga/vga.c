@@ -66,8 +66,7 @@ static inline int	move_offset_to_newline(int offset) {
 }
 
 inline void	term_print(const char* str, size_t n) {
-   // int	offset = get_cursor();
-    static int offset = 0;
+	int	offset = get_cursor();
 	for (size_t i = 0; str[i] && i < n; i++) {
 		if (offset >= VGA_ROWS * VGA_COLS * 2) offset = term_scroll(offset);
 		switch (str[i]) {

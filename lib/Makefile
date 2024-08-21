@@ -12,8 +12,9 @@ IO_OBJ	= stdio/stdio.o
 AR		= ../gcc_kfs/bin/i386-elf-ar rcs
 CC		= ../gcc_kfs/bin/i386-elf-gcc
 FLAGS	= -ffreestanding	\
-			-nostdlib		\
-			-O2						
+	  -g \
+	  -O2 \
+	  -nostdlib		
 
 all: $(LIBC)
 
@@ -30,12 +31,12 @@ $(STR_OBJ): $(STR_SRC)
 	$(CC) $(FLAGS) -c $^ -o $@
 
 clean:
-	rm $(STR_OBJ)
-	rm $(STD_OBJ)
-	rm $(IO_OBJ)
+	rm -rf $(STR_OBJ)
+	rm -rf $(STD_OBJ)
+	rm -rf $(IO_OBJ)
 
 fclean: clean
-	rm $(LIBC)
+	rm -rf $(LIBC)
 
 re: fclean all
 

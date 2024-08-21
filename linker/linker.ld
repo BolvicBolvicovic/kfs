@@ -3,23 +3,23 @@ ENTRY(_start)
 SECTIONS
 {
 	. = 2M;
-	.text BLOCK(64K) : ALIGN(4K)
+	.text BLOCK(128K) : ALIGN(4K)
 	{
 		*(.multiboot)
 		*(.text)
 	}
 
-	.rodata BLOCK(64K) : ALIGN(4K)
+	.rodata BLOCK(128K) : ALIGN(4K)
 	{
 		*(.rodata)
 	}
 
-	.data BLOCK(64K) : ALIGN(4K)
+	.data BLOCK(128K) : ALIGN(4K)
 	{
 		*(.data)
 	}
 
-	.bss BLOCK(64K) : ALIGN(4K)
+	.bss BLOCK(128K) : ALIGN(4K)
 	{
 		*(COMMON)
 		*(.bss)
