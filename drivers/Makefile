@@ -9,8 +9,8 @@ PIT_OBJ	= pit/pit.o
 DES_SRC	= descriptor/idt.c descriptor/irq.c descriptor/isr.c descriptor/interrupt_handlers.s descriptor/gdt.c 
 DES_OBJ	= descriptor/idt.o descriptor/irq.o descriptor/isr.o descriptor/interrupt_handlers.o descriptor/gdt.o
 
-KEY_SRC	= keyboard/keyboard.c
-KEY_OBJ	= keyboard/keyboard.o
+KEY_SRC	= keyboard/keyboard.c keyboard/kshell.c 
+KEY_OBJ	= keyboard/keyboard.o keyboard/kshell.o
 
 AR		= ../gcc_kfs/bin/i386-elf-ar rcs
 CC		= ../gcc_kfs/bin/i386-elf-gcc
@@ -36,7 +36,7 @@ descriptor/%.o: descriptor/%.c
 descriptor/%.o: descriptor/%.s
 	$(CC) $(FLAGS) -c $^ -o $@
 
-$(KEY_OBJ): $(KEY_SRC)
+keyboard/%.o: keyboard/%.c
 	$(CC) $(FLAGS) -c $^ -o $@
 
 clean:

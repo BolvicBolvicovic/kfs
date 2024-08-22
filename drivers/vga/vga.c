@@ -2,7 +2,7 @@
 
 static		uint8_t		term_color	= 0x0;
 
-static inline uint8_t vga_entry_color(enum vga_color fg, enum vga_color bg) {
+inline uint8_t vga_entry_color(enum vga_color fg, enum vga_color bg) {
 	return fg | bg << 4;
 }
 

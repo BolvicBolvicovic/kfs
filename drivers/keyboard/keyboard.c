@@ -11,11 +11,28 @@
                          "LShift", "\\", "Z", "X", "C", "V", "B", "N", "M", ",", ".",
                          "/", "RShift", "Keypad *", "LAlt", "Spacebar"};
 */
-const char sc_ascii[] = {'?', '?', '1', '2', '3', '4', '5', '6',
-                         '7', '8', '9', '0', '-', '=', '?', '?', 'Q', 'W', 'E', 'R', 'T', 'Y',
-                         'U', 'I', 'O', 'P', '[', ']', '\n', '?', 'A', 'S', 'D', 'F', 'G',
-                         'H', 'J', 'K', 'L', ';', '\'', '`', '?', '\\', 'Z', 'X', 'C', 'V',
-                         'B', 'N', 'M', ',', '.', '/', '?', '?', '?', ' '};
+const char sc_ascii[2][58] = {
+        {
+            '?', '?', '1', '2', '3', '4', '5', '6',
+            '7', '8', '9', '0', '-', '=', '?', '?', 'Q', 'W', 'E', 'R', 'T', 'Y',
+            'U', 'I', 'O', 'P', '[', ']', '\n', '?', 'A', 'S', 'D', 'F', 'G',
+            'H', 'J', 'K', 'L', ';', '\'', '`', '?', '\\', 'Z', 'X', 'C', 'V',
+            'B', 'N', 'M', ',', '.', '/', '?', '?', '?', ' '
+        },
+        {
+            '?', '?', '1', '2', '3', '4', '5', '6',
+            '7', '8', '9', '0', '-', '=', '?', '?', 'A', 'Z', 'E', 'R', 'T', 'Y',
+            'U', 'I', 'O', 'P', '[', ']', '\n', '?', 'Q', 'S', 'D', 'F', 'G',
+            'H', 'J', 'K', 'L', 'M', '%', '*', '?', '\\', 'W', 'X', 'C', 'V',
+            'B', 'N', ',', ';', ':', '!', '?', '?', '?', ' '
+        }
+};
+
+static size_t keyboard_index = 0;
+
+void    set_keyboard_index(size_t i) {
+    keyboard_index = i;
+}
 
 static void keyboard_callback(registers_t* regs) {
     uint8_t scancode = port_byte_in(0x60);
@@ -23,13 +40,13 @@ static void keyboard_callback(registers_t* regs) {
     if (scancode > SC_MAX) return;
     if (scancode == BACKSPACE) {
         term_backspace();
-        cmd_add_char(sc_ascii[scancode]);
+        cmd_add_char(0x7F);
     } else if (scancode == ENTER) {
-        term_print(&sc_ascii[scancode], 1);
+        term_print(&sc_ascii[keyboard_index][scancode], 1);
         exec_command();
     } else {
-        term_print(&sc_ascii[scancode], 1);
-        cmd_add_char(sc_ascii[scancode]);
+        term_print(&sc_ascii[keyboard_index][scancode], 1);
+        cmd_add_char(sc_ascii[keyboard_index][scancode]);
     }
 }
 

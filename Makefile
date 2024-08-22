@@ -37,6 +37,9 @@ obj/%.o		: $(SRCS_DIR)%.s
 qemu		: $(ISO)
 	qemu-system-i386 -cdrom $^
 
+qemu_debug	: $(ISO)
+	qemu-system-i386 -cdrom $^ -s -S
+
 clean		:
 	rm -rf $(OBJS)
 	make -C lib clean

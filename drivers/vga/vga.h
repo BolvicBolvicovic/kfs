@@ -31,6 +31,8 @@ enum vga_color {
 #define VGA_COLS		0x50
 #define VGA_ROWS		0x19
 
+uint8_t vga_entry_color(enum vga_color fg, enum vga_color bg);
+void	term_set_color(uint8_t color);
 void	term_clear();
 void	term_print(const char* str, size_t n);
 void    term_backspace();
