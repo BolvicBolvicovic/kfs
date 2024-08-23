@@ -1,5 +1,6 @@
 .extern	kernel_main
 .global	_start
+.global kheap_start
 		
 .section	.multiboot
 .align	4
@@ -10,8 +11,11 @@
 .section	.bss
 .align		16
 stack_bottom:
-	.skip	4096
+.skip	4096
 stack_top:
+kheap_start:
+.skip	4096
+kheap_end:
 
 .section	.text
 _start:

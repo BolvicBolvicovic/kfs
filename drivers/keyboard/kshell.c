@@ -87,6 +87,7 @@ static void set_color(char* foreground, char* background) {
 inline void cmd_add_char(uint8_t c) {
     if (c == 0x7F && index - 1 >= 0) index--;
     else if (index < 256) line[index++] = c;
+    if (index >= VGA_COLS) index = 0;
 }
 
 void exec_tests() {
