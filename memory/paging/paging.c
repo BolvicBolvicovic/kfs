@@ -66,6 +66,7 @@ void free_frame(page_t* page) {
 }
 
 void initialise_paging() {
+	init_kmalloc();
 	uint32_t mem_end_page = 0x10000000;
 	nframes = mem_end_page / 0x1000;
 	memset(frames, 0, INDEX_FROM_BIT(nframes));
@@ -79,5 +80,42 @@ void initialise_paging() {
 }
 
 void switch_page_dir(page_directory_t *new_dir) {
+	current_dir = new_dir;
+	asm volatile("mov %0, %%cr3" :: "r"(&new_dir->physical_tables));
+	uint32_t cr0;
+	asm volatile("mov %%cr0, %0" : "=r"(cr0));
+	cr0 |= 0x80000000;
+	asm volatile("mov %0, %%cr0" :: "r"(cr0));
+}
 
+page_t* get_page(uint32_t addr, int make, page_directory_t* dir) {
+	addr /= 0x1000;
+	uint32_t table_idx = addr / 1024;
+	if (dir->tables[table_idx]) return &dir->tables[table_idx]->pages[addr % 1024];
+	if (make) {
+		uint32_t tmp;
+		dir->tables[table_idx] = (page_table_t*)kmalloc(sizeof(page_table_t), 1, &tmp);
+		memset(dir->tables[table_idx], 0, 0x1000);
+		dir->physical_tables[table_idx] = tmp | 7;
+		return &dir->tables[table_idx]->pages[addr % 1024];
+	}
+	return 0;
+}
+
+void page_fault(registers_t* regs) {
+	uint32_t faulting_addr;
+	asm volatile("mov %%cr2, %0" : "=r"(faulting_addr));
+	int present   = !(regs->err_code & 0x1); // Page not present
+	int rw = regs->err_code & 0x2;           // Write operation?
+   	int us = regs->err_code & 0x4;           // Processor was in user-mode?
+   	int reserved = regs->err_code & 0x8;     // Overwritten CPU-reserved bits of page entry?
+   	int id = regs->err_code & 0x10;          // Caused by an instruction fetch?
+	printf("Page fault! (\n\
+    present           : %d\n\
+    read-only         : %d\n\
+    user-mode         : %d\n\
+    reserved          : %d\n\
+    instruction fetch : %d\n\
+) => at 0x%x\n", present, rw, us, reserved, id, faulting_addr);
+	PANIC("Page fault");
 }

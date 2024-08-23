@@ -11,5 +11,6 @@ void	kernel_main() {
 	isr_install();
 	init_keyboard();
 	init_timer(50);
+//	initialise_paging();
 	asm volatile("sti\n\t");
 }

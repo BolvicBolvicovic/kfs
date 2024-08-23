@@ -4,9 +4,9 @@
 #include <stdint.h>
 #include "../../drivers/descriptor/descriptor.h"
 
-#define PANIC(x) printf("File: %s Line: %s Error: %s", __FILE__, __LINE__, x); while(1);
+#define PANIC(x) printf("PANIC(%s) at %s:%s", x, __FILE__, __LINE__); while(1);
 
-uint32_t kmalloc(size_t size, int align, size_t* phys_addr);
+uint32_t kmalloc(size_t size, int align, uint32_t* phys_addr);
 void init_kmalloc();
 
 typedef struct {

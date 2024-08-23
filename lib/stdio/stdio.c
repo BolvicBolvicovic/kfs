@@ -48,6 +48,15 @@ int printf(const char* restrict format, ...) {
                 if (!print(buf, len)) return 0xFFFFFFFF;
                 written += len;
                 break;
+            case 'x':
+                format++;
+                char    buff[0xF];
+                int j = va_arg(parameters, int);
+                len = itox(buf, j);
+                if (max_size < len) return 0xFFFFFFFF;
+                if (!print(buf, len)) return 0xFFFFFFFF;
+                written += len;
+                break;
             default:
                 format = head;
                 len = strlen(format);
