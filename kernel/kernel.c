@@ -11,6 +11,5 @@ void	kernel_main() {
 	isr_install();
 	init_keyboard();
 	init_timer(50);
-	printf("HELLO FROM THE KERNEL!\n\n");
 	asm volatile("sti\n\t");
 }

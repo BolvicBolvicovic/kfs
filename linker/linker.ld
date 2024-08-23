@@ -3,6 +3,10 @@ ENTRY(_start)
 phys = 0x00100000;
 SECTIONS
 {
+	. = 0x00000800;
+	.gdt : {
+		KEEP(*(.gdt))
+	}
 	.text phys : AT(phys)
 	{
         code = .;
