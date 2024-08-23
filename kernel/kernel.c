@@ -6,10 +6,11 @@
 #endif
 
 void	kernel_main() {
+	term_set_color(vga_entry_color(YELLOW, GREEN));
 	term_clear();
 	isr_install();
 	init_keyboard();
 	init_timer(50);
-    printf("Hello Kernel!\n");
+	printf("HELLO FROM THE KERNEL!\n\n");
 	asm volatile("sti\n\t");
 }

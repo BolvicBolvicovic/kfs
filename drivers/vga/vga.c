@@ -43,7 +43,6 @@ static inline int	get_offset(int col, int row) {
 }
 
 void	term_clear() {
-    term_color = vga_entry_color(RED, CYAN);
 	for (int index = 0; index < VGA_COLS * VGA_ROWS; index++) {
 		term_put_entry_at(' ', term_color, index * 2);
 	}
