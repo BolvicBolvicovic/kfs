@@ -4,8 +4,8 @@ KFS is a kernel for study purposes. It is the first kernel I write. Be indulgent
 
 ## Installation
 
-Once you cloned the repository, download a [cross-toolchain]() of your choice for the i386 architecture.
-I use QEMU (qemu-system-i386)as an emulator for the architecture. 
+Once you cloned the repository, download a cross-toolchain of your choice for the i386 architecture.
+I use QEMU (qemu-system-i386) as an emulator for the architecture. 
 
 ```bash
 mv <TOOLCHAIN> gcc_kfs
@@ -32,9 +32,9 @@ It will lauch qemu with the kfs.iso at the root of the repository.
 make qemu
 ```
 
-The kernel's CLI has a helper function HELP that prints the following to the screen:
+The kernel's CLI has a helper function HELP that prints all available commands:
 
-![Alt text](images/HELP.png)
+![Alt text](screenshots/HELP.png)
 
 ## Contributing
 
