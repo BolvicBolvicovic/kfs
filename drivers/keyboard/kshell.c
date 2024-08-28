@@ -2,6 +2,7 @@
 
 static char line[256];
 static size_t index = 0;
+extern current_screen_t current_screen;
 
 static inline void set_keyboard(char* layout) {
     if (!strcmp(layout, "US")) set_keyboard_index(0);
@@ -11,6 +12,35 @@ static inline void set_keyboard(char* layout) {
     }
 }
 
+static const char*  color_list[16] = {
+	"BLACK",
+	"BLUE",
+	"GREEN",
+	"CYAN",
+	"RED",
+	"MAGENTA",
+	"BROWN",
+	"WHITE",
+	"GREY",
+	"LIGHT_BLUE",
+	"LIGHT_GREEN",
+	"LIGHT_CYAN",
+	"LIGHT_RED",
+	"PINK",
+	"YELLOW",
+	"BRIGHT_WHITE"
+};
+
+static void set_color() {
+    term_clear();
+    list_option_t background = draw_list("BACKGROUND", color_list, (VGA_ROWS / 4) * 2, 10, 30);
+    list_option_t foreground = draw_list("FORGROUND", color_list, (VGA_ROWS / 4) * 6, 10, 30);
+    if (background.null == NULL || foreground.null == NULL) return;
+    current_screen.type = SETTINGS;
+    current_screen.lists[0] = background;
+    current_screen.lists[1] = foreground;
+}
+/*
 static void set_color(char* foreground, char* background) {
     enum vga_color f = -1;
     enum vga_color b = -1;
@@ -83,7 +113,7 @@ static void set_color(char* foreground, char* background) {
     term_set_color(vga_entry_color(f, b));
     term_clear();
 }
-
+*/
 inline void cmd_add_char(uint8_t c) {
     if (c == 0x7F && index - 1 >= 0) index--;
     else if (index < 256) line[index++] = c;
@@ -115,7 +145,7 @@ void    exec_command() {
     }
     if (!strcmp(words[0], "SET")) {
         if (!strcmp(words[1], "KEYBOARD")) set_keyboard(words[2]);
-        else if (!strcmp(words[1], "COLOR")) set_color(words[2], words[3]);
+        else if (!strcmp(words[1], "COLOR")) set_color();//set_color(words[2], words[3]);
     } else if (!strcmp(words[0], "CLEAR")) {
         term_clear();
     } else if (!strcmp(words[0], "TESTS")){
