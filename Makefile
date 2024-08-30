@@ -7,7 +7,7 @@ CFLAGS		= 	-ffreestanding			\
 				-g	\
 				-O2 \
 				-std=gnu99				
-LFLAGS		=	-Map=output.map -T linker/linker.ld --whole-archive
+LFLAGS		=	-T linker/linker.ld --whole-archive
 
 SRCS_DIR	=	kernel/
 CSRCS_NAMES	=	start kernel
