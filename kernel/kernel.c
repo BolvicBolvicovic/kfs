@@ -44,6 +44,9 @@ void	kernel_main(uint32_t magic, uint32_t addr) {
         if (region[i].type == 1) pmm_init_region(region[i].startLo, region[i].sizeLo);
     }
     pmm_deinit_region(0x10000, &endkernel - &code);
+    uint32_t* p = pmm_allock_block();
+    *p = 69;
+    printf("p is allocated at %x and holds value %d\n", p, *p);
 	//initialise_paging();
 	asm volatile("sti\n\t");
 }
