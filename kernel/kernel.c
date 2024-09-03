@@ -32,10 +32,10 @@ void	kernel_main(uint32_t magic, uint32_t addr) {
 //    uint32_t mem_size     = 130816;
 
     init_current_screen(YELLOW, BLUE);
-	term_clear();
-	isr_install();
-	init_keyboard();
-	init_timer(50);
+    term_clear();
+    isr_install();
+    init_keyboard();
+    init_timer(50);
     pmm_init(mem_size, kheap_start);
 
     for (size_t i = 0; i < 15; i++) {
@@ -44,9 +44,6 @@ void	kernel_main(uint32_t magic, uint32_t addr) {
         if (region[i].type == 1) pmm_init_region(region[i].startLo, region[i].sizeLo);
     }
     pmm_deinit_region(0x10000, &endkernel - &code);
-    uint32_t* p = pmm_allock_block();
-    *p = 69;
-    printf("p is allocated at %x and holds value %d\n", p, *p);
-	//initialise_paging();
-	asm volatile("sti\n\t");
+    //initialise_paging();
+    asm volatile("sti\n\t");
 }

@@ -58,7 +58,7 @@ void pmm_deinit_region(uint32_t base, size_t size) {
     }
 }
 
-void* pmm_allock_block() {
+void* pmm_alloc_block() {
     if (_memory_max_blocks - _memory_used_blocks <= 0) return NULL;
     int frame = mmap_find_first_free();
     if (frame == -1) return NULL;
