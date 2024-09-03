@@ -1,9 +1,9 @@
 #include "pmm.h"
 
-static uint32_t  _memory_size           = 0;
-static uint32_t  _memory_used_blocks    = 0;
-static uint32_t  _memory_max_blocks     = 0;
-static uint32_t* _memory_map            = NULL;
+uint32_t  _memory_size           = 0;
+uint32_t  _memory_used_blocks    = 0;
+uint32_t  _memory_max_blocks     = 0;
+uint32_t* _memory_map            = NULL;
 
 inline void mmap_set(int bit) {
     _memory_map[bit / 32] |= (1 << (bit % 32));

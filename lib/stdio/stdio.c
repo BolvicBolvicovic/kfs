@@ -51,7 +51,7 @@ int printf(const char* restrict format, ...) {
             case 'x':
                 format++;
                 char    buff[0xF];
-                int j = va_arg(parameters, int);
+                unsigned int j = va_arg(parameters, unsigned int);
                 len = itox(buf, j);
                 if (max_size < len) return 0xFFFFFFFF;
                 if (!print(buf, len)) return 0xFFFFFFFF;

@@ -53,7 +53,7 @@ void    tests_string(int* total, int* success, int* failure) {
 	*failure += 1;
 	printf("strchr : failure\n");
     }
-    char copy[7];
+    char copy[8] = {0};
     memcpy(copy, tester, 3);
     if (strcmp(copy, "TES") == 0) {
 	*success += 1;

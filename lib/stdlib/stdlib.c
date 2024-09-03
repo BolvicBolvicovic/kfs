@@ -15,7 +15,7 @@ size_t    itoa(char* dest, int nb) {
     if (nb < 0x0) { dest[j] = '-'; neg = true; nb = -nb; j++; }
     j += nb_size(nb);
     dest[j] = 0x0;
-    for (size_t i = j; i-- > 0x0;) {
+    for (int i = j; i-- > 0x0;) {
         if (!i && neg) break;
         dest[i] = nb % 0xA + 0x30;
         nb /= 0xA;
@@ -23,10 +23,11 @@ size_t    itoa(char* dest, int nb) {
     return j;
 }
 
-size_t  itox(char* dest, int nb) {
+size_t  itox(char* dest, unsigned int nb) {
     char hex[] = "0123456789ABCDEF";
-    for (size_t i = 7; i >= 0; i--) {
-        dest[i] = hex[nb % 0x10];
+    char *itr = dest + 7;
+    while (itr >= dest) {
+        *itr-- = hex[nb % 0x10];
         nb /= 0x10;
     }
     dest[8] = 0;

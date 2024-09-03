@@ -11,12 +11,16 @@
 .section	.bss
 .align		16
 stack_bottom:
-.skip	4096
+.skip       0x10000
 stack_top:
 
 .section	.text
 _start:
-	mov	$stack_top, %esp
+	mov     $stack_top, %esp
+    pushl   $0
+    popf
+    pushl   %ebx
+    pushl   %eax
 	cli
 	call	kernel_main
 	jmp	.
