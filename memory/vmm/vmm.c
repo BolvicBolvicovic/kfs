@@ -2,6 +2,9 @@
 
 p_dir*   _current_dir = NULL;
 uint32_t _cur_pdbr = 0;
+extern void enable_paging();
+extern void switch_dir(uint32_t dir);
+extern void flush_tlb_entry(uint32_t addr);
 
 int vmm_alloc_page(pt_entry* entry) {
 	void* p = pmm_alloc_block();
@@ -30,15 +33,8 @@ inline pd_entry* vmm_pdir_lookup_entry(p_dir* p, uint32_t addr) {
 inline int vmm_switch_pdir(p_dir* dir) {
 	if (!dir) return 0;
 	_current_dir = dir;
-	asm volatile("mov (%0), %%eax" : : "r" (_cur_pdbr));    // Loads _cur_pdbr
-	asm volatile("mov %eax, %cr3");			// Sets cr3 with _cur_pdbr
+	switch_dir(_cur_pdbr);
 	return 1;
-}
-
-void vmm_flush_tlb_entry(uint32_t addr) {
-	asm volatile("cli");
-	asm volatile("invlpg (%0)" :: "r" (addr)); // Invalid TLB (cache) entry. Used by supervisor only.
-	asm volatile("sti");
 }
 
 p_dir* vmm_get_dir() { return _current_dir; }
@@ -111,9 +107,5 @@ void vmm_init() {
  
 	//! switch to our page directory
 	vmm_switch_pdir(dir);
- 
-	//! enable paging
-    asm volatile("mov %cr0, %eax\n\r");
-    asm volatile("or  0x80000001, %eax\n\r");
-    asm volatile("mov %eax, %cr0\n\r");
+	enable_paging();
 }

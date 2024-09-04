@@ -30,6 +30,39 @@ int mmap_find_first_free() {
     }
 }
 
+int mmap_find_first_free_s (size_t size) {
+
+	if (size==0)
+		return -1;
+
+	if (size==1)
+		return mmap_find_first_free ();
+
+	for (size_t i = 0; i < _memory_max_blocks - _memory_used_blocks; i++)
+		if (_memory_map[i] != 0xffffffff)
+			for (int j=0; j<32; j++) {	//! test each bit in the dword
+
+				int bit = 1<<j;
+				if (! (_memory_map[i] & bit) ) {
+
+					int startingBit = i*32;
+					startingBit+=bit;		//get the free bit in the dword at index i
+
+					uint32_t free=0; //loop through each bit to see if its enough space
+					for (uint32_t count=0; count<=size;count++) {
+
+						if (! mmap_test (startingBit+count) )
+							free++;	// this bit is clear (free frame)
+
+						if (free==size)
+							return i*4*8+j; //free count==size needed; return index
+					}
+				}
+			}
+
+	return -1;
+}
+
 void pmm_init(size_t mem_size, uint32_t bitmap) {
     _memory_size = mem_size;
     _memory_map  = (uint32_t*)bitmap;
@@ -69,16 +102,13 @@ void* pmm_alloc_block() {
 }
 
 void* pmm_alloc_blocks(size_t nb_blocks) {
-    uint32_t first_addr = 0;
-    while (_memory_max_blocks - _memory_used_blocks <= 0 && nb_blocks--) {
-        int frame = mmap_find_first_free();
-        if (frame == -1) return NULL;
-        mmap_set(frame);
-        if (first_addr == 0) first_addr = frame * PMM_BLOCK_SIZE;
-        _memory_used_blocks++;
-    }
     if (_memory_max_blocks - _memory_used_blocks <= 0) return NULL;
-    return (void*)first_addr;
+    int frame = mmap_find_first_free_s(nb_blocks);
+    if (frame == -1) return 0;
+    for (size_t i = 0; i < nb_blocks; i++) mmap_set(frame + i);
+    uint32_t addr = frame * PMM_BLOCK_SIZE;
+    _memory_used_blocks += nb_blocks;
+    return (void*)addr;
 }
 
 void pmm_free_block(void* p) {
@@ -86,4 +116,14 @@ void pmm_free_block(void* p) {
     int frame = addr / PMM_BLOCK_SIZE;
     mmap_unset(frame);
     _memory_used_blocks--;
+}
+
+void	pmm_free_blocks (void* p, size_t size) {
+	uint32_t addr = (uint32_t)p;
+	int frame = addr / PMM_BLOCK_SIZE;
+
+	for (uint32_t i = 0; i < size; i++)
+		mmap_unset (frame + i);
+
+	_memory_used_blocks -= size;
 }

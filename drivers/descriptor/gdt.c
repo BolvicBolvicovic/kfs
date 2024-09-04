@@ -1,6 +1,6 @@
 #include "descriptor.h"
 
-static gdt_gate_t	gdt[5]__attribute__((section(".gdt"), aligned(8)));
+static gdt_gate_t	gdt[5];//__attribute__((section(".gdt"), aligned(8)));
 static gdt_register_t	gdt_reg;
 
 extern void	gdt_flush(uint32_t);

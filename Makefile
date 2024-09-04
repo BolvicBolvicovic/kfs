@@ -7,7 +7,7 @@ CFLAGS		= 	-ffreestanding			\
 				-g	\
 				-O2 \
 				-std=gnu99				
-LFLAGS		=	-T linker/linker.ld --whole-archive
+LFLAGS		=	-z max-page-size=0x1000 -T linker/linker.ld --whole-archive
 
 SRCS_DIR	=	kernel/
 CSRCS_NAMES	=	start kernel
