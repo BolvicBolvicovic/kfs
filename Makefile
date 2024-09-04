@@ -33,7 +33,7 @@ obj/%.o		: $(SRCS_DIR)%.c
 	$(CC) $(CFLAGS) -c $^ -o $@
 
 obj/%.o		: $(SRCS_DIR)%.s
-	$(CC) $(OFLAGS) -c $^ -o $@
+	$(CC) $(CFLAGS) -c $^ -o $@
 
 qemu		: $(ISO)
 	qemu-system-i386 -cdrom $^

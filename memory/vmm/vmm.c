@@ -31,13 +31,13 @@ inline int vmm_switch_pdir(p_dir* dir) {
 	if (!dir) return 0;
 	_current_dir = dir;
 	asm volatile("mov (%0), %%eax" : : "r" (_cur_pdbr));    // Loads _cur_pdbr
-	asm volatile("mov %%eax, %%cr3");			// Sets cr3 with _cur_pdbr
+	asm volatile("mov %eax, %cr3");			// Sets cr3 with _cur_pdbr
 	return 1;
 }
 
 void vmm_flush_tlb_entry(uint32_t addr) {
 	asm volatile("cli");
-	asm volatile("invlpg %0" :: "r" (addr)); // Invalid TLB (cache) entry. Used by supervisor only.
+	asm volatile("invlpg (%0)" :: "r" (addr)); // Invalid TLB (cache) entry. Used by supervisor only.
 	asm volatile("sti");
 }
 
@@ -66,50 +66,54 @@ void vmm_init() {
 	if (!table) return;
 	p_table* table2 = (p_table*)pmm_alloc_block();
 	if (!table2) return;
-	vmm_ptable_clear(table);
+    memset(table, 0, sizeof(p_table));
 	//! 1st 4mb are idenitity mapped
 	for (int i=0, frame=0x0, virt=0x00000000; i<1024; i++, frame+=4096, virt+=4096) {
 
  		//! create a new page
 		pt_entry page=0;
-		PT_ENTRY_ADD_ATTRIB(&page, I86_PTE_PRESENT);
- 		PT_ENTRY_SET_FRAME(&page, frame);
+        pt_entry* page_addr = &page;
+		PT_ENTRY_ADD_ATTRIB(page_addr, I86_PTE_PRESENT);
+		PT_ENTRY_SET_FRAME (page_addr, frame);
 
 		//! ...and add it to the page table
-		table2->m_entries [PAGE_TABLE_INDEX(virt) ] = page;
+		table2->m_entries [PAGE_TAB_INDEX(virt) ] = page;
 	}
 		//! map 1mb to 3gb (where we are at)
 	for (int i=0, frame=0x100000, virt=0xc0000000; i<1024; i++, frame+=4096, virt+=4096) {
 
 		//! create a new page
 		pt_entry page=0;
-		PT_ENTRY_ADD_ATTRIB(&page, I86_PTE_PRESENT);
-		PT_ENTRY_SET_FRAME (&page, frame);
+        pt_entry* page_addr = &page;
+		PT_ENTRY_ADD_ATTRIB(page_addr, I86_PTE_PRESENT);
+		PT_ENTRY_SET_FRAME (page_addr, frame);
 
 		//! ...and add it to the page table
-		table->m_entries [PAGE_TABLE_INDEX (virt) ] = page;
+		table->m_entries [PAGE_TAB_INDEX (virt) ] = page;
 	}
 		//! create default directory table
-	pdirectory*	dir = (pdirectory*) pmmngr_alloc_blocks (3);
+	p_dir*	dir = (p_dir*) pmm_alloc_blocks (3);
 	if (!dir) return;
  
 	//! clear directory table and set it as current
-	memset (dir, 0, sizeof (pdirectory));
-		pd_entry* entry = &dir->m_entries [PAGE_DIRECTORY_INDEX (0xc0000000) ];
+	memset (dir, 0, sizeof (p_dir));
+	pd_entry* entry = &dir->m_entries [PAGE_DIR_INDEX (0xc0000000) ];
 	PD_ENTRY_ADD_ATTRIB (entry, I86_PDE_PRESENT);
 	PD_ENTRY_ADD_ATTRIB (entry, I86_PDE_WRITABLE);
-	PD_ENTRY_SET_FRAME (entry, (physical_addr)table);
+	PD_ENTRY_SET_FRAME (entry, table);
 
-	pd_entry* entry2 = &dir->m_entries [PAGE_DIRECTORY_INDEX (0x00000000) ];
+	pd_entry* entry2 = &dir->m_entries [PAGE_DIR_INDEX (0x00000000) ];
 	PD_ENTRY_ADD_ATTRIB (entry2, I86_PDE_PRESENT);
 	PD_ENTRY_ADD_ATTRIB (entry2, I86_PDE_WRITABLE);
-	PD_ENTRY_SET_FRAME (entry2, (physical_addr)table2);
+	PD_ENTRY_SET_FRAME (entry2, table2);
 		//! store current PDBR
-	_cur_pdbr = (physical_addr) &dir->m_entries;
+	_cur_pdbr = (uint32_t) &dir->m_entries;
  
 	//! switch to our page directory
-	vmmngr_switch_pdirectory (dir);
+	vmm_switch_pdir(dir);
  
 	//! enable paging
-	pmmngr_paging_enable (true)
+    asm volatile("mov %cr0, %eax\n\r");
+    asm volatile("or  0x80000001, %eax\n\r");
+    asm volatile("mov %eax, %cr0\n\r");
 }

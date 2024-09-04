@@ -1,10 +1,10 @@
 MEM	= memory.a
 
-PAG_SRC	= paging/paging.c paging/kmalloc.c paging/enable_paging.s 
-PAG_OBJ	= paging/paging.o paging/kmalloc.o paging/enable_paging.o
-
 PMM_SRC = pmm/pmm.c 
 PMM_OBJ = pmm/pmm.o
+
+VMM_SRC = vmm/vmm.c 
+VMM_OBJ = vmm/vmm.o
 
 AR		= ../gcc_kfs/bin/i386-elf-ar rcs
 CC		= ../gcc_kfs/bin/i386-elf-gcc
@@ -15,21 +15,18 @@ FLAGS	= -ffreestanding	\
 
 all: $(MEM)
 
-$(MEM): $(PMM_OBJ) #$(PAG_OBJ)
+$(MEM): $(PMM_OBJ) $(VMM_OBJ)
 	$(AR) $@ $^
 
 pmm/%.o: pmm/%.c
 	$(CC) $(FLAGS) -c $^ -o $@
-	
-paging/%.o: paging/%.c
-	$(CC) $(FLAGS) -c $^ -o $@
 
-paging/%.o: paging/%.s
+vmm/%.o: vmm/%.c
 	$(CC) $(FLAGS) -c $^ -o $@
 
 clean:
-	rm -rf $(PAG_OBJ)
 	rm -rf $(PMM_OBJ)
+	rm -rf $(VMM_OBJ)
 
 fclean: clean
 	rm -rf $(MEM)

@@ -68,6 +68,19 @@ void* pmm_alloc_block() {
     return (void*)addr;
 }
 
+void* pmm_alloc_blocks(size_t nb_blocks) {
+    uint32_t first_addr = 0;
+    while (_memory_max_blocks - _memory_used_blocks <= 0 && nb_blocks--) {
+        int frame = mmap_find_first_free();
+        if (frame == -1) return NULL;
+        mmap_set(frame);
+        if (first_addr == 0) first_addr = frame * PMM_BLOCK_SIZE;
+        _memory_used_blocks++;
+    }
+    if (_memory_max_blocks - _memory_used_blocks <= 0) return NULL;
+    return (void*)first_addr;
+}
+
 void pmm_free_block(void* p) {
     uint32_t addr = (uint32_t)p;
     int frame = addr / PMM_BLOCK_SIZE;

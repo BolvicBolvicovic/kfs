@@ -48,14 +48,31 @@ int printf(const char* restrict format, ...) {
                 if (!print(buf, len)) return 0xFFFFFFFF;
                 written += len;
                 break;
+            case 'u':
+                format++;
+                char bufff[0xf];
+                unsigned int k = va_arg(parameters, unsigned int);
+                len = utoa(bufff, i);
+                if (max_size < len) return 0xFFFFFFFF;
+                if (!print(bufff, len)) return 0xFFFFFFFF;
+                written += len;
             case 'x':
                 format++;
                 char    buff[0xF];
                 unsigned int j = va_arg(parameters, unsigned int);
-                len = itox(buf, j);
+                len = itoxx(buf, j);
                 if (max_size < len) return 0xFFFFFFFF;
                 if (!print(buf, len)) return 0xFFFFFFFF;
                 written += len;
+                break;
+            case 'p':
+                format++;
+                char aled[2 + 8 + 1] = "0x00000000";
+                uint32_t ptr = va_arg(parameters, uint32_t);
+                len = itox(aled + 2, ptr);
+                if (max_size < len) return 0xFFFFFFFF;
+                if (!print(aled, len + 2)) return 0xFFFFFFFF;
+                written += len + 2;
                 break;
             default:
                 format = head;

@@ -14,6 +14,7 @@ void pmm_init(size_t mem_size, uint32_t bitmap);
 void pmm_init_region(uint32_t base, size_t size);
 void pmm_deinit_region(uint32_t base, size_t size);
 void* pmm_alloc_block();
+void* pmm_alloc_blocks(size_t nb_blocks);
 void pmm_free_block(void* p);
 
 #endif
