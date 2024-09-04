@@ -1,34 +1,30 @@
 OUTPUT_FORMAT(elf32-i386)
 ENTRY(_start)
-phys = 0x00100000;
 SECTIONS
 {
-	. = 0x00000800;
-	.gdt : {
-		KEEP(*(.gdt))
-		. = ALIGN(0x1000);
-		page_start = .;
-	}
-	.text phys : AT(phys)
-	{
-        code = .;
+	. = 0x00100000;
+	start_kernel = .;
+	.multiboot :{
 		*(.multiboot)
+		*(.boot.text)
+	}
+	. += 0xC0000000;
+	start_kernel_virt = .;
+	.text BLOCK(4K) : AT(ADDR(.text) - 0xC0000000) ALIGN(4K) 
+	{
+		code = .;
 		*(.text)
 		*(.rodata)
-        . = ALIGN(0x1000);
 	}
-	.data : AT(phys + (data - code))
+	.data BLOCK(4K) : AT(ADDR(.data) - 0xC0000000) ALIGN(4K) 
 	{
-        data = .;
 		*(.data)
-        . = ALIGN(0x1000);
 	}
-	.bss : AT(phys + (bss - code))
+	.bss BLOCK(4K) : AT(ADDR(.bss) - 0xC0000000) ALIGN(4K) 
 	{
-        bss = .;
+		*(COMMON)
 		*(.bss)
-        . = ALIGN(0x1000);
-        ebss = .;
-        endkernel = .;
 	}
+	end_kernel_virt = .;
+        endkernel = . - 0xC0000000;
 }

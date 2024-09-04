@@ -3,8 +3,8 @@ MEM	= memory.a
 PMM_SRC = pmm/pmm.c 
 PMM_OBJ = pmm/pmm.o
 
-VMM_SRC = vmm/vmm.c 
-VMM_OBJ = vmm/vmm.o
+VMM_SRC = vmm/vmm.c vmm/paging.s 
+VMM_OBJ = vmm/vmm.o vmm/paging.o
 
 AR		= ../gcc_kfs/bin/i386-elf-ar rcs
 CC		= ../gcc_kfs/bin/i386-elf-gcc
@@ -22,6 +22,9 @@ pmm/%.o: pmm/%.c
 	$(CC) $(FLAGS) -c $^ -o $@
 
 vmm/%.o: vmm/%.c
+	$(CC) $(FLAGS) -c $^ -o $@
+
+vmm/%.o: vmm/%.s
 	$(CC) $(FLAGS) -c $^ -o $@
 
 clean:

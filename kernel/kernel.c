@@ -23,13 +23,15 @@ char* strMemoryTypes[] = {
 };
 extern uint32_t endkernel;
 extern uint32_t code;
+#define MAX_MEMORY_SIZE 0xFFFFFFFF
+
+
 void	kernel_main(uint32_t magic, uint32_t addr) {
     
     multiboot_info_t* mbi = (multiboot_info_t*)addr;
     uint32_t kheap_start  = (uint32_t)&endkernel + 0x1000;
-    uint32_t kheap_end    = kheap_start + 0x100000;
     struct multiboot_mmap_entry* region = (struct multiboot_mmap_entry*) mbi->mmap_addr;
-    uint32_t mem_size = 1024 + mbi->mem_lower + mbi->mem_upper * 64;
+    uint32_t mem_size = MAX_MEMORY_SIZE;
 
     init_current_screen(BLUE, WHITE);
     term_clear();
