@@ -15,7 +15,7 @@
 .set PAGE_TABLE_ENTRIES, 1024
 .set PRIV,               3 # Page present and writable 0b11
 .set PAGE_SIZE,          0x1000
-.set KERNEL_VIRT_ADDR, 0xC0000000
+.set KERNEL_VIRT_BASE, 0xC0000000
 
 .section .multiboot, "aw", @progbits
 .align	4
@@ -41,7 +41,7 @@ boot_page_table0:
 .global	_start
 #.type _start, @function
 _start:
-    movl $(boot_page_table0 - KERNEL_VIRT_ADDR), %edi
+    movl $(boot_page_table0 - KERNEL_VIRT_BASE), %edi
     movl $0, %esi
     movl $1024, %ecx
 1:
@@ -60,30 +60,30 @@ _start:
     loop 1b
 3:
     # Map the page table to both address 0x00000000 and 0xC0000000 because enabling paging does not change the next instruction that continues to be physical
-    movl $(boot_page_table0 - KERNEL_VIRT_ADDR + PRIV), boot_page_dir - KERNEL_VIRT_ADDR
-    movl $(boot_page_table0 - KERNEL_VIRT_ADDR + PRIV), boot_page_dir - KERNEL_VIRT_ADDR + 768 * 4
+    movl $(boot_page_table0 - KERNEL_VIRT_BASE + PRIV), boot_page_dir - KERNEL_VIRT_BASE
+    movl $(boot_page_table0 - KERNEL_VIRT_BASE + PRIV), boot_page_dir - KERNEL_VIRT_BASE + 768 * 4
 
     # Set page dir to cr3
-    movl $boot_page_dir - KERNEL_VIRT_ADDR, %ecx
+    movl $(boot_page_dir - KERNEL_VIRT_BASE), %ecx
+    movl %ecx, %cr3
     # Enable Paging and write-protect bit (supervisor cannot write on read-only pages)
     movl %cr0, %ecx
-    or   $0x80010000, %ecx
+    or   $0x80000000, %ecx
     movl %ecx, %cr0
 
-    lea 4f, %ecx
+    lea higher_half, %ecx
     jmp *%ecx
 
 .section .text
 .align 4
 # Higher Half Kernel
-4:
+higher_half:
     # Reload cr3 forces a TLB flush and changes take effect
     movl %cr3, %ecx
     movl %ecx, %cr3
 
     mov  $stack_top, %esp
 
-    pushl   %esp
     pushl   %ebx
     pushl   %eax
     .extern    kernel_main

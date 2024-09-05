@@ -28,5 +28,5 @@ SECTIONS
 		*(.boot.stack)
 	}
 	end_kernel_virt = .;
-        endkernel = . - virt;
+    endkernel = . - virt;
 }
