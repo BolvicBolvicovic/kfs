@@ -34,7 +34,7 @@ make qemu
 
 The kernel's CLI has a helper function HELP that prints all available commands:
 
-![Alt text](screenshots/HELP.png)
+![Alt text](screenshots/HELPER.png)
 
 ## Contributing
 

@@ -1,7 +1,8 @@
 .extern	kernel_main
 .global	_start
-.global kheap_start
-		
+.global stack_bottom
+.global stack_top
+
 .section	.multiboot
 .align	4
 .long	0x1BADB002			# MAGIC

@@ -67,6 +67,36 @@ void exec_tests() {
     printf("\nTEST SUITE DONE:\n  TOTAL   : %d\n  SUCCESS : %d\n  FAILURE : %d\n", total, success, failure);
 }
 
+void    reboot() {
+    asm volatile(
+        "cli\n\t"
+        "mov $0xFE, %al\n\t"
+        "outb %al, $0x64\n\t"
+        "hlt"
+    );
+}
+
+extern uint32_t stack_bottom;
+extern uint32_t stack_top;
+
+void print_stack() {
+    uint32_t count = 0;
+    uint32_t repeat = 0xFFFFFFFF;
+    printf(
+        "STACK TOP: %p\n"
+        "STACK BOT: %p\n",
+        &stack_top, &stack_bottom
+    );
+    for (uint32_t* i = &stack_top; i > &stack_bottom; i--) {
+        if (repeat != *i) {
+            if (!count) printf("0x%x | ", *i);
+            else { printf("0x%x times %d | ", *i, count + 1); count = 0; }
+        } else count++;
+        repeat = *i;
+    }
+    printf("\n");
+}
+
 void    exec_command() {
     char words[4][256];
     size_t i = 0;
@@ -84,18 +114,27 @@ void    exec_command() {
         set();
     } else if (!strcmp(words[0], "CLEAR")) {
         term_clear();
-    } else if (!strcmp(words[0], "TESTS")){
+    } else if (!strcmp(words[0], "TEST")){
         exec_tests();
+    } else if (!strcmp(words[0], "REBOOT")){
+        reboot();
+    } else if (!strcmp(words[0], "HALT")){
+        asm volatile("hlt\n\t");
+    } else if (!strcmp(words[0], "STACK")){
+        print_stack();
     } else if (!strcmp(words[0], "HELP")) {
         printf("WELCOME TO THE KERNEL\n\
 THE CLI IS STILL UNDER DEVELOPMENT.\n\
 \n\
 COMMANDS AVAILABLE:\n\
-  SET          : IT OPENS THE SETTINGS PAGE\n\
+  SET          : OPENS THE SETTINGS PAGE\n\
     - COLOR    = 16 COLORS AVAILABLE, 4 BITS VGA PALLET\n\
     - KEYBOARD = TWO LAYOUT ARE AVAILABLE, FR AND US\n\
-  CLEAR        : IT CLEARS THE CLI\n\
-  TESTS        : EXECUTE A TEST SUITE FOR THE KERNEL\n\
+  CLEAR        : CLEARS THE CLI\n\
+  REBOOT       : REBOOTS THE KERNEL\n\
+  HALT         : HALTS THE KERNEL\n\
+  STACK        : PRINTS STACK\n\
+  TEST         : EXECUTES A TEST SUITE FOR THE KERNEL\n\
   HELP         : PRINTS THIS MESSAGE\n");
     }
 }
