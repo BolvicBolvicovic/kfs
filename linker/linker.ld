@@ -1,5 +1,6 @@
 OUTPUT_FORMAT(elf32-i386)
 ENTRY(_start)
+virt = 0xC0000000;
 SECTIONS
 {
 	. = 0x00100000;
@@ -8,23 +9,24 @@ SECTIONS
 		*(.multiboot)
 		*(.boot.text)
 	}
-	. += 0xC0000000;
+	. += virt;
 	start_kernel_virt = .;
-	.text BLOCK(4K) : AT(ADDR(.text) - 0xC0000000) ALIGN(4K) 
+	.text ALIGN(4K) : AT(ADDR(.text) - virt)
 	{
 		code = .;
 		*(.text)
 		*(.rodata)
 	}
-	.data BLOCK(4K) : AT(ADDR(.data) - 0xC0000000) ALIGN(4K) 
+	.data ALIGN(4K) : AT(ADDR(.data) - virt)
 	{
 		*(.data)
 	}
-	.bss BLOCK(4K) : AT(ADDR(.bss) - 0xC0000000) ALIGN(4K) 
+	.bss ALIGN(4K) : AT(ADDR(.bss) - virt) 
 	{
 		*(COMMON)
 		*(.bss)
+		*(.boot.stack)
 	}
 	end_kernel_virt = .;
-        endkernel = . - 0xC0000000;
+        endkernel = . - virt;
 }
