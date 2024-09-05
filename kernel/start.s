@@ -10,14 +10,14 @@
 .set KERNEL_PHYS_ADDR,  0x00100000
 .set KERNEL_PAGE_NUMBER, (KERNEL_VIRT_ADDR >> 22)
 
-.section .multiboot
+.section .multiboot, "ax", @progbits
 .align	4
 .long	MB_MAGIC
 .long	MB_FLAGS
 .long	MB_CHECKSUM
 
 
-.section .boot.text
+.section .boot.text, "ax", @progbits
 _start:
     mov $(boot_page_table1 - KERNEL_VIRT_ADDR), %edi
     xor %esi, %esi
@@ -43,7 +43,7 @@ _start:
     mov  %ecx, %cr3
 
     mov %cr0, %ecx
-    orl $0x80010000, %ecx
+    or $0x80010000, %ecx
     mov %ecx, %cr0
 
     lea (high_half), %ecx
