@@ -6,9 +6,17 @@
 .set MB_MAGIC,	  	0x1BADB002
 .set MB_FLAGS,	  	(ALIGN | MEMINFO)
 .set MB_CHECKSUM, 	-(MB_MAGIC + MB_FLAGS)
+
 .set KERNEL_VIRT_ADDR,  0xC0000000
 .set KERNEL_PHYS_ADDR,  0x00100000
 .set KERNEL_PAGE_NUMBER, (KERNEL_VIRT_ADDR >> 22)
+
+# 4KB align
+.set PAGE_DIR,           0x9C000
+.set PAGE_TABLE_0,       0x9D000
+.set PAGE_TABLE_768,     0x9E000
+.set PAGE_TABLE_ENTRIES, 1024
+.set PRIV,               3 # Page present and writable 0b11
 
 .section .multiboot, "ax", @progbits
 .align	4
@@ -19,32 +27,45 @@
 
 .section .boot.text, "ax", @progbits
 _start:
-    mov $(boot_page_table1 - KERNEL_VIRT_ADDR), %edi
-    xor %esi, %esi
-    mov $1023, %ecx
-1:
-    cmp $0, %esi
-    jl  2f
-    cmp $(endkernel - KERNEL_VIRT_ADDR), %esi
-    jge 3f
+    mov $0x10, %ax # Set data segment to data selector
+    mov %ax, %ds    
+    mov %ax, %ss
+    mov %ax, %es
+    mov stack_top, %esp
+    pusha
+    
+    mov $PAGE_TABLE_0, %eax
+    mov $(0x0 | PRIV), %ebx
+    mov $PAGE_TABLE_ENTRIES, %ecx
+.loop:
+    movl %ebx, (%eax)
+    add  $4, %eax
+    add  $0x1000, %ebx
+    loop .loop
 
-    mov %esi, %edx
-    or  0x003, %edx
-    mov %edx, (%edi)
-2:
-    add $0x1000, %esi
-    add $4, %edi
-    loop 1b
-3:
-    movl $(boot_page_table1 - KERNEL_VIRT_ADDR + 0x003), (boot_page_dir - KERNEL_VIRT_ADDR)
-    movl $(boot_page_table1 - KERNEL_VIRT_ADDR + 0x003), (boot_page_dir - KERNEL_VIRT_ADDR + 768 * 4)
+    mov $(PAGE_TABLE_0 | PRIV), %eax
+    movl %eax, (PAGE_DIR)
 
-    movl (boot_page_dir - KERNEL_VIRT_ADDR), %ecx
-    mov  %ecx, %cr3
+    mov $(PAGE_TABLE_768 | PRIV), %eax
+    movl %eax, PAGE_DIR + (768 * 4)
 
-    mov %cr0, %ecx
-    or $0x80010000, %ecx
-    mov %ecx, %cr0
+    mov $PAGE_DIR, %eax
+    mov %eax, %cr3
+
+    mov %cr0, %eax
+    or  $0x80000000, %eax
+    mov %eax, %cr0
+
+    mov $PAGE_TABLE_768, %eax
+    mov $(0x100000 | PRIV), %ebx
+    mov $PAGE_TABLE_ENTRIES, %ecx
+.loop2:
+    movl %ebx, (%eax)
+    add  4, %eax
+    add  0x1000, %ebx
+    loop .loop2
+
+    popa
 
     lea (high_half), %ecx
     jmp %ecx
@@ -66,13 +87,6 @@ halt:
     hlt
     jmp halt
     
-.section	.data
-.align		0x1000
-boot_page_dir:
-.skip 0x1000
-boot_page_table1:
-.skip 0x1000
-
 .section	.bss
 .align		32
 stack_bottom:
