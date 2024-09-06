@@ -4,17 +4,17 @@ KFS is a kernel for study purposes. It is the first kernel I write. Be indulgent
 
 ## Installation
 
-Once you cloned the repository, download a cross-toolchain of your choice for the i386 architecture.
+Once you cloned the repository, you can download a cross-toolchain of your choice for the i386 architecture but I wrote a short script that will do everything for you.
 I use QEMU (qemu-system-i386) as an emulator for the architecture. 
 
 ```bash
-mv <TOOLCHAIN> gcc_kfs
-make
+./build.sh
 ```
 
 ## Features
 
 Current features available:
+- Higher-Half Kernel
 - Global Descriptor Table
 - Interrupt Descriptor Table
 - PIC driver
@@ -22,6 +22,9 @@ Current features available:
 - VGA driver (supports 16 colors)
 - Basic libc
 - CLI
+- Boot Paging enabled
+- Physical Memory Manager
+- (Virtual Memory Manager under development)
 
 ## Usage
 
