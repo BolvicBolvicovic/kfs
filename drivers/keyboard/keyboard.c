@@ -79,7 +79,6 @@ static void handle_settings(uint8_t scancode) {
 
 static void keyboard_callback(registers_t* regs) {
     uint8_t scancode = port_byte_in(0x60);
-    printf("scancode: %x\n", scancode);
     asm volatile("cli");
     if (scancode > SC_MAX) return;
     if (current_screen.type == SHELL) {

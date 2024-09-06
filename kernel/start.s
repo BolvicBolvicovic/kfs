@@ -89,9 +89,9 @@ higher_half:
 
     pushl   %ebx
     pushl   %eax
+    cli
     .extern    kernel_main
     call       kernel_main
-    cli
 1:
     hlt
     jmp 1b
