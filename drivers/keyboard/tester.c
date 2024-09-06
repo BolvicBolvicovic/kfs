@@ -79,3 +79,15 @@ void    tests_string(int* total, int* success, int* failure) {
 	printf("memset : failure\n");
     }
 }
+
+void tests_stdlib(int* total, int* success, int* failure) {
+    printf("\ntests for stdlib.h\n");
+    *total += 1;
+    if (atoi("5") == 5 && atoi("-5") == -5 && atoi("zda") == 0) {
+	*success += 1;
+	printf("atoi   : success\n");
+    } else {
+	*failure += 1;
+	printf("atoi   : failure atoi(5) == %d | atoi(-5) == %d | atoi('zda') == %d\n", atoi("5"), atoi("-5"), atoi("zda"));
+    }
+}

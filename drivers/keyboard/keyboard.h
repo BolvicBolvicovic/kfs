@@ -8,6 +8,7 @@ void    init_keyboard();
 void    exec_command();
 void    cmd_add_char(uint8_t c);
 void    tests_string(int* total, int* success, int* failure);
+void    tests_stdlib(int* total, int* success, int* failure);
 
 typedef enum {
     SHELL,
