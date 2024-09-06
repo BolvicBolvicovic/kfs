@@ -27,6 +27,7 @@ SECTIONS
 		*(.bss)
 		*(.boot.stack)
 	}
+	. += 0x2000;
 	end_kernel_virt = .;
-    endkernel = . - virt;
+	endkernel = . - virt;
 }

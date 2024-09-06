@@ -21,15 +21,14 @@ char* strMemoryTypes[] = {
 	"ACPI NVS Memory"	//memory_region.type==4
 	"Bad RAM"       	//memory_region.type==5
 };
-extern uint32_t endkernel;
-extern uint32_t code;
-#define MAX_MEMORY_SIZE 0xFFFFFFFF
+extern uint32_t end_kernel_virt;
+extern uint32_t start_kernel_virt;
+extern uint32_t bitmap;
+#define MAX_MEMORY_SIZE 0xFFFFF
 
 
 void	kernel_main(uint32_t magic, uint32_t addr) {
-    
     multiboot_info_t* mbi = (multiboot_info_t*)addr;
-    uint32_t kheap_start  = (uint32_t)&endkernel + 0x1000;
     struct multiboot_mmap_entry* region = (struct multiboot_mmap_entry*) mbi->mmap_addr;
     uint32_t mem_size = MAX_MEMORY_SIZE;
 
@@ -38,7 +37,7 @@ void	kernel_main(uint32_t magic, uint32_t addr) {
     isr_install();
     init_keyboard();
     init_timer(50);
-    pmm_init(mem_size, kheap_start);
+    pmm_init(mem_size, bitmap);
 
     for (size_t i = 0; i < 15; i++) {
         if (region[i].type > 5)           region[i].type = MULTIBOOT_MEMORY_AVAILABLE;
@@ -49,8 +48,8 @@ void	kernel_main(uint32_t magic, uint32_t addr) {
 			region[i].type, strMemoryTypes[region[i].type-1]);
         if (region[i].type == MULTIBOOT_MEMORY_AVAILABLE) pmm_init_region(region[i].addr_low, region[i].len_low);
     }
-    pmm_deinit_region(0x10000, &endkernel - &code);
-    vmm_init();
+    pmm_deinit_region(0x10000, &end_kernel_virt - &start_kernel_virt);
+    //vmm_init();
     asm volatile("sti\n\t");
     uint32_t cr0;
     asm volatile("mov %%cr0, %0" : "=r" (cr0));

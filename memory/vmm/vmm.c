@@ -33,7 +33,13 @@ inline pd_entry* vmm_pdir_lookup_entry(p_dir* p, uint32_t addr) {
 inline int vmm_switch_pdir(p_dir* dir) {
 	if (!dir) return 0;
 	_current_dir = dir;
-	switch_dir(_cur_pdbr);
+	asm volatile (
+		"mov %0, %%cr3\n"
+		:
+		: "r" (_cur_pdbr)
+		: "memory"
+	);
+	//switch_dir(_cur_pdbr);
 	return 1;
 }
 

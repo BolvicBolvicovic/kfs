@@ -13,9 +13,9 @@
 .extern end_kernel_virt 
 
 .set PAGE_TABLE_ENTRIES, 1024
-.set PRIV,               3 # Page present and writable 0b11
+.set PRIV,               0x003 # Page present and writable 0b11
 .set PAGE_SIZE,          0x1000
-.set KERNEL_VIRT_BASE, 0xC0000000
+.set KERNEL_VIRT_BASE,   0xC0000000 
 
 .section .multiboot, "aw", @progbits
 .align	4
@@ -30,12 +30,15 @@ stack_bottom:
 stack_top:
 
 .section .bss, "aw", @nobits
+.global bitmap
 .align 0x1000
 boot_page_dir:
 .skip 0x1000
 # If Kernel grows over 3MB, further page table will be needed
 boot_page_table0:
 .skip 0x1000
+bitmap:
+.skip 0x30000
 
 .section .boot.text, "ax", @progbits
 .global	_start
@@ -46,8 +49,8 @@ _start:
     movl $1024, %ecx
 1:
     # Select Kernel
-    cmpl $start_kernel, %esi
-    jl   2f
+   # cmpl $start_kernel, %esi
+   # jl   2f
     cmpl $endkernel, %esi
     jge  3f
     # Map addr as present and writable
@@ -68,7 +71,7 @@ _start:
     movl %ecx, %cr3
     # Enable Paging and write-protect bit (supervisor cannot write on read-only pages)
     movl %cr0, %ecx
-    or   $0x80000000, %ecx
+    or   $0x80010000, %ecx
     movl %ecx, %cr0
 
     lea higher_half, %ecx
