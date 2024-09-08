@@ -7,6 +7,7 @@
 #include "../drivers/descriptor/descriptor.h"
 #include "../drivers/keyboard/keyboard.h"
 #include "../drivers/pit/pit.h"
+#include "../drivers/syscall/syscall.h"
 #include "../multiboot/multiboot.h"
 #include "../memory/pmm/pmm.h"
 #include "../memory/vmm/vmm.h"

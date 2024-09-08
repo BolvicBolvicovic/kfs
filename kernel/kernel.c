@@ -37,6 +37,11 @@ void	kernel_main(uint32_t magic, uint32_t addr) {
     isr_install();
     init_keyboard();
     init_timer(50);
+    init_syscall();
+    asm volatile(
+	"mov $1, %eax\n"
+	"int $80"
+    );
     pmm_init(mem_size, bitmap);
 
     for (size_t i = 0; i < 15; i++) {

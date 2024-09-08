@@ -6,6 +6,9 @@ VGA_OBJ	= vga/vga.o
 PIT_SRC	= pit/pit.c
 PIT_OBJ	= pit/pit.o
 
+SYS_SRC	= syscall/syscall.c
+SYS_OBJ	= syscall/syscall.o
+
 DES_SRC	= descriptor/idt.c descriptor/irq.c descriptor/isr.c descriptor/interrupt_handlers.s descriptor/gdt.c 
 DES_OBJ	= descriptor/idt.o descriptor/irq.o descriptor/isr.o descriptor/interrupt_handlers.o descriptor/gdt.o
 
@@ -21,10 +24,13 @@ FLAGS	= -ffreestanding	\
 
 all: $(DRIVERS)
 
-$(DRIVERS): $(VGA_OBJ) $(DES_OBJ) $(KEY_OBJ) $(PIT_OBJ)
-	$(AR) $@ $(VGA_OBJ) $(DES_OBJ) $(KEY_OBJ) $(PIT_OBJ)
+$(DRIVERS): $(VGA_OBJ) $(DES_OBJ) $(KEY_OBJ) $(PIT_OBJ) $(SYS_OBJ)
+	$(AR) $@ $(VGA_OBJ) $(DES_OBJ) $(KEY_OBJ) $(PIT_OBJ) $(SYS_OBJ)
 	
 $(VGA_OBJ): $(VGA_SRC)
+	$(CC) $(FLAGS) -c $^ -o $@
+
+$(SYS_OBJ): $(SYS_SRC)
 	$(CC) $(FLAGS) -c $^ -o $@
 
 $(PIT_OBJ): $(PIT_SRC)
@@ -41,6 +47,7 @@ keyboard/%.o: keyboard/%.c
 
 clean:
 	rm -rf $(VGA_OBJ)
+	rm -rf $(SYS_OBJ)
 	rm -rf $(DES_OBJ)
 	rm -rf $(KEY_OBJ)
 	rm -rf $(PIT_OBJ)
