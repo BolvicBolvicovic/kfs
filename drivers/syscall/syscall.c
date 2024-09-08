@@ -20,7 +20,9 @@ void sys_stat(registers_t* r) {
 	printf("Syscall stat : eax == %d\n", r->eax);
 }
 
-isr_t syscall_tab[] = {
+#define NB_OF_SC 5
+
+isr_t syscall_tab[NB_OF_SC] = {
 	sys_read,
 	sys_write,
 	sys_open,
@@ -30,9 +32,9 @@ isr_t syscall_tab[] = {
 };
 
 void syscall_callback(registers_t* r) {
-	syscall_tab[r->eax](r);
+	if (r->eax < NB_OF_SC) syscall_tab[r->eax](r);
 }
 
 void init_syscall() {
-	register_interrupt_handler(SYSCALL_INTERRUPT_NUMBER, &syscall_callback);
+	register_interrupt_handler(SYSCALL, &syscall_callback);
 }

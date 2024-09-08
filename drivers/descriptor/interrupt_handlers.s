@@ -388,3 +388,9 @@ irq15:
 	push  $15
 	push  $47
 	jmp irq_common_stub
+
+.global syscall
+syscall:
+	push $0
+	push $0x80
+	jmp irq_common_stub

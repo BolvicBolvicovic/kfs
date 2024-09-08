@@ -40,7 +40,7 @@ void	kernel_main(uint32_t magic, uint32_t addr) {
     init_syscall();
     asm volatile(
 	"mov $1, %eax\n"
-	"int $80"
+	"int $0x80"
     );
     pmm_init(mem_size, bitmap);
 

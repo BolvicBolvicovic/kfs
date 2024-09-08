@@ -1,12 +1,12 @@
 #include "descriptor.h"
 
-static isr_t interrupt_handlers[256];
+static isr_t interrupt_handlers[256] = {0};
 
 void    irq_handler(registers_t* r) {
-    if (r->int_no >= 40) {
-        port_byte_out(0xA0, 0x20); // primary EOI
+    if (r->int_no >= FIRST_SLAVE_PORT) {
+        port_byte_out(SLAVE_PORT, EOI);
     }
-    port_byte_out(0x20, 0x20); // secondary end of interrupt (EOI)
+    port_byte_out(MASTER_PORT, EOI);
     if (interrupt_handlers[r->int_no]) {
         isr_t handler = interrupt_handlers[r->int_no];
         handler(r);

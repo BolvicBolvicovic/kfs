@@ -55,6 +55,7 @@ extern void irq12();
 extern void irq13();
 extern void irq14();
 extern void irq15();
+extern void syscall();
 
 typedef struct {
 	uint16_t	limit_low;
@@ -113,6 +114,12 @@ typedef struct {
 #define IRQ13 45
 #define IRQ14 46
 #define IRQ15 47
+#define SYSCALL 0x80
+
+#define SLAVE_PORT 0xA0
+#define MASTER_PORT 0x20
+#define EOI 0x20 // End Of Interrupt
+#define FIRST_SLAVE_PORT 40
 
 void	init_gdt();
 void    init_idt();

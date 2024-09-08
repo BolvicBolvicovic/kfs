@@ -2,14 +2,12 @@
 
 //INTERUPTION DESCRIPTOR TABLE
 
-static idt_gate_t	    idt[256];
+static idt_gate_t	    idt[256] = {0};
 static idt_register_t   idt_reg;
 
 void    init_idt() {
     idt_reg.limit = sizeof(idt_gate_t) * 256 -1;
     idt_reg.base  = (uint32_t)&idt;
-
-    memset(&idt, 0, sizeof(idt_gate_t) * 256);
 
     set_idt_gate(0, (uint32_t) isr0);
     set_idt_gate(1, (uint32_t) isr1);
@@ -48,24 +46,23 @@ void    init_idt() {
 	// We send them Initialization Command Words (ICW)
 
 	// ICW1
-    port_byte_out(0x20, 0x11);
-    port_byte_out(0xA0, 0x11);
-
+    port_byte_out(MASTER_PORT, 0x11);
+    port_byte_out(SLAVE_PORT, 0x11);
     // ICW2
-    port_byte_out(0x21, 0x20);
-    port_byte_out(0xA1, 0x28);
+    port_byte_out(MASTER_PORT + 1, 0x20);
+    port_byte_out(SLAVE_PORT + 1, 0x28);
 
     // ICW3
-    port_byte_out(0x21, 0x04);
-    port_byte_out(0xA1, 0x02);
+    port_byte_out(MASTER_PORT + 1, 0x04);
+    port_byte_out(SLAVE_PORT + 1, 0x02);
 
     // ICW4
-    port_byte_out(0x21, 0x01);
-    port_byte_out(0xA1, 0x01);
+    port_byte_out(MASTER_PORT + 1, 0x01);
+    port_byte_out(MASTER_PORT + 1, 0x01);
 
     // OCW1 (Operational Command Word) It enables all IRCs.
-    port_byte_out(0x21, 0x0);
-    port_byte_out(0xA1, 0x0);
+    port_byte_out(MASTER_PORT + 1, 0x0);
+    port_byte_out(MASTER_PORT + 1, 0x0);
 
         // Install the IRQs
     set_idt_gate(32, (uint32_t)irq0);
@@ -84,6 +81,11 @@ void    init_idt() {
     set_idt_gate(45, (uint32_t)irq13);
     set_idt_gate(46, (uint32_t)irq14);
     set_idt_gate(47, (uint32_t)irq15);
+
+
+    // Syscall
+
+    set_idt_gate(0x80, (uint32_t)syscall);
 
     asm volatile("lidt (%0)" : : "r" (&idt_reg));
 }
