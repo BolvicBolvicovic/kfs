@@ -25,11 +25,13 @@ Current features available:
 - Boot Paging enabled
 - Physical Memory Manager
 - (Virtual Memory Manager under development)
+- Base for ABI syscall implementation with IDT
 
 ## Usage
 
-The following command will compile the ELF binary the and link it grub to build the ISO if it was not yet done.
-It will lauch qemu with the kfs.iso at the root of the repository.
+The following command will compile the ELF binary the and link it GRUB to build the ISO if it was not done yet.
+It will lauch qemu-system-i386 with the kfs.iso at the root of the repository.
+If you only wish to complie then a simple make will do.
 
 ```bash
 make qemu
