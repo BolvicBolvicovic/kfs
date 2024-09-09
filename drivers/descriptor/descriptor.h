@@ -116,8 +116,10 @@ typedef struct {
 #define IRQ15 47
 #define SYSCALL 0x80
 
-#define SLAVE_PORT 0xA0
-#define MASTER_PORT 0x20
+#define CMD_SLAVE_PORT 0xA0
+#define CMD_MASTER_PORT 0x20
+#define DATA_SLAVE_PORT 0xA1
+#define DATA_MASTER_PORT 0x21
 #define EOI 0x20 // End Of Interrupt
 #define FIRST_SLAVE_PORT 40
 

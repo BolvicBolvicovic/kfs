@@ -9,15 +9,16 @@ inline uint8_t vga_entry_color(enum vga_color fg, enum vga_color bg) {
 }
 
 void enable_cursor() {
-    port_byte_out(0x3D4, 0x0A);
-    port_byte_out(0x3D5, (port_byte_in(0x3D5) & 0xC0) | 0);
-    port_byte_out(0x3D4, 0x0B);
-    port_byte_out(0x3D5, (port_byte_in(0x3D5) & 0xE0) | 15);
+// Magic numbers are masks used to retain the information stored in the 2 and 3 higher bits of the register
+    port_byte_out(VGA_CTRL_REGISTER, CURSOR_START_REGISTER);
+    port_byte_out(VGA_DATA_REGISTER, (port_byte_in(VGA_DATA_REGISTER) & 0xC0) | CURSOR_START);
+    port_byte_out(VGA_CTRL_REGISTER, CURSOR_END_REGISTER);
+    port_byte_out(VGA_DATA_REGISTER, (port_byte_in(VGA_DATA_REGISTER) & 0xE0) | CURSOR_END);
 }
 
 void disable_cursor() {
-    port_byte_out(0x3D4, 0x0A);
-    port_byte_out(0x3D5, 0x20);
+    port_byte_out(VGA_CTRL_REGISTER, CURSOR_START_REGISTER);
+    port_byte_out(VGA_DATA_REGISTER, CURSOR_DISABLE_BIT);
 }
 
 static void	set_cursor(int offset) {

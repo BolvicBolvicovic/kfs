@@ -31,6 +31,12 @@ enum vga_color {
 #define VGA_COLS		0x50
 #define VGA_ROWS		0x19
 
+#define CURSOR_START 0
+#define CURSOR_END 15
+#define CURSOR_START_REGISTER 0x0A
+#define CURSOR_END_REGISTER 0x0B
+#define CURSOR_DISABLE_BIT 0x20
+
 uint8_t vga_entry_color(enum vga_color fg, enum vga_color bg);
 void	term_set_color(uint8_t color);
 uint8_t term_get_color();

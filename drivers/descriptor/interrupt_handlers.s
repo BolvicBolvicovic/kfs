@@ -1,18 +1,20 @@
 .extern isr_handler
 .extern irq_handler
 .global gdt_flush
-
+.set KERNEL_DATA_SEGMENT, 0x10
+.set KERNEL_CODE_SEGMENT, 0x08
+.set CLEAR_ERRNO_INTNO, 0x08
 gdt_flush:
 	mov	4(%esp), %eax
 	lgdt	(%eax)
 
-	mov	$0x10, %ax
+	mov	$KERNEL_DATA_SEGMENT, %ax
 	mov	%ax, %ds
 	mov	%ax, %es
 	mov	%ax, %fs
 	mov	%ax, %gs
 	mov	%ax, %ss
-	jmp	$0x08, $.flush
+	jmp	$KERNEL_CODE_SEGMENT, $.flush
 .flush:
 	ret
 
@@ -25,7 +27,7 @@ isr_common_stub:
 	push	%eax
 
 	# use kernel data segment
-	mov	$0x10, %ax
+	mov	$KERNEL_DATA_SEGMENT, %ax
 	mov	%ax, %ds
 	mov	%ax, %es
 	mov	%ax, %fs
@@ -43,8 +45,7 @@ isr_common_stub:
 	mov	%ax, %gs
 	popa
 
-	# remove int_no and err_code from stack
-	add	$0x08, %esp
+	add	$CLEAR_ERRNO_INTNO, %esp
 	iret
 
 irq_common_stub:
@@ -52,7 +53,7 @@ irq_common_stub:
     pusha
     mov %ds, %ax
     push %eax
-    mov $0x10, %ax
+    mov $KERNEL_DATA_SEGMENT, %ax
     mov %ax, %ds
     mov %ax, %es
     mov %ax, %fs
@@ -70,7 +71,7 @@ irq_common_stub:
     mov %bx, %fs
     mov %bx, %gs
     popa
-    add $8, %esp
+    add $CLEAR_ERRNO_INTNO, %esp
     iret
 
 .global isr0

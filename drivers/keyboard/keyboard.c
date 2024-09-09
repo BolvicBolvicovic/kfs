@@ -1,8 +1,10 @@
 #include "keyboard.h"
 
 #define BACKSPACE 0x0E
+#define BACKSPACE_CHAR 0x7F
 #define ENTER 0x1C
 #define SC_MAX 57
+#define KEYBOARD_INPUT_BUFFER 0x60
 
 const char sc_ascii[2][58] = {
         {
@@ -78,13 +80,13 @@ static void handle_settings(uint8_t scancode) {
 }
 
 static void keyboard_callback(registers_t* regs) {
-    uint8_t scancode = port_byte_in(0x60);
+    uint8_t scancode = port_byte_in(KEYBOARD_INPUT_BUFFER);
     asm volatile("cli");
     if (scancode > SC_MAX) return;
     if (current_screen.type == SHELL) {
         if (scancode == BACKSPACE) {
             term_backspace();
-            cmd_add_char(0x7F);
+            cmd_add_char(BACKSPACE_CHAR);
         } else if (scancode == ENTER) {
             term_print(&sc_ascii[keyboard_index][scancode], 1);
             exec_command();
