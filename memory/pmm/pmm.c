@@ -5,15 +5,15 @@ uint32_t  _memory_used_blocks    = 0;
 uint32_t  _memory_max_blocks     = 0;
 uint32_t* _memory_map            = NULL;
 
-inline void mmap_set(int bit) {
+void mmap_set(int bit) {
     _memory_map[bit / 32] |= (1 << (bit % 32));
 }
 
-inline void mmap_unset(int bit) {
+void mmap_unset(int bit) {
     _memory_map[bit / 32] &= ~(1 << (bit % 32));
 }
 
-inline int mmap_test(int bit) {
+int mmap_test(int bit) {
     return _memory_map[bit / 32] & (1 << (bit % 32));
 } 
 

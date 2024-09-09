@@ -3,14 +3,14 @@ MEM	= memory.a
 PMM_SRC = pmm/pmm.c 
 PMM_OBJ = pmm/pmm.o
 
-VMM_SRC = vmm/vmm.c vmm/paging.s 
-VMM_OBJ = vmm/vmm.o vmm/paging.o
+VMM_SRC = vmm/vmm.c vmm/paging.s vmm/pdt.c 
+VMM_OBJ = vmm/vmm.o vmm/paging.o vmm/pdt.o
 
 AR		= ../gcc_kfs/bin/i386-elf-ar rcs
 CC		= ../gcc_kfs/bin/i386-elf-gcc
 FLAGS	= -ffreestanding	\
 	  -g \
-	  -O2 \
+	  -O0 \
 	  -nostdlib		
 
 all: $(MEM)

@@ -11,7 +11,8 @@ enable_paging:
     ret
 
 switch_dir:
-    mov %eax, %cr3
+    movl 4(%esp), %eax
+    movl %eax, %cr3
     ret
 
 flush_tlb_entry:

@@ -21,13 +21,6 @@ enum PAGE_PTE_FLAGS {
 
 typedef uint32_t pt_entry;
 
-#define PT_ENTRY_ADD_ATTRIB(ENTRY, ATTRIB) 	((ENTRY) = (uint32_t)(ENTRY) | (1 << ATTRIB))
-#define PT_ENTRY_DEL_ATTRIB(ENTRY, ATTRIB) 	((ENTRY) = (uint32_t)(ENTRY) & ~(1 << ATTRIB))
-#define PT_ENTRY_SET_FRAME(ENTRY, PHYS_ADDR) 	((ENTRY)  = (void *)(((uint32_t)ENTRY & ~I86_PTE_FRAME) | ((uint32_t)PHYS_ADDR & I86_PTE_FRAME)))
-#define PT_ENTRY_IS_PRESENT(ENTRY) 		((uint32_t)(ENTRY) & I86_PTE_PRESENT)
-#define PT_ENTRY_IS_WRITABLE(ENTRY) 	((uint32_t)(ENTRY) & I86_PTE_WRITABLE)
-#define PT_ENTRY_PFN(ENTRY) 			((uint32_t)(ENTRY) & I86_PTE_FRAME)
-
 // PAGE DIRECTORY ENTRY
 
 enum PAGE_PDE_FLAGS {
@@ -46,15 +39,49 @@ enum PAGE_PDE_FLAGS {
 };
  
 typedef uint32_t pd_entry;
+//! sets a flag in the page table entry
+extern void pd_entry_add_attrib (pd_entry* e, uint32_t attrib);
 
-#define PD_ENTRY_ADD_ATTRIB(ENTRY, ATTRIB) 	((ENTRY) = (uint32_t)(ENTRY) | (1 << ATTRIB))
-#define PD_ENTRY_DEL_ATTRIB(ENTRY, ATTRIB) 	((ENTRY) = (uint32_t)(ENTRY) & ~(1 << ATTRIB))
-#define PD_ENTRY_SET_FRAME(ENTRY, PHYS_ADDR) 	((ENTRY)  =  (void*)(((uint32_t)ENTRY & ~I86_PDE_FRAME) | ((uint32_t)PHYS_ADDR & I86_PDE_FRAME)))
-#define PD_ENTRY_IS_PRESENT(ENTRY) 		((uint32_t)(ENTRY) & I86_PDE_PRESENT)
-#define PD_ENTRY_IS_USER(ENTRY) 		((uint32_t)(ENTRY) & I86_PDE_USER)
-#define PD_ENTRY_IS_4MB(ENTRY) 			((uint32_t)(ENTRY) & I86_PDE_4MB)
-#define PD_ENTRY_IS_WRITABLE(ENTRY) 	((uint32_t)(ENTRY) & I86_PDE_WRITABLE)
-#define PD_ENTRY_PFN(ENTRY) 			((uint32_t)(ENTRY) & I86_PDE_FRAME)
-#define PD_ENTRY_ENABLE_GLOBAL(ENTRY)	((ENTRY) = (uint32_t)(ENTRY) | I86_PDE_CPU_GLOBAL)
+//! clears a flag in the page table entry
+extern void pd_entry_del_attrib (pd_entry* e, uint32_t attrib);
+
+//! sets a frame to page table entry
+extern void pd_entry_set_frame (pd_entry*, uint32_t);
+
+//! test if page is present
+extern int pd_entry_is_present (pd_entry e);
+
+//! test if directory is user mode
+extern int pd_entry_is_user (pd_entry);
+
+//! test if directory contains 4mb pages
+extern int pd_entry_is_4mb (pd_entry);
+
+//! test if page is writable
+extern int pd_entry_is_writable (pd_entry e);
+
+//! get page table entry frame address
+extern uint32_t pd_entry_pfn (pd_entry e);
+
+//! enable global pages
+extern void pd_entry_enable_global (pd_entry e);
+
+//! sets a flag in the page table entry
+extern void pt_entry_add_attrib (pt_entry* e, uint32_t attrib);
+
+//! clears a flag in the page table entry
+extern void pt_entry_del_attrib (pt_entry* e, uint32_t attrib);
+
+//! sets a frame to page table entry
+extern void pt_entry_set_frame (pt_entry*, uint32_t);
+
+//! test if page is present
+extern int pt_entry_is_present (pt_entry e);
+
+//! test if page is writable
+extern int pt_entry_is_writable (pt_entry e);
+
+//! get page table entry frame address
+extern uint32_t pt_entry_pfn (pt_entry e);
 
 #endif
