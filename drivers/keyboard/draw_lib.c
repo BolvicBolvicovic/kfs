@@ -42,7 +42,7 @@ void    draw_line(char* line, uint8_t row, uint8_t col) {
     }
 }
 
-list_option_t draw_list(char* name, char** list, uint8_t list_index, uint8_t row, uint8_t col, uint8_t span) {
+list_option_t draw_list(char* name, const char** list, uint8_t list_index, uint8_t row, uint8_t col, uint8_t span) {
     uint8_t* vga_memory = (uint8_t*)VGA_MEMORY;    
     size_t index = row * VGA_COLS + col;
     size_t name_len = strlen(name);

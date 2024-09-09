@@ -33,7 +33,7 @@ typedef struct {
 
 
 void            init_current_screen(enum vga_color fg, enum vga_color bg);
-list_option_t   draw_list(char* name, char** list, uint8_t list_index, uint8_t row, uint8_t col, uint8_t span);
+list_option_t   draw_list(char* name, const char** list, uint8_t list_index, uint8_t row, uint8_t col, uint8_t span);
 void            draw_line(char* line, uint8_t row, uint8_t col);
 void            draw_selector(size_t index);
 void            draw_name(char** list, size_t item_index, size_t vga_index);
