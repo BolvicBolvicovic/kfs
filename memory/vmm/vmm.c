@@ -59,30 +59,35 @@ void vmm_map_page(void* phys, void* virt) {
 
 pt_entry* vmm_find_next_free() {
     for (size_t i = 0; i < 1024; i++) {
-        if (_current_dir[i]) {
-            pt_entry* entry = pd_entry_pfn(_current_dir[i]);
+        if (pd_entry_is_present(_current_dir->m_entries[i])) {
+            pt_entry* entry = (pt_entry*)pd_entry_pfn(_current_dir->m_entries[i]);
             for (size_t j = 0; j < 1024; j++) {
-                if (!entry[j]) {
+                if (!pt_entry_is_present(entry[j])) {
                     return entry + j;
                 }
             }
         }
     }
-    return -1;
+    return (pt_entry*)0xFFFFFFFF;
 }
 
 pt_entry* vmm_find_next_free_s(size_t nb_blocks) {
     if (nb_blocks == 1) return vmm_find_next_free();
     for (size_t i = 0; i < 1024; i++) {
-        if (_current_dir[i]) {
-            pt_entry* entry = pd_entry_pfn(_current_dir[i]);
+        if (pd_entry_is_present(_current_dir->m_entries[i])) {
+            pt_entry* entry = (pt_entry*)pd_entry_pfn(_current_dir->m_entries[i]);
             for (size_t j = 0; j < 1024; j++) {
-                if (!entry[j]) {
-                    return entry + j;
+                if (!pt_entry_is_present(entry[j])) {
+		    for (size_t k = 1; k < 1024 - j; k++) {
+			if (!pt_entry_is_present(entry[j + k]) && k - 1 >= nb_blocks)
+			    return entry + j + k;
+			else if() else 
+		    }
                 }
             }
         }
     }
+    return (pt_entry*)0xFFFFFFFF;
 }
 
 void* kmalloc(size_t size) {
