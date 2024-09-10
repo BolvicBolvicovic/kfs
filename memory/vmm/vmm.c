@@ -1,4 +1,5 @@
 #include "vmm.h"
+#include "../../lib/stdio/stdio.h"
 
 p_dir*   _current_dir = NULL;
 uint32_t _cur_pdbr = 0;
@@ -56,6 +57,9 @@ void vmm_map_page(void* phys, void* virt) {
 	pt_entry_add_attrib(page, I86_PTE_PRESENT);
 }
 
+extern uint32_t start_kernel_virt;
+extern uint32_t start_kernel;
+
 void vmm_init() {
 	p_table* table = (p_table*)pmm_alloc_block();
 	if (!table) return;
@@ -69,19 +73,19 @@ void vmm_init() {
  		//! create a new page
 		pt_entry page=0;
 		pt_entry* page_addr = &page;
-		pt_entry_add_attrib(page_addr, I86_PTE_PRESENT);
+		pt_entry_add_attrib(page_addr, I86_PTE_PRESENT | I86_PTE_WRITABLE);
 		pt_entry_set_frame (page_addr, frame);
 
 		//! ...and add it to the page table
 		table2->m_entries [PAGE_TAB_INDEX(virt) ] = page;
 	}
 		//! map 1mb to 3gb (where we are at)
-	for (int i=0, frame=0x100000, virt=0xc0000000; i<PAGES_PER_TABLE; i++, frame+=PAGE_SIZE, virt+=PAGE_SIZE) {
+	for (uint32_t i=0, frame=&start_kernel, virt=&start_kernel_virt; i<PAGES_PER_TABLE; i++, frame+=PAGE_SIZE, virt+=PAGE_SIZE) {
 
 		//! create a new page
 		pt_entry page=0;
 		pt_entry* page_addr = &page;
-		pt_entry_add_attrib(page_addr, I86_PTE_PRESENT);
+		pt_entry_add_attrib(page_addr, I86_PTE_PRESENT | I86_PTE_WRITABLE);
 		pt_entry_set_frame (page_addr, frame);
 
 		//! ...and add it to the page table
@@ -93,7 +97,7 @@ void vmm_init() {
  
 	//! clear directory table and set it as current
 	memset (dir, 0, sizeof (p_dir));
-	pd_entry* entry = &dir->m_entries [PAGE_DIR_INDEX (0xc0000000) ];
+	pd_entry* entry = &dir->m_entries [PAGE_DIR_INDEX ((uint32_t)&start_kernel_virt) ];
 	pd_entry_add_attrib (entry, I86_PDE_PRESENT);
 	pd_entry_add_attrib (entry, I86_PDE_WRITABLE);
 	pd_entry_set_frame (entry, (uint32_t)table);
@@ -104,8 +108,9 @@ void vmm_init() {
 	pd_entry_set_frame (entry2, (uint32_t)table2);
 		//! store current PDBR
 	_cur_pdbr = (uint32_t) &dir->m_entries;
- 
+
 	//! switch to our page directory
 	vmm_switch_pdir(dir);
+
 	//enable_paging();
 }

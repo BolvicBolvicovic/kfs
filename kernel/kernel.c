@@ -54,7 +54,7 @@ void	kernel_main(uint32_t magic, uint32_t addr) {
         if (region[i].type == MULTIBOOT_MEMORY_AVAILABLE) pmm_init_region(region[i].addr_low, region[i].len_low);
     }
     pmm_deinit_region(0x10000, &end_kernel_virt - &start_kernel_virt);
-    //vmm_init();
+    vmm_init();
     asm volatile("sti\n\t");
     uint32_t cr0;
     asm volatile("mov %%cr0, %0" : "=r" (cr0));
