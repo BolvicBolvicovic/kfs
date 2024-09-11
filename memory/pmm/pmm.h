@@ -3,6 +3,7 @@
 
 #include "../../lib/stdlib/stdlib.h"
 #include "../../lib/string/string.h"
+#include "../../lib/stdio/stdio.h"
 #include <stdint.h>
 #include <stddef.h>
 

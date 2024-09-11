@@ -62,6 +62,6 @@ void	kernel_main(uint32_t magic, uint32_t addr) {
     void* test = kmalloc(0x1001);
     void* test2 = kmalloc(1);
     kfree(test);
-    void* test3 = kmalloc(1);
+    void* test3 = kmalloc(0x1001);
     printf("%p | %p | %p\n", test, test2, test3);
 }

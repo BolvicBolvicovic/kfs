@@ -61,11 +61,11 @@ uint32_t build_virt_addr(uint32_t pd_index, uint32_t pt_index) {
     return (pd_index << 22) | (pt_index << 12);
 }
 
-uint32_t* vmm_find_next_free() {
-    for (size_t i = 0; i < 1024; i++) {
+uint32_t vmm_find_next_free() {
+    for (size_t i = 0; i < PAGES_PER_DIR; i++) {
         if (pd_entry_is_present(_current_dir->m_entries[i])) {
             pt_entry* entry = (pt_entry*)pd_entry_pfn(_current_dir->m_entries[i]);
-            for (size_t j = 0; j < 1024; j++) {
+            for (size_t j = 0; j < PAGES_PER_TABLE; j++) {
                 if (!pt_entry_is_present(entry[j])) {
                     return build_virt_addr(i, j);
                 }
@@ -74,7 +74,7 @@ uint32_t* vmm_find_next_free() {
             p_table* new_table = (p_table*)pmm_alloc_block();
             if (new_table == 0) return NULL;
             memset(new_table, 0, sizeof(p_table));
-            for (size_t i = 0; i < 1024; i++) {
+            for (size_t i = 0; i < PAGES_PER_TABLE; i++) {
                 pt_entry new_page = 0;
                 pt_entry* new_page_p = &new_page;
                 if (!vmm_alloc_page(new_page_p)) continue;
@@ -90,14 +90,14 @@ uint32_t* vmm_find_next_free() {
     return NULL;
 }
 
-uint32_t* vmm_find_next_free_s(size_t nb_blocks) {
+uint32_t vmm_find_next_free_s(size_t nb_blocks) {
     if (nb_blocks == 1) return vmm_find_next_free();
-    for (size_t i = 0; i < 1024; i++) {
+    for (size_t i = 0; i < PAGES_PER_DIR; i++) {
         if (pd_entry_is_present(_current_dir->m_entries[i])) {
             pt_entry* entry = (pt_entry*)pd_entry_pfn(_current_dir->m_entries[i]);
-            for (size_t j = 0; j < 1024; j++) {
+            for (size_t j = 0; j < PAGES_PER_TABLE; j++) {
                 if (!pt_entry_is_present(entry[j])) {
-		            for (size_t k = 1; k < 1024 - j; k++) {
+		            for (size_t k = 1; k < PAGES_PER_TABLE - j; k++) {
 			            if (!pt_entry_is_present(entry[j + k]) && k + 1 >= nb_blocks)
 			                return build_virt_addr(i, j);
 			            else if (pt_entry_is_present(entry[j + k])) {
@@ -110,7 +110,7 @@ uint32_t* vmm_find_next_free_s(size_t nb_blocks) {
             p_table* new_table = (p_table*)pmm_alloc_block();
             if (new_table == 0) return NULL;
             memset(new_table, 0, sizeof(p_table));
-            for (size_t i = 0; i < 1024; i++) {
+            for (size_t i = 0; i < PAGES_PER_TABLE; i++) {
                 pt_entry new_page = 0;
                 pt_entry* new_page_p = &new_page;
                 if (!vmm_alloc_page(new_page_p)) continue;
@@ -126,24 +126,25 @@ uint32_t* vmm_find_next_free_s(size_t nb_blocks) {
     return NULL;
 }
 
-void* vmm_alloc_blocks(size_t size) {
-    uint32_t total_pages_needed = size / PAGE_SIZE + (size % PAGE_SIZE ? 1 : 0);
-    uint32_t virtual_addr = vmm_find_next_free_s(total_pages_needed);
+void* vmm_alloc_blocks(size_t nb_blocks) {
+    uint32_t virtual_addr = (uint32_t)vmm_find_next_free_s(nb_blocks);
     if (virtual_addr == NULL) return NULL;
     uint32_t pd_index = PAGE_DIR_INDEX(virtual_addr);
     uint32_t pt_index = PAGE_TAB_INDEX(virtual_addr);
-    pt_entry* page_table = pd_entry_pfn(_current_dir->m_entries[pd_index]);
-    for (size_t i = 0; i/PAGE_SIZE < total_pages_needed; i+=PAGE_SIZE) {
+    pt_entry* page_table = (pt_entry*)pd_entry_pfn(_current_dir->m_entries[pd_index]);
+    for (size_t i = 0; i/PAGE_SIZE < nb_blocks; i+=PAGE_SIZE) {
         pt_entry_add_attrib(page_table + i + pt_index, I86_PTE_PRESENT | I86_PTE_WRITABLE);
     }
     return (void*)virtual_addr;
 }
 
-void vmm_free_block(uint32_t virtual_addr) {
+void vmm_free_blocks(uint32_t virtual_addr, uint32_t nb_blocks) {
     uint32_t pd_index = PAGE_DIR_INDEX(virtual_addr);
     uint32_t pt_index = PAGE_TAB_INDEX(virtual_addr);
-    pt_entry* page_table = pd_entry_pfn(_current_dir->m_entries[pd_index]);
-    vmm_free_page(page_table + pt_index * PAGE_SIZE);
+    pt_entry* page_table = (pt_entry*)pd_entry_pfn(_current_dir->m_entries[pd_index]);
+    for (size_t i = 0; i/PAGE_SIZE < nb_blocks; i+=PAGE_SIZE) {
+        pt_entry_del_attrib(page_table + i + pt_index, I86_PTE_PRESENT | I86_PTE_WRITABLE);
+    }
 }
 
 extern uint32_t start_kernel_virt;
