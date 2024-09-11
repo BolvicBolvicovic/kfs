@@ -43,7 +43,6 @@ void	kernel_main(uint32_t magic, uint32_t addr) {
 	"int $0x80"
     );
     pmm_init(mem_size, &bitmap);
-
     for (size_t i = 0; i < 15; i++) {
         if (region[i].type > 5)           region[i].type = MULTIBOOT_MEMORY_AVAILABLE;
         if (i > 0 && region[i].addr_low == 0) break;
@@ -55,11 +54,14 @@ void	kernel_main(uint32_t magic, uint32_t addr) {
     }
     pmm_deinit_region(0x10000, &end_kernel_virt - &start_kernel_virt);
     vmm_init();
-    void* caca = pmm_alloc_block();
-    printf("new alloc: %p\n", caca);
     asm volatile("sti\n\t");
     uint32_t cr0;
     asm volatile("mov %%cr0, %0" : "=r" (cr0));
     if (cr0 & 0x80000000) printf("Paging enabled: cr0 == %p\n", cr0);
     else printf("Paging disabled: cr0 == %p\n", cr0);
+    void* test = kmalloc(0x1001);
+    void* test2 = kmalloc(1);
+    kfree(test);
+    void* test3 = kmalloc(1);
+    printf("%p | %p | %p\n", test, test2, test3);
 }

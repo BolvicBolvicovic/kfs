@@ -24,6 +24,10 @@ typedef struct {
    pd_entry m_entries[PAGES_PER_DIR];
 } p_dir;
 
-void vmm_init();
+void    vmm_init();
+void*   vmm_alloc_blocks(size_t size); // Size en bytes
+void    vmm_free_block(uint32_t virtual_addr);
+void*   kmalloc(size_t size);
+void    kfree(uint32_t virt_addr);
 
 #endif

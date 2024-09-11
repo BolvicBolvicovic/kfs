@@ -98,7 +98,6 @@ void* pmm_alloc_block() {
     mmap_set(frame);
     uint32_t addr = frame * PMM_BLOCK_SIZE;
     _memory_used_blocks++;
-    printf("new pmm alloc : %p\n", (void *)addr);
     return (void*)addr;
 }
 
@@ -109,7 +108,6 @@ void* pmm_alloc_blocks(size_t nb_blocks) {
     for (size_t i = 0; i < nb_blocks; i++) mmap_set(frame + i);
     uint32_t addr = frame * PMM_BLOCK_SIZE;
     _memory_used_blocks += nb_blocks;
-    printf("new pmm alloc+: %p\n", (void *)addr);
     return (void*)addr;
 }
 
