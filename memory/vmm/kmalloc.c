@@ -21,6 +21,7 @@ void*   kmalloc(size_t size) {
 	}
 	if (memory_map[i].free && memory_map[i].nb_blocks == total_pages_needed) {
 	    memory_map[i].free = 1;
+	    vmm_set_flags_pages(memory_map[i].virt_addr, memory_map[i].nb_blocks, I86_PTE_WRITABLE, 1);
 	    return (void*)memory_map[i].virt_addr;
 	}
     }
@@ -34,6 +35,7 @@ void*   kmalloc(size_t size) {
 	    }
 	}
     }
+    // vmm_alloc_blocks sets the flags, no need to do it again
     memory_map[i].virt_addr = (uint32_t)block_virt_addr;
     memory_map[i].nb_blocks = total_pages_needed;
     memory_map[i].free = 0;
@@ -42,12 +44,23 @@ void*   kmalloc(size_t size) {
 }
 
 void    kfree(void* virt_addr) {
-    for (size_t i = 0; i < DTABLE_ADDR_SPACE_SIZE / 2; i++) {
+    for (size_t i = 0; i < MAX_ALLOC_SAME_TIME; i++) {
 	if (!memory_map[i].free && !memory_map[i].nb_blocks && !memory_map[i].virt_addr) break;
 	if (memory_map[i].virt_addr == (uint32_t)virt_addr) {
+	    vmm_set_flags_pages(memory_map[i].virt_addr, memory_map[i].nb_blocks, I86_PTE_WRITABLE, 0);
 	    memory_map[i].free = 1;
 	    return;
 	}
     }
     printf("ERROR: Invalid free\n");
+}
+
+uint32_t kget_size(void* virt_addr) {
+    for (size_t i = 0; i < MAX_ALLOC_SAME_TIME; i++) {
+	if (!memory_map[i].free && !memory_map[i].nb_blocks && !memory_map[i].virt_addr) break;
+	if (memory_map[i].virt_addr == (uint32_t)virt_addr) {
+	    return memory_map[i].nb_blocks * PAGE_SIZE;
+	}
+    }
+    return 0;
 }

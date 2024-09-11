@@ -5,7 +5,7 @@
 #include "../../lib/stdlib/stdlib.h"
 #include "../../lib/stdio/stdio.h"
 #include "../../lib/string/string.h"
-#include "../../memory/pmm/pmm.h"
+#include "../../memory/vmm/vmm.h"
 
 extern void isr0();
 extern void isr1();

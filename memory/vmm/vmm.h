@@ -25,9 +25,11 @@ typedef struct {
 } p_dir;
 
 void    vmm_init();
+void	vmm_set_flags_pages(uint32_t virt_addr, uint32_t nb_blocks, uint32_t flags, uint8_t set);
 void*   vmm_alloc_blocks(size_t size);
 void    vmm_free_blocks(uint32_t virtual_addr, uint32_t nb_blocks);
 void*   kmalloc(size_t size);
 void    kfree(void* virt_addr);
+uint32_t kget_size(void* virt_addr);
 
 #endif

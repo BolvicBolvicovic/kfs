@@ -44,7 +44,7 @@ void panic(registers_t* r) {
     asm volatile("cli");
     uint32_t stack = r->esp;
     printf("Number: %d | Message: %s\n", r->int_no, exception_msg[r->int_no]);
-    uint32_t* cp_stack = (uint32_t*)pmm_alloc_block();
+    uint32_t* cp_stack = (uint32_t*)kmalloc(0x1000);
     for (uint32_t* ptr = (uint32_t*)stack; *ptr && ptr < (uint32_t*)stack + 0x1000; ptr++) {
 	*cp_stack++ = *ptr;
     }
