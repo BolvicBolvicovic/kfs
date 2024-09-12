@@ -1,6 +1,8 @@
 #include "vmm.h"
 
-#define MAX_ALLOC_SAME_TIME 0x1000
+// #define MAX_ALLOC_SAME_TIME 0x1000
+#define MAX_ALLOC_SAME_TIME 0x1 // Debug value
+#define MAX_SIZE_ALLOC_SAME_TIME 0xFFFFF
 
 typedef struct {
     uint32_t virt_addr;
@@ -26,7 +28,6 @@ void*   kmalloc(size_t size) {
 	}
     }
     if (i == MAX_ALLOC_SAME_TIME && j == MAX_ALLOC_SAME_TIME) return NULL;
-    void* block_virt_addr = vmm_alloc_blocks(total_pages_needed);
     if (i == MAX_ALLOC_SAME_TIME) {
 	for (i = 0; i < MAX_ALLOC_SAME_TIME; i++) {
 	    if (memory_map[i].free) {
@@ -35,6 +36,8 @@ void*   kmalloc(size_t size) {
 	    }
 	}
     }
+    void* block_virt_addr = vmm_alloc_blocks(total_pages_needed);
+    if (block_virt_addr == NULL) return NULL;
     // vmm_alloc_blocks sets the flags, no need to do it again
     memory_map[i].virt_addr = (uint32_t)block_virt_addr;
     memory_map[i].nb_blocks = total_pages_needed;
@@ -44,6 +47,7 @@ void*   kmalloc(size_t size) {
 }
 
 void    kfree(void* virt_addr) {
+    if (virt_addr == NULL) goto error;
     for (size_t i = 0; i < MAX_ALLOC_SAME_TIME; i++) {
 	if (!memory_map[i].free && !memory_map[i].nb_blocks && !memory_map[i].virt_addr) break;
 	if (memory_map[i].virt_addr == (uint32_t)virt_addr) {
@@ -52,10 +56,12 @@ void    kfree(void* virt_addr) {
 	    return;
 	}
     }
+error:
     printf("ERROR: Invalid free\n");
 }
 
 uint32_t kget_size(void* virt_addr) {
+    if (virt_addr == NULL) return 0;
     for (size_t i = 0; i < MAX_ALLOC_SAME_TIME; i++) {
 	if (!memory_map[i].free && !memory_map[i].nb_blocks && !memory_map[i].virt_addr) break;
 	if (memory_map[i].virt_addr == (uint32_t)virt_addr) {
