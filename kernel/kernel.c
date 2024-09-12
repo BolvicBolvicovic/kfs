@@ -60,13 +60,12 @@ void	kernel_main(uint32_t magic, uint32_t addr) {
     asm volatile("mov %%cr0, %0" : "=r" (cr0));
     if (cr0 & 0x80000000) printf("Paging enabled: cr0 == %p\n", cr0);
     else printf("Paging disabled: cr0 == %p\n", cr0);
-    uint32_t* test = kmalloc(0xFFFFFFF);
+    uint32_t* test = kmalloc(1);
     printf("test: %p sizeof(test) == %d bytes and value %d\n", test, kget_size(test), *test);
     kfree(test);
     void* test2 = kmalloc(1);
-    void* test3 = kmalloc(0x1001);
-    test = (uint32_t*)1;
     *test = 5;
+    void* test3 = kmalloc(0x1001);
     printf("test %p | test2 %p | test3 %p\n", test, test2, test3);
     printf("sizeof(test) == %d bytes and value %d\n", kget_size(test), *test);
 }

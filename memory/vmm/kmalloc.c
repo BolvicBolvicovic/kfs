@@ -1,7 +1,7 @@
 #include "vmm.h"
 
-// #define MAX_ALLOC_SAME_TIME 0x1000
-#define MAX_ALLOC_SAME_TIME 0x1 // Debug value
+#define MAX_ALLOC_SAME_TIME 0x1000
+//#define MAX_ALLOC_SAME_TIME 0x1 // Debug value
 #define MAX_SIZE_ALLOC_SAME_TIME 0xFFFFF
 
 typedef struct {
