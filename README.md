@@ -22,9 +22,10 @@ Current features available:
 - VGA driver (supports 16 colors)
 - Basic libc
 - CLI
-- Boot Paging enabled
+- Paging enabled
 - Physical Memory Manager
-- (Virtual Memory Manager under development)
+- Virtual Memory Manager
+- Kheap
 - Base for ABI syscall implementation with IDT
 
 ## Usage
