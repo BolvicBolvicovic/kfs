@@ -1,0 +1,20 @@
+name: format before push
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install clang-format
+        run: sudo apt install -y clang-format
+
+      - name: Run clang-format
+        run: clang-format --style=LLVM **/*.c **/*.h
