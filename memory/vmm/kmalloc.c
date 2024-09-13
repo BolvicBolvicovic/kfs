@@ -51,6 +51,7 @@ void*   bining_allocator(size_t size) {
                 bining_allocator_map[i].bitmap_elem_offset = 0;
                 bining_allocator_map[i].bitmap_offset++;
             }
+            return virt_addr;
         }
     }
     if (i == MAX_ALLOC_B_SAME_TIME) return NULL;
@@ -97,7 +98,7 @@ int    bining_allocator_free(uint32_t addr) {
 }
 
 void*   kmalloc(size_t size) {
-    if (size <= MAX_ALLOC_B_SAME_TIME) return bining_allocator(size);
+    if (size <= MAX_SIZE_B_ALLOC) return bining_allocator(size);
 
     uint32_t total_pages_needed = size / PAGE_SIZE + (size % PAGE_SIZE ? 1 : 0);
     size_t i;
