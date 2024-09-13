@@ -17,4 +17,6 @@ jobs:
         run: sudo apt install -y clang-format
 
       - name: Run clang-format
-        run: clang-format --style=LLVM **/*.c **/*.h
+        run: |
+          shopt -s globstar
+          clang-format -i --style=LLVM **/*.c **/*.h
