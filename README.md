@@ -25,7 +25,7 @@ Current features available:
 - Paging enabled
 - Physical Memory Manager
 - Virtual Memory Manager
-- Kheap
+- Kmalloc, Kfree (binning allacator for allocations smaller than 0x800 bytes, simple cache for larger ones)
 - Base for ABI syscall implementation with IDT
 
 ## Usage

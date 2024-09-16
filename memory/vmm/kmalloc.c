@@ -84,7 +84,7 @@ int    bining_allocator_free(uint32_t addr) {
                 }
                 if (count == MAX_BITMAP_ELEM) {
                     vmm_free_blocks(bining_allocator_map[i].virt_addr, 1);
-                    // Do not set virt_addr  to 0 as it is used to find the edge of the bining_allocator_map
+                    // Do not set virt_addr to 0 as it is used to find the edge of the bining_allocator_map
                     bining_allocator_map[i].size_type = 0;
                     bining_allocator_map[i].offset_next_free = 0;
                     memset(bining_allocator_map[i].bitmap, 0, MAX_BITMAP_ELEM);
