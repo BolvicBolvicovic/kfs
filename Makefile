@@ -22,6 +22,7 @@ required	:
 	make -C lib
 	make -C drivers
 	make -C memory
+	make -C filesystem
 
 $(ISO)		:	$(BINARY)
 	grub-mkrescue -o $@ isoroot
@@ -50,6 +51,7 @@ fclean		: clean
 	make -C lib fclean
 	make -C drivers fclean
 	make -C memory fclean
+	make -C filesystem fclean
 	rm -rf obj
 	rm -rf $(ISO)
 	rm -rf $(BINARY)

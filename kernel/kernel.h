@@ -11,4 +11,5 @@
 #include "../multiboot/multiboot.h"
 #include "../memory/pmm/pmm.h"
 #include "../memory/vmm/vmm.h"
+#include "../filesystem/initrd/initrd.h"
 #endif

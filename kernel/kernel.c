@@ -31,6 +31,8 @@ void	kernel_main(uint32_t magic, uint32_t addr) {
     multiboot_info_t* mbi = (multiboot_info_t*)addr;
     struct multiboot_mmap_entry* region = (struct multiboot_mmap_entry*) mbi->mmap_addr;
     uint32_t mem_size = MAX_MEMORY_SIZE;
+    uint32_t initrd_location = *(uint32_t*)(mbi->mods_addr);
+    uint32_t initrd_end = *(uint32_t*)(mbi->mods_addr + 4);
 
     init_current_screen(BLUE, WHITE);
     term_clear();
@@ -38,18 +40,10 @@ void	kernel_main(uint32_t magic, uint32_t addr) {
     init_keyboard();
     init_timer(50);
     init_syscall();
-    asm volatile(
-	"mov $1, %eax\n"
-	"int $0x80"
-    );
     pmm_init(mem_size, &bitmap);
     for (size_t i = 0; i < 15; i++) {
         if (region[i].type > 5)           region[i].type = MULTIBOOT_MEMORY_AVAILABLE;
         if (i > 0 && region[i].addr_low == 0) break;
-        printf ("region %d: start: %p length (bytes): %p type: %d (%s)\n", i, 
-			region[i].addr_low,
-			region[i].len_low,
-			region[i].type, strMemoryTypes[region[i].type-1]);
         if (region[i].type == MULTIBOOT_MEMORY_AVAILABLE) pmm_init_region(region[i].addr_low, region[i].len_low);
     }
     pmm_deinit_region(0x100000, 0);
@@ -60,12 +54,6 @@ void	kernel_main(uint32_t magic, uint32_t addr) {
     asm volatile("mov %%cr0, %0" : "=r" (cr0));
     if (cr0 & 0x80000000) printf("Paging enabled: cr0 == %p\n", cr0);
     else printf("Paging disabled: cr0 == %p\n", cr0);
-    uint8_t* test = kmalloc(1);
-    void* test2 = kmalloc(1);
-    *test = 5;
-    uint16_t* test3 = kmalloc(16);
-    *test3 = 6;
-    printf("test: %p sizeof(test) == %d bytes and value %d\n", test, kget_size(test), *test);
-    kfree(test);
-    printf("test %p | test2 %p | test3 %p\n", test, test2, test3);
+    if (!mbi->mods_count) printf("no mods added\n");
+    fs_root = initialise_initrd(initrd_location);
 }

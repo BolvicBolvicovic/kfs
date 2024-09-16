@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include "../../lib/string/string.h"
+#include "../../memory/vmm/vmm.h"
 
 enum fs_flags {
     FS_FILE = 1,
@@ -13,6 +15,11 @@ enum fs_flags {
     FS_SYMLINK = 6,
     FS_MOUNTPOINT = 8
 };
+
+typedef uint32_t      (*rw_t)(struct fs_node_s*, uint32_t, uint32_t, uint8_t*);
+typedef void          (*oc_t)(struct fs_node_s*);
+typedef struct dir_entry_s * (*readdir_t)(struct fs_node_s*, uint32_t);  
+typedef struct fs_node_s *   (*finddir_t)(struct fs_node_s*, char* name);
 
 typedef struct fs_node_s {
     char        name[128]; // Should move it to directory node
@@ -33,21 +40,19 @@ typedef struct fs_node_s {
     struct fs_node_s *ptr; // For symlink and mountpoint
 } fs_node_t;
 
-typedef struct {
+typedef struct dir_entry_s {
     char        name[128];
     uint32_t    inode;
 } dir_entry_t;
 
-typedef uint32_t      (*rw_t)(fs_node_t*, uint32_t, uint32_t, uint8_t*);
-typedef void          (*oc_t)(fs_node_t*);
-typedef dir_entry_t * (*readdir_t)(fs_node_t*, uint32_t);  
-typedef fs_node_t *   (*finddir_t)(fs_node_t*, char* name);
 
-uint32_t        fs_write(fs_node_t* node, uint32_t offset, uint32_t size, uint8_t* buffer);
-uint32_t        fs_read(fs_node_t* node, uint32_t offset, uint32_t size, uint8_t* buffer);
-void            fs_open(fs_node_t* node, uint8_t read, uint8_t write);
-void            fs_close(fs_node_t* node);
-dir_entry_t*    readdir_fs(fs_node_t* node, uint32_t index);
-fs_node_t*      finddir_fs(fs_node_t*, char* name);
+uint32_t        fs_write(struct fs_node_s* node, uint32_t offset, uint32_t size, uint8_t* buffer);
+uint32_t        fs_read(struct fs_node_s* node, uint32_t offset, uint32_t size, uint8_t* buffer);
+void            fs_open(struct fs_node_s* node, uint8_t read, uint8_t write);
+void            fs_close(struct fs_node_s* node);
+dir_entry_t*    readdir_fs(struct fs_node_s* node, uint32_t index);
+struct fs_node_s*      finddir_fs(struct fs_node_s*, char* name);
+
+extern fs_node_t* fs_root;
 
 #endif
