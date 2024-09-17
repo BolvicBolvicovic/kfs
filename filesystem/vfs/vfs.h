@@ -1,7 +1,7 @@
 #ifndef VFS_H
 #define VFS_H
 
-#include <stduint32_t.h>
+#include <stdint.h>
 #include <stddef.h>
 #include "../../lib/string/string.h"
 #include "../../memory/vmm/vmm.h"
