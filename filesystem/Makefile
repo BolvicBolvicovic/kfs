@@ -25,11 +25,6 @@ vfs/%.o: vfs/%.c
 initrd/%.o: initrd/%.c
 	$(CC) $(FLAGS) -c $^ -o $@
 
-generator: filesystem_generator.c
-	gcc filesystem_generator.c -o filesystem_generator
-	./filesystem_generator
-	rm -rf filesystem_generator
-
 clean:
 	rm -rf $(VFS_OBJ)
 	rm -rf $(IRD_OBJ)

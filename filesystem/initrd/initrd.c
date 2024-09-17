@@ -1,13 +1,13 @@
 #include "initrd.h"
 
-initrd_header_t *initrd_header;     // The header.
-initrd_file_header_t *file_headers; // The list of file headers.
-fs_node_t *initrd_root;             // Our root directory node.
-fs_node_t *initrd_dev;              // We also add a directory node for /dev, so we can mount devfs later on.
-fs_node_t *root_nodes;              // List of file nodes.
-int nroot_nodes;                    // Number of file nodes.
+initrd_header_t *initrd_header;     	 // The header.
+initrd_file_header_t *file_headers; 	 // The list of file headers.
+PFILE		initrd_root;             // Our root directory node.
+PFILE		initrd_dev;              // We also add a directory node for /dev, so we can mount devfs later on.
+PFILE		root_nodes;              // List of file nodes.
+uint32_t	nroot_nodes;             // Number of file nodes.
 
-dir_entry_t dirent;
+dentry dir_entry;
 
 static  uint32_t initrd_read(fs_node_t *node,  uint32_t offset,  uint32_t size,  uint8_t *buffer) {
    initrd_file_header_t header = file_headers[node->inode];
@@ -17,7 +17,7 @@ static  uint32_t initrd_read(fs_node_t *node,  uint32_t offset,  uint32_t size, 
    return size;
 }
 
-static dir_entry_t *initrd_readdir(fs_node_t *node,  uint32_t index) {
+static dentry *initrd_readdir(fs_node_t *node,  uint32_t index) {
    if (node == initrd_root && index == 0)
    {
      strcpy(dirent.name, "dev");
