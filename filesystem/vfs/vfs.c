@@ -23,6 +23,6 @@ uint32_t	fs_close(PFILE node) {
 }
 
 dentry*		fs_readdir(PFILE node, uint32_t index) {
-	if ((node->type & FS_DIR) && node->node_operations.readdir) return node->readdir(node, index);
+	if ((node->type & FS_DIR) && node->node_operations.readdir) return node->node_operations.readdir(node, index);
 	return NULL;
 }

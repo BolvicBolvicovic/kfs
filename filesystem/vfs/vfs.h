@@ -6,7 +6,7 @@
 #include "../../lib/string/string.h"
 #include "../../memory/vmm/vmm.h"
 
-typedef enum node_type {
+enum node_type {
 	FS_FILE,
 	FS_DIR,
 	FS_CHARDEVICE,
@@ -16,7 +16,7 @@ typedef enum node_type {
 	FS_MOUNTPOINT
 };
 
-typedef enum open_flags {
+enum open_flags {
 	READ,
 	WRITE
 };
@@ -35,12 +35,12 @@ typedef struct _FILE {
 	uint32_t	inode;
 	uint32_t	length;
 	struct node_operations {
-		uint32_t	(*read)(struct FILE*,uint32_t,uint32_t,char*buffer);
-		uint32_t	(*write)(struct FILE*,uint32_t,uint32_t,char*buffer);
-		uint32_t	(*open)(struct FILE*, enum open_flags);
-		uint32_t	(*close)(struct FILE*);
-		dentry*		(*readdir)(struct FILE*,uint32_t);
-	};
+		uint32_t	(*read)(struct _FILE*,uint32_t,uint32_t,char*buffer);
+		uint32_t	(*write)(struct _FILE*,uint32_t,uint32_t,char*buffer);
+		uint32_t	(*open)(struct _FILE*, enum open_flags);
+		uint32_t	(*close)(struct _FILE*);
+		dentry*		(*readdir)(struct _FILE*,uint32_t);
+	} node_operations;
 } FILE, *PFILE;
 
 uint32_t	fs_close(PFILE);

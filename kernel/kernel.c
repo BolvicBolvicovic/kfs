@@ -31,8 +31,8 @@ void	kernel_main(uint32_t magic, uint32_t addr) {
     multiboot_info_t* mbi = (multiboot_info_t*)addr;
     struct multiboot_mmap_entry* region = (struct multiboot_mmap_entry*) mbi->mmap_addr;
     uint32_t mem_size = MAX_MEMORY_SIZE;
-//    uint32_t initrd_location = *(uint32_t*)(mbi->mods_addr);
-//    uint32_t initrd_end = *(uint32_t*)(mbi->mods_addr + 4);
+    uint32_t initrd_location = *(uint32_t*)(mbi->mods_addr);
+    uint32_t initrd_end = *(uint32_t*)(mbi->mods_addr + 4);
 
     init_current_screen(BLUE, WHITE);
     term_clear();
@@ -54,6 +54,8 @@ void	kernel_main(uint32_t magic, uint32_t addr) {
     asm volatile("mov %%cr0, %0" : "=r" (cr0));
     if (cr0 & 0x80000000) printf("Paging enabled: cr0 == %p\n", cr0);
     else printf("Paging disabled: cr0 == %p\n", cr0);
+    printf("addr: %p value: %d\n", initrd_location, *(uint32_t*)initrd_location);
+    printf("addr: %p value: %d\n", initrd_end, *(uint32_t*)initrd_end);
 //    if (!mbi->mods_count) printf("no mods added\n");
 //    fs_root = initialise_initrd(initrd_location);
 }
