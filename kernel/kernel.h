@@ -12,4 +12,5 @@
 #include "../memory/pmm/pmm.h"
 #include "../memory/vmm/vmm.h"
 #include "../filesystem/ext2/fs.h"
+#include "../filesystem/ide/ide.h"
 #endif

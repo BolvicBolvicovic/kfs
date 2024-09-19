@@ -8,6 +8,7 @@
 #define PIT_CTRL_WORD 0x43
 #define PIT_COUNTER_0 0x40
 
-void init_timer(uint32_t frequency);
+void 	init_timer(uint32_t frequency);
+void	sleep(uint32_t ticks);
 
 #endif

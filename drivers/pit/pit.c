@@ -2,9 +2,13 @@
 
 static uint32_t tick = 0;
 
+void	sleep(uint32_t ticks) {
+	uint32_t _tick = tick;
+	while (tick > _tick && tick - _tick < ticks) continue;
+}
+
 static void timer_callback(registers_t* regs) {
-	//tick++;
-	//printf("tick: %d\n", tick);
+	tick++;
 	return;
 }
 

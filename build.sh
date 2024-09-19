@@ -32,4 +32,5 @@ if [[ ! -d gcc_kfs ]]; then
 fi
 echo -e "${GREEN}Toolchain setup complete.${WHITE}"
 echo -e "${YELLOW}Building and launching kernel...${WHITE}"
+bash make_disk_image
 make qemu

@@ -51,7 +51,7 @@ void*   bining_allocator(size_t size) {
                 bining_allocator_map[i].bitmap_elem_offset = 0;
                 bining_allocator_map[i].bitmap_offset++;
             }
-            return virt_addr;
+            return (void*)virt_addr;
         }
     }
     if (i == MAX_ALLOC_B_SAME_TIME) return NULL;
@@ -73,7 +73,7 @@ int    bining_allocator_free(uint32_t addr) {
     size_t i;
     for (i = 0; i < MAX_ALLOC_B_SAME_TIME; i++) {
         if (!bining_allocator_map[i].virt_addr) break;
-        if (bining_allocator_map[i].virt_addr == addr) {
+        if (bining_allocator_map[i].virt_addr == page) {
             uint16_t bitmap_index = (addr & OFFSET_ADDR_MASK) / (bining_allocator_map[i].size_type * MAX_BITMAP_ELEM);
             uint8_t bitmap_elem_offset = (addr & OFFSET_ADDR_MASK) % (bining_allocator_map[i].size_type * MAX_BITMAP_ELEM);
             bining_allocator_map[i].bitmap[bitmap_index] &= ~(1 << bitmap_elem_offset);
@@ -154,7 +154,7 @@ uint32_t kget_size(void* virt_addr) {
     uint32_t page = (uint32_t)virt_addr & PAGE_ADDR_MASK;
     for (i = 0; i < MAX_ALLOC_B_SAME_TIME; i++) {
         if (!bining_allocator_map[i].virt_addr) break;
-        if (bining_allocator_map[i].virt_addr == (uint32_t)virt_addr) {
+        if (bining_allocator_map[i].virt_addr == page) {
             return bining_allocator_map[i].size_type;
         }
     }
