@@ -16,20 +16,22 @@
 
 #define PAGE_SIZE 0x1000		     // 4KB
 
-typedef struct {
+typedef struct
+{
    pt_entry m_entries[PAGES_PER_TABLE];
 } p_table;
 
-typedef struct {
+typedef struct
+{
    pd_entry m_entries[PAGES_PER_DIR];
 } p_dir;
 
-void    vmm_init();
-void	vmm_set_flags_pages(uint32_t virt_addr, uint32_t nb_blocks, uint32_t flags, uint8_t set);
-void*   vmm_alloc_blocks(size_t size);
-void    vmm_free_blocks(uint32_t virtual_addr, uint32_t nb_blocks);
-void*   kmalloc(size_t size);
-void    kfree(void* virt_addr);
-uint32_t kget_size(void* virt_addr);
+void    	vmm_init();
+void		vmm_set_flags_pages(uint32_t virt_addr, uint32_t nb_blocks, uint32_t flags, uint8_t set);
+void*   	vmm_alloc_blocks(size_t size);
+void    	vmm_free_blocks(uint32_t virtual_addr, uint32_t nb_blocks);
+void*   	kmalloc(size_t size);
+void    	kfree(void* virt_addr);
+uint32_t	kget_size(void* virt_addr);
 
 #endif

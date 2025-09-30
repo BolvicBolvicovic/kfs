@@ -18,13 +18,15 @@
 #define PAGE_ADDR_MASK              0xFFFFF000
 #define OFFSET_ADDR_MASK            ~PAGE_ADDR_MASK
 
-typedef struct {
+typedef struct
+{
     uint32_t virt_addr;
     uint16_t nb_blocks;
     uint16_t free;
 } __attribute__((__packed__)) cont_map_t;
 
-typedef struct {
+typedef struct
+{
     uint32_t virt_addr;
     uint16_t size_type : 12;
     uint16_t offset_next_free : 10;
@@ -36,28 +38,37 @@ typedef struct {
 static cont_map_t continuous_allocator_map[MAX_ALLOC_C_SAME_TIME] = {0};
 static bini_map_t bining_allocator_map[MAX_ALLOC_B_SAME_TIME] = {0};
 
-void*   bining_allocator(size_t size) {
+void*
+bining_allocator(size_t size)
+{
     size_t i;
     size_t size_type;
     for (size_type = 8; size_type < size; size_type <<= 1);
-    for (i = 0; i < MAX_ALLOC_B_SAME_TIME; i++) {
+    for (i = 0; i < MAX_ALLOC_B_SAME_TIME; i++)
+	{
         if (!bining_allocator_map[i].virt_addr) break;
+        if (bining_allocator_map[i].size_type != size_type) continue;
         if (bining_allocator_map[i].offset_next_free * bining_allocator_map[i].size_type == PAGE_SIZE) continue;
-        if (bining_allocator_map[i].size_type == size_type) {
-            uint32_t virt_addr = bining_allocator_map[i].virt_addr + bining_allocator_map[i].offset_next_free * bining_allocator_map[i].size_type;
-            bining_allocator_map[i].offset_next_free++;
-            bining_allocator_map[i].bitmap[bining_allocator_map[i].bitmap_offset] |= (1 << bining_allocator_map[i].bitmap_elem_offset);
-            if (++bining_allocator_map[i].bitmap_elem_offset == 31) {
-                bining_allocator_map[i].bitmap_elem_offset = 0;
-                bining_allocator_map[i].bitmap_offset++;
-            }
-            return (void*)virt_addr;
+
+        uint32_t virt_addr = bining_allocator_map[i].virt_addr + bining_allocator_map[i].offset_next_free * bining_allocator_map[i].size_type;
+        bining_allocator_map[i].offset_next_free++;
+        bining_allocator_map[i].bitmap[bining_allocator_map[i].bitmap_offset] |= (1 << bining_allocator_map[i].bitmap_elem_offset);
+        if (++bining_allocator_map[i].bitmap_elem_offset == 31)
+		{
+            bining_allocator_map[i].bitmap_elem_offset = 0;
+            bining_allocator_map[i].bitmap_offset++;
         }
+        return (void*)virt_addr;
     }
+
+	// TODO: switch to the continues allocator
     if (i == MAX_ALLOC_B_SAME_TIME) return NULL;
-    for (i = 0; i < MAX_ALLOC_B_SAME_TIME; i++) {
+
+    for (i = 0; i < MAX_ALLOC_B_SAME_TIME; i++)
+	{
         if (!bining_allocator_map[i].size_type) break;
     }
+
     void* new_page = vmm_alloc_blocks(1);
     if (new_page == NULL) return NULL;
     bining_allocator_map[i].virt_addr = (uint32_t)new_page;
@@ -68,21 +79,28 @@ void*   bining_allocator(size_t size) {
     return new_page;
 }
 
-int    bining_allocator_free(uint32_t addr) {
+int
+bining_allocator_free(uint32_t addr)
+{
     uint32_t page = addr & PAGE_ADDR_MASK;
     size_t i;
-    for (i = 0; i < MAX_ALLOC_B_SAME_TIME; i++) {
+    for (i = 0; i < MAX_ALLOC_B_SAME_TIME; i++)
+	{
         if (!bining_allocator_map[i].virt_addr) break;
-        if (bining_allocator_map[i].virt_addr == page) {
+        if (bining_allocator_map[i].virt_addr == page)
+		{
             uint16_t bitmap_index = (addr & OFFSET_ADDR_MASK) / (bining_allocator_map[i].size_type * MAX_BITMAP_ELEM);
             uint8_t bitmap_elem_offset = (addr & OFFSET_ADDR_MASK) % (bining_allocator_map[i].size_type * MAX_BITMAP_ELEM);
             bining_allocator_map[i].bitmap[bitmap_index] &= ~(1 << bitmap_elem_offset);
-            if (bining_allocator_map[i].offset_next_free * bining_allocator_map[i].size_type >= FREE_LIMIT_B_ALLOC) {
+            if (bining_allocator_map[i].offset_next_free * bining_allocator_map[i].size_type >= FREE_LIMIT_B_ALLOC)
+			{
                 uint16_t count = 0;
-                for (size_t j = 0; j < MAX_BITMAP_ELEM; j++) {
+                for (size_t j = 0; j < MAX_BITMAP_ELEM; j++)
+				{
                     if (!bining_allocator_map[i].bitmap[j]) count++;
                 }
-                if (count == MAX_BITMAP_ELEM) {
+                if (count == MAX_BITMAP_ELEM)
+				{
                     vmm_free_blocks(bining_allocator_map[i].virt_addr, 1);
                     // Do not set virt_addr to 0 as it is used to find the edge of the bining_allocator_map
                     bining_allocator_map[i].size_type = 0;
@@ -97,27 +115,35 @@ int    bining_allocator_free(uint32_t addr) {
     return 0;
 }
 
-void*   kmalloc(size_t size) {
+void*
+kmalloc(size_t size)
+{
     if (size <= MAX_SIZE_B_ALLOC) return bining_allocator(size);
 
     uint32_t total_pages_needed = size / PAGE_SIZE + (size % PAGE_SIZE ? 1 : 0);
     size_t i;
     size_t j;
-    for (j = 0, i = 0; i < MAX_ALLOC_C_SAME_TIME; i++) {
-	    if (!continuous_allocator_map[i].free) {
+    for (j = 0, i = 0; i < MAX_ALLOC_C_SAME_TIME; i++)
+	{
+	    if (!continuous_allocator_map[i].free)
+		{
 	        j++;
 	        if (!continuous_allocator_map[i].nb_blocks && !continuous_allocator_map[i].virt_addr) break;
 	    }
-	    if (continuous_allocator_map[i].free && continuous_allocator_map[i].nb_blocks == total_pages_needed) {
+	    if (continuous_allocator_map[i].free && continuous_allocator_map[i].nb_blocks == total_pages_needed)
+		{
 	        continuous_allocator_map[i].free = 1;
 	        vmm_set_flags_pages(continuous_allocator_map[i].virt_addr, continuous_allocator_map[i].nb_blocks, I86_PTE_WRITABLE, 1);
 	        return (void*)continuous_allocator_map[i].virt_addr;
 	    }
     }
     if (i == MAX_ALLOC_C_SAME_TIME && j == MAX_ALLOC_C_SAME_TIME) return NULL;
-    if (i == MAX_ALLOC_C_SAME_TIME) {
-	    for (i = 0; i < MAX_ALLOC_C_SAME_TIME; i++) {
-	        if (continuous_allocator_map[i].free) {
+    if (i == MAX_ALLOC_C_SAME_TIME)
+	{
+	    for (i = 0; i < MAX_ALLOC_C_SAME_TIME; i++)
+		{
+	        if (continuous_allocator_map[i].free)
+			{
 	        	vmm_free_blocks(continuous_allocator_map[i].virt_addr, continuous_allocator_map[i].nb_blocks);
 	        	break;
 	        }
@@ -133,12 +159,16 @@ void*   kmalloc(size_t size) {
     return block_virt_addr;
 }
 
-void    kfree(void* virt_addr) {
+void
+kfree(void* virt_addr)
+{
     if (virt_addr == NULL) goto error;
     if (bining_allocator_free((uint32_t)virt_addr)) return;
-    for (size_t i = 0; i < MAX_ALLOC_C_SAME_TIME; i++) {
+    for (size_t i = 0; i < MAX_ALLOC_C_SAME_TIME; i++)
+	{
 	    if (!continuous_allocator_map[i].free && !continuous_allocator_map[i].nb_blocks && !continuous_allocator_map[i].virt_addr) break;
-	    if (continuous_allocator_map[i].virt_addr == (uint32_t)virt_addr) {
+	    if (continuous_allocator_map[i].virt_addr == (uint32_t)virt_addr)
+		{
 	        vmm_set_flags_pages(continuous_allocator_map[i].virt_addr, continuous_allocator_map[i].nb_blocks, I86_PTE_WRITABLE, 0);
 	        continuous_allocator_map[i].free = 1;
 	        return;
@@ -148,19 +178,25 @@ error:
     printf("ERROR: Invalid free\n");
 }
 
-uint32_t kget_size(void* virt_addr) {
+uint32_t
+kget_size(void* virt_addr)
+{
     if (virt_addr == NULL) return 0;
     size_t i;
     uint32_t page = (uint32_t)virt_addr & PAGE_ADDR_MASK;
-    for (i = 0; i < MAX_ALLOC_B_SAME_TIME; i++) {
+    for (i = 0; i < MAX_ALLOC_B_SAME_TIME; i++)
+	{
         if (!bining_allocator_map[i].virt_addr) break;
-        if (bining_allocator_map[i].virt_addr == page) {
+        if (bining_allocator_map[i].virt_addr == page)
+		{
             return bining_allocator_map[i].size_type;
         }
     }
-    for (i = 0; i < MAX_ALLOC_C_SAME_TIME; i++) {
+    for (i = 0; i < MAX_ALLOC_C_SAME_TIME; i++)
+	{
 	    if (!continuous_allocator_map[i].free && !continuous_allocator_map[i].nb_blocks && !continuous_allocator_map[i].virt_addr) break;
-	    if (continuous_allocator_map[i].virt_addr == (uint32_t)virt_addr) {
+	    if (continuous_allocator_map[i].virt_addr == (uint32_t)virt_addr)
+		{
 	        return continuous_allocator_map[i].nb_blocks * PAGE_SIZE;
 	    }
     }

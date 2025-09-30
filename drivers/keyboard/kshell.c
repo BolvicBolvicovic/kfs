@@ -4,7 +4,8 @@ static char line[256];
 static size_t index = 0;
 extern current_screen_t current_screen;
 
-const char*  color_list[16] = {
+const char*  color_list[16] =
+{
 	"BLACK",
 	"BLUE",
 	"GREEN",
@@ -23,12 +24,15 @@ const char*  color_list[16] = {
 	"BRIGHT_WHITE"
 };
 
-const char* keyboard_list[2] = {
+const char* keyboard_list[2] =
+{
     "US",
     "FR"
 };
 
-void    init_current_screen(enum vga_color fg, enum vga_color bg) {
+void
+init_current_screen(enum vga_color fg, enum vga_color bg)
+{
 	term_set_color(vga_entry_color(fg, bg));
     enable_cursor();
 	current_screen.lists[0] = (list_option_t) { .list = {.list = color_list, .current_item_index = bg, .list_vga_index = 0 }};
@@ -36,7 +40,9 @@ void    init_current_screen(enum vga_color fg, enum vga_color bg) {
 	current_screen.lists[2] = (list_option_t) { .list = {.list = keyboard_list, .current_item_index = 0, .list_vga_index = 0 }};
 }
 
-static void set() {
+static void
+set()
+{
     term_clear();
     list_option_t background = draw_list("BACKGROUND", color_list, current_screen.lists[0].list.current_item_index, (VGA_ROWS / 4) * 2, 10, 30);
     list_option_t foreground = draw_list("FORGROUND", color_list, current_screen.lists[1].list.current_item_index, (VGA_ROWS / 2) * 2, 10, 32);
@@ -51,13 +57,17 @@ static void set() {
     draw_line("Q Quit / J Up / K Down / H Left / L Right", 2 * (VGA_ROWS - 3), 10);
 }
 
-inline void cmd_add_char(uint8_t c) {
+inline void
+cmd_add_char(uint8_t c)
+{
     if (c == 0x7F && index - 1 >= 0) index--;
     else if (index < 256) line[index++] = c;
     if (index >= VGA_COLS) index = 0;
 }
 
-void exec_tests() {
+void
+exec_tests()
+{
     int total = 0;
     int success = 0;
     int failure = 0;
@@ -65,10 +75,13 @@ void exec_tests() {
     //TODO: write test suite for functions that give an output
     tests_string(&total, &success, &failure);
     tests_stdlib(&total, &success, &failure);
+	tests_memory(&total, &success, &failure);
     printf("\nTEST SUITE DONE:\n  TOTAL   : %d\n  SUCCESS : %d\n  FAILURE : %d\n", total, success, failure);
 }
 
-void    reboot() {
+void
+reboot()
+{
     asm volatile(
         "cli\n\t"
         "mov $0xFE, %al\n\t"
@@ -80,7 +93,9 @@ void    reboot() {
 extern uint32_t stack_bottom;
 extern uint32_t stack_top;
 
-void print_stack() {
+void
+print_stack()
+{
     uint32_t count = 0;
     uint32_t repeat = 0xFFFFFFFF;
     printf(
@@ -88,11 +103,13 @@ void print_stack() {
         "STACK BOT: %p\n",
         &stack_top, &stack_bottom
     );
-    for (uint32_t* i = &stack_top; i > &stack_bottom; i--) {
+    for (uint32_t* i = &stack_top; i > &stack_bottom; i--)
+    {
         if (repeat != *i) {
             if (!count) printf("0x%x | ", *i);
             else { printf("0x%x times %d | ", *i, count + 1); count = 0; }
-        } else count++;
+        }
+        else count++;
         repeat = *i;
     }
     printf("\n");
@@ -139,7 +156,8 @@ void int_0x25() { asm volatile("int $0x25"); }
 
 typedef void (*inter_func)(void);
 
-inter_func tab[] = {
+inter_func tab[] =
+{
     int_0x0, int_0x1, int_0x2, int_0x3, 
     int_0x4, int_0x5, int_0x6, int_0x7,
     int_0x8, int_0x9, int_0xA, int_0xB,
@@ -152,13 +170,17 @@ inter_func tab[] = {
     int_0x24, int_0x25
 };
 
-void do_interrupt(char* nb) {
+void
+do_interrupt(char* nb)
+{
     int n = atoi(nb);
     if (n < 0 || n > 0x25) return;
     tab[n]();
 }
 
-void shut_down() {
+void
+shut_down()
+{
     asm volatile(
         "movw $0x2000, %ax\n"
         "movw $0x604, %dx\n"
@@ -167,7 +189,9 @@ void shut_down() {
     );
 }
 
-void    exec_command() {
+void
+exec_command()
+{
     char words[4][256];
     size_t i = 0;
     size_t j;

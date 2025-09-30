@@ -8,6 +8,7 @@ Once you cloned the repository, you can download a cross-toolchain of your choic
 I use QEMU (qemu-system-i386) as an emulator for the architecture. 
 
 ```bash
+sudo apt install grub2-common grub-pc-bin xorriso
 ./build.sh
 ```
 

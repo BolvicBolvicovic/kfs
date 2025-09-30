@@ -27,7 +27,9 @@ extern uint32_t bitmap;
 #define MAX_MEMORY_SIZE 0xFFFFF
 
 
-void	kernel_main(uint32_t magic, uint32_t addr) {
+void
+kernel_main(uint32_t magic, uint32_t addr)
+{
     multiboot_info_t* mbi = (multiboot_info_t*)addr;
     struct multiboot_mmap_entry* region = (struct multiboot_mmap_entry*) mbi->mmap_addr;
     uint32_t mem_size = MAX_MEMORY_SIZE;
@@ -39,7 +41,8 @@ void	kernel_main(uint32_t magic, uint32_t addr) {
     init_timer(50);
     init_syscall();
     pmm_init(mem_size, &bitmap);
-    for (size_t i = 0; i < 15; i++) {
+    for (size_t i = 0; i < 15; i++)
+    {
         if (region[i].type > 5)           region[i].type = MULTIBOOT_MEMORY_AVAILABLE;
         if (i > 0 && region[i].addr_low == 0) break;
         if (region[i].type == MULTIBOOT_MEMORY_AVAILABLE) pmm_init_region(region[i].addr_low, region[i].len_low);
@@ -52,5 +55,5 @@ void	kernel_main(uint32_t magic, uint32_t addr) {
     asm volatile("mov %%cr0, %0" : "=r" (cr0));
     if (cr0 & 0x80000000) printf("Paging enabled: cr0 == %p\n", cr0);
     else printf("Paging disabled: cr0 == %p\n", cr0);
-    ide_init(0x1F0, 0x3F6, 0x170, 0x376, 0x000);
+    //ide_init(0x1F0, 0x3F6, 0x170, 0x376, 0x000);
 }

@@ -9,24 +9,29 @@ void    exec_command();
 void    cmd_add_char(uint8_t c);
 void    tests_string(int* total, int* success, int* failure);
 void    tests_stdlib(int* total, int* success, int* failure);
+void	tests_memory(int* total, int* success, int* failure);
 
-typedef enum {
+typedef enum
+{
     SHELL,
     SETTINGS
 } screen_type_t;
 
-typedef struct {
+typedef struct
+{
     char**  list;
     uint8_t current_item_index;
     size_t list_vga_index;
 } list_t;
 
-typedef union {
+typedef union
+{
     list_t list;
     void* null;
 } list_option_t;
 
-typedef struct {
+typedef struct
+{
     screen_type_t type;
     list_option_t lists[3];
 } current_screen_t;
