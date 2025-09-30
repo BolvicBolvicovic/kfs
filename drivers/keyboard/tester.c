@@ -7,6 +7,18 @@
     } \
 } while(0)
 
+#define TEST_ASSERT(msg, cond, total, success, failure) do { \
+    (*total)++; \
+    if (cond) { \
+        (*success)++; \
+        printf("%s: success\n", msg); \
+    } else { \
+        (*failure)++; \
+        printf("%s: failure\n", msg); \
+        return -1; \
+    } \
+} while(0)
+
 #define MAX_TEST_PTRS 1024
 
 extern void*	kmalloc(size_t s);
@@ -53,46 +65,140 @@ check_pattern(void* p, size_t size, uint32_t pattern)
 
 /* Test 1: small allocations + kget_size + uniqueness */
 static int
-test_binning_basic(void)
+test_binning_basic(int* total, int* success, int* failure)
 {
-    printf("TEST: bining basic\n");
+    printf("TEST: binning basic\n");
     int used = 0;
     size_t sizes[] = {8, 16, 32, 64, 128, 256, 512, 1024, 2048};
-    for (size_t si = 0; si < sizeof(sizes)/sizeof(sizes[0]); ++si)
+    int num_sizes = sizeof(sizes)/sizeof(sizes[0]);
+    
+    *total += num_sizes + 1; // num_sizes allocations + 1 uniqueness test
+    
+    for (size_t si = 0; si < num_sizes; ++si)
 	{
         void* p = kmalloc(sizes[si]);
-        ASSERT("bining returned NULL", p != NULL);
-        uint32_t ks = kget_size(p);
-        ASSERT("kget_size smaller than requested", ks >= sizes[si]);
-        /* store */
-        recs[used].ptr = p;
-        recs[used].req_size = sizes[si];
-        recs[used].size_type = ks;
-        recs[used].pattern = pattern_for_idx(used);
-        fill_pattern(p, sizes[si], recs[used].pattern);
-        used++;
+        if (p != NULL)
+        {
+            uint32_t ks = kget_size(p);
+            if (ks >= sizes[si])
+            {
+                (*success)++;
+                printf("binning allocation size %zu: success\n", sizes[si]);
+            }
+            else
+            {
+                (*failure)++;
+                printf("binning allocation size %zu: failure (kget_size too small)\n", sizes[si]);
+                return -1;
+            }
+            /* store */
+            recs[used].ptr = p;
+            recs[used].req_size = sizes[si];
+            recs[used].size_type = ks;
+            recs[used].pattern = pattern_for_idx(used);
+            fill_pattern(p, sizes[si], recs[used].pattern);
+            used++;
+        }
+        else
+        {
+            (*failure)++;
+            printf("binning allocation size %zu: failure (returned NULL)\n", sizes[si]);
+            return -1;
+        }
     }
+    
     /* uniqueness: no overlap check by comparing addresses */
-    for (int i = 0; i < used; ++i) for (int j = i+1; j < used; ++j)
-        ASSERT("bining overlap", recs[i].ptr != recs[j].ptr);
-    printf("bining basic OK\n");
+    int overlap_found = 0;
+    for (int i = 0; i < used && !overlap_found; ++i)
+    {
+        for (int j = i+1; j < used; ++j)
+        {
+            if (recs[i].ptr == recs[j].ptr)
+            {
+                overlap_found = 1;
+                break;
+            }
+        }
+    }
+    
+    if (!overlap_found)
+    {
+        (*success)++;
+        printf("binning uniqueness: success\n");
+    }
+    else
+    {
+        (*failure)++;
+        printf("binning uniqueness: failure (overlap detected)\n");
+        return -1;
+    }
+    
+    printf("binning basic OK\n");
     return 0;
 }
 
 /* Test 2: large allocations (continuous) */
 static int
-test_continuous_basic(void)
+test_continuous_basic(int* total, int* success, int* failure)
 {
     printf("TEST: continuous basic\n");
+    *total += 3; // 3 assertions
+    
     void* p1 = kmalloc(8192); /* 2 pages */
-    ASSERT("continuous p1 null", p1 != NULL);
-    ASSERT("continuous page aligned", ((uintptr_t)p1 & 0xFFF) == 0);
+    if (p1 != NULL)
+    {
+        (*success)++;
+        printf("continuous allocation: success\n");
+    }
+    else
+    {
+        (*failure)++;
+        printf("continuous allocation: failure (returned NULL)\n");
+        return -1;
+    }
+    
+    if (((uintptr_t)p1 & 0xFFF) == 0)
+    {
+        (*success)++;
+        printf("continuous page alignment: success\n");
+    }
+    else
+    {
+        (*failure)++;
+        printf("continuous page alignment: failure\n");
+        kfree(p1);
+        return -1;
+    }
+    
     uint32_t ks = kget_size(p1);
-    ASSERT("kget_size multi-page", ks >= 8192);
+    if
+    (ks >= 8192)
+    {
+        (*success)++;
+        printf("continuous kget_size: success\n");
+    }
+    else
+    {
+        (*failure)++;
+        printf("continuous kget_size: failure\n");
+        kfree(p1);
+        return -1;
+    }
+    
     /* fill and check */
     uint32_t pat = 0xDEADBEEF;
     fill_pattern(p1, 8192, pat);
-    ASSERT("pattern ok", check_pattern(p1, 8192, pat));
+    if (check_pattern(p1, 8192, pat))
+    {
+        printf("continuous pattern check: success\n");
+    }
+    else
+    {
+        printf("continuous pattern check: failure\n");
+        kfree(p1);
+        return -1;
+    }
+    
     kfree(p1);
     printf("continuous basic OK\n");
     return 0;
@@ -100,14 +206,19 @@ test_continuous_basic(void)
 
 /* Test 3: invalid free */
 static int
-test_invalid_free(void)
+test_invalid_free(int* total, int* success, int* failure)
 {
     printf("TEST: invalid free\n");
+    *total += 1;
+    
     /* Pass some pointer that was not allocated */
     void* bogus = (void*)0x12345000;
     /* Should print "ERROR: Invalid free" — but we check no crash */
     kfree(bogus);
-    printf("invalid free done (check log)\n");
+    
+    /* If we reach here without crashing, consider it a success */
+    (*success)++;
+    printf("invalid free: success (no crash)\n");
     return 0;
 }
 
@@ -115,9 +226,9 @@ test_invalid_free(void)
 void
 tests_memory(int* total, int* success, int* failure)
 {
-    if (test_binning_basic()) return;
-    if (test_continuous_basic()) return;
-    if (test_invalid_free()) return;
+    if (test_binning_basic(total, success, failure)) return;
+    if (test_continuous_basic(total, success, failure)) return;
+    if (test_invalid_free(total, success, failure)) return;
     printf("ALL kmalloc tests passed\n");
 }
 
@@ -128,118 +239,124 @@ tests_string(int* total, int* success, int* failure)
     char tester[] = "TESter";
     *total += 10;
     
+    // Test strlen
 	if (strlen(tester) == 6)
-	{
-		*success += 1;
-		printf("strlen : success\n");
+    {
+		(*success)++;
+		printf("strlen(\"TESter\"): success\n");
     }
-	else
-	{
-		*failure += 1;
-		printf("strlen : failure\n");
+    else
+    {
+		(*failure)++;
+		printf("strlen(\"TESter\"): failure - expected 6, got %zu\n", strlen(tester));
     }
 
     if (strlen("") == 0)
-	{
-		*success += 1;
-		printf("strlen : success\n");
+    {
+		(*success)++;
+		printf("strlen(\"\"): success\n");
     }
-	else
-	{
-		*failure += 1;
-		printf("strlen : failure\n");
+    else
+    {
+		(*failure)++;
+		printf("strlen(\"\"): failure - expected 0, got %zu\n", strlen(""));
     }
 
+    // Test strcmp
     if (strcmp(tester, "TESter") == 0)
-	{
-		*success += 1;
-		printf("strcmp : success\n");
+    {
+		(*success)++;
+		printf("strcmp equal strings: success\n");
     }
-	else
-	{
-		*failure += 1;
-		printf("strcmp : failure\n");
+    else
+    {
+		(*failure)++;
+		printf("strcmp equal strings: failure\n");
     }
 
     if (strcmp(tester, "tes") != 0)
-	{
-		*success += 1;
-		printf("strcmp : success\n");
+    {
+		(*success)++;
+		printf("strcmp different strings: success\n");
     }
-	else
-	{
-		*failure += 1;
-		printf("strcmp : failure\n");
+    else
+    {
+		(*failure)++;
+		printf("strcmp different strings: failure\n");
     }
 
     if (strcmp(tester, "TESterrrr") != 0)
-	{
-		*success += 1;
-		printf("strcmp : success\n");
+    {
+		(*success)++;
+		printf("strcmp different length strings: success\n");
     }
-	else
-	{
-		*failure += 1;
-		printf("strcmp : failure\n");
+    else
+    {
+		(*failure)++;
+		printf("strcmp different length strings: failure\n");
     }
 
-    if (strchr(tester, 'a') == 0)
-	{
-		*success += 1;
-		printf("strchr : success\n");
+    // Test strchr
+    if (strchr(tester, 'a') == NULL)
+    {
+		(*success)++;
+		printf("strchr not found: success\n");
     }
-	else
-	{
-		*failure += 1;
-		printf("strchr : failure\n");
+    else
+    {
+		(*failure)++;
+		printf("strchr not found: failure\n");
     }
 
     if (strchr(tester, 'e') == tester + 4)
-	{
-		*success += 1;
-		printf("strchr : success\n");
+    {
+		(*success)++;
+		printf("strchr found: success\n");
     }
-	else
-	{
-		*failure += 1;
-		printf("strchr : failure\n");
+    else
+    {
+		(*failure)++;
+		printf("strchr found: failure\n");
     }
 
+    // Test memcpy
     char copy[8] = {0};
     memcpy(copy, tester, 3);
     if (strcmp(copy, "TES") == 0)
-	{
-		*success += 1;
-		printf("memcpy : success\n");
+    {
+		(*success)++;
+		printf("memcpy: success\n");
     }
-	else
-	{
-		*failure += 1;
-		printf("memcpy : failure | expected copy == \"TES\", got %s\n", copy);
+    else
+    {
+		(*failure)++;
+		printf("memcpy: failure | expected copy == \"TES\", got %s\n", copy);
     }
 
+    // Test strcpy
     strcpy(copy, tester);
     if (strcmp(copy, tester) == 0)
-	{
-		*success += 1;
-		printf("strcpy : success\n");
+    {
+		(*success)++;
+		printf("strcpy: success\n");
     }
-	else
-	{
-		*failure += 1;
-		printf("strcpy : failure\n");
+    else
+    {
+		(*failure)++;
+		printf("strcpy: failure\n");
     }
 
+    // Test memset
     memset(copy, 'c', 7);
     if (strcmp(copy, "ccccccc") == 0)
-	{
-		*success += 1;
-		printf("memset : success\n");
+    {
+		(*success)++;
+		printf("memset: success\n");
     }
-	else
-	{
-		*failure += 1;
-		printf("memset : failure\n");
+    else
+    {
+		(*failure)++;
+		printf("memset: failure - expected \"ccccccc\", got %s\n", copy);
     }
 }
 
@@ -247,16 +364,77 @@ void
 tests_stdlib(int* total, int* success, int* failure)
 {
     printf("\ntests for stdlib.h\n");
-    *total += 1;
+    *total += 3; // Three different atoi tests
+    
+    // Test atoi with positive number
+    if (atoi("5") == 5)
+    {
+		(*success)++;
+		printf("atoi(\"5\"): success\n");
+    }
+    else
+    {
+		(*failure)++;
+		printf("atoi(\"5\"): failure - expected 5, got %d\n", atoi("5"));
+    }
+    
+    // Test atoi with negative number
+    if (atoi("-5") == -5)
+    {
+		(*success)++;
+		printf("atoi(\"-5\"): success\n");
+    }
+    else
+    {
+		(*failure)++;
+		printf("atoi(\"-5\"): failure - expected -5, got %d\n", atoi("-5"));
+    }
+    
+    // Test atoi with invalid string
+    if (atoi("zda") == 0)
+    {
+		(*success)++;
+		printf("atoi(\"zda\"): success\n");
+    }
+    else
+    {
+		(*failure)++;
+		printf("atoi(\"zda\"): failure - expected 0, got %d\n", atoi("zda"));
+    }
+}
 
-    if (atoi("5") == 5 && atoi("-5") == -5 && atoi("zda") == 0)
-	{
-		*success += 1;
-		printf("atoi   : success\n");
+void
+run_all_tests(void)
+{
+    int total = 0, success = 0, failure = 0;
+    
+    printf("=== STARTING ALL TESTS ===\n\n");
+    
+    // Run memory tests
+    printf("=== MEMORY TESTS ===\n");
+    tests_memory(&total, &success, &failure);
+    
+    // Run string tests
+    printf("\n=== STRING TESTS ===\n");
+    tests_string(&total, &success, &failure);
+    
+    // Run stdlib tests
+    printf("\n=== STDLIB TESTS ===\n");
+    tests_stdlib(&total, &success, &failure);
+    
+    // Print summary
+    printf("\n=== TEST SUMMARY ===\n");
+    printf("Total tests: %d\n", total);
+    printf("Successful: %d\n", success);
+    printf("Failed: %d\n", failure);
+    
+    if (failure == 0)
+    {
+        printf("ALL TESTS PASSED!\n");
     }
-	else
-	{
-		*failure += 1;
-		printf("atoi   : failure atoi(5) == %d | atoi(-5) == %d | atoi('zda') == %d\n", atoi("5"), atoi("-5"), atoi("zda"));
+    else
+    {
+        printf("SOME TESTS FAILED!\n");
     }
+    printf("=== END OF TESTS ===\n");
 }

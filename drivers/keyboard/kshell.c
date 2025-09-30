@@ -66,20 +66,6 @@ cmd_add_char(uint8_t c)
 }
 
 void
-exec_tests()
-{
-    int total = 0;
-    int success = 0;
-    int failure = 0;
-    printf("TEST SUITE FOR THE KERNEL\n");
-    //TODO: write test suite for functions that give an output
-    tests_string(&total, &success, &failure);
-    tests_stdlib(&total, &success, &failure);
-	tests_memory(&total, &success, &failure);
-    printf("\nTEST SUITE DONE:\n  TOTAL   : %d\n  SUCCESS : %d\n  FAILURE : %d\n", total, success, failure);
-}
-
-void
 reboot()
 {
     asm volatile(
@@ -209,7 +195,7 @@ exec_command()
     } else if (!strcmp(words[0], "CLEAR")) {
         term_clear();
     } else if (!strcmp(words[0], "TEST")){
-        exec_tests();
+        run_all_tests();
     } else if (!strcmp(words[0], "REBOOT")){
         reboot();
     } else if (!strcmp(words[0], "EXIT")){
