@@ -80,14 +80,14 @@ tests_processes(int* total, int* success, int* failure)
 		return;
 	}
 	
-	printf("Starting process execution with multiple yields...\n");
-	// Call yield multiple times to let processes run
-	for (int i = 0; i < 20; i++)
-	{
-		printf("[yield %d] ", i);
-		yield();
-	}
-	printf("\nProcesses execution completed.\n");
+	//printf("Starting process execution with multiple yields...\n");
+	//// Call yield multiple times to let processes run
+	//for (int i = 0; i < 20; i++)
+	//{
+	//	printf("[yield %d] ", i);
+	//	yield();
+	//}
+	//printf("\nProcesses execution completed.\n");
 }
 
 

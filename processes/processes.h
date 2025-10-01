@@ -2,6 +2,7 @@
 # define PROCESSES_H
 
 #include <stdint.h>
+#include "../lib/stdio/stdio.h"
 
 typedef uint32_t	pid_t;
 typedef uint32_t	uid_t;
@@ -67,8 +68,8 @@ typedef struct
 	// TODO: dynamize children, fd table, heap and stack
 	//pid_t			children[16];
 	//pid_t			fds[32];
-	uint8_t			stack[4096];
-	uint8_t			heap[4096];
+	uint8_t*		stack;
+	uint8_t*		heap;
 	uint32_t		next;
 } process;
 

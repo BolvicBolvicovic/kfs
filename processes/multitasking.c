@@ -3,12 +3,15 @@
 
 #define PT_SIZE 64
 
-extern void*   memset(void* s, int c, uint32_t n);
+extern void*	kmalloc(uint32_t size);
+extern void		kfree(void* ptr);
+extern void*	memset(void* s, int c, uint32_t n);
+extern p_dir*	vmm_get_dir(void);
 
 void exit_process(void);
 
 // TODO: Use hash table instead with pid as index
-static process		process_table[PT_SIZE] = {0};
+static process	process_table[PT_SIZE] = {0};
 static process*	current_process = 0;
 static process*	head_process = 0;
 static process*	tail_process = 0;
@@ -58,49 +61,53 @@ get_process(pid_t p)
 static inline void
 switch_process(process* old, process* new)
 {
-    asm volatile (
-        // --- Save old registers ---
+	asm volatile (
+        // Save using FIRST pointer (don't modify it)
         "movl %%eax, 0(%0)\n\t"
         "movl %%ebx, 4(%0)\n\t"
         "movl %%ecx, 8(%0)\n\t"
         "movl %%edx, 12(%0)\n\t"
         "movl %%esi, 16(%0)\n\t"
         "movl %%edi, 20(%0)\n\t"
-        "movl %%esp, 24(%0)\n\t"
+
+        // Use EBX for temps (we already saved it)
+        "leal 4(%%esp), %%ebx\n\t"
+        "movl %%ebx, 24(%0)\n\t"
+
         "movl %%ebp, 28(%0)\n\t"
 
-        // Save eflags
+        "movl (%%esp), %%ebx\n\t"
+        "movl %%ebx, 32(%0)\n\t"
+
         "pushf\n\t"
-        "popl 36(%0)\n\t"
+        "popl %%ebx\n\t"
+        "movl %%ebx, 36(%0)\n\t"
 
-        // Save CR3
-        "movl %%cr3, %%eax\n\t"
-        "movl %%eax, 40(%0)\n\t"
+        "movl %%cr3, %%ebx\n\t"
+        "movl %%ebx, 40(%0)\n\t"
 
-        // Save EIP: tricky part
-        "call 1f\n\t"        // push return address
-        "1: popl 32(%0)\n\t" // pop return address into old->regs.eip
+        // Load using SECOND pointer - save it in EBX first!
+        "movl %1, %%ebx\n\t"           // EBX = &new->regs
 
-        // --- Load new registers ---
-        "movl 40(%1), %%eax\n\t"   // load CR3
+        "movl 40(%%ebx), %%eax\n\t"    // Load CR3
         "movl %%eax, %%cr3\n\t"
 
-        "movl 0(%1), %%eax\n\t"
-        "movl 4(%1), %%ebx\n\t"
-        "movl 8(%1), %%ecx\n\t"
-        "movl 12(%1), %%edx\n\t"
-        "movl 16(%1), %%esi\n\t"
-        "movl 20(%1), %%edi\n\t"
-        "movl 28(%1), %%ebp\n\t"
-
-        "movl 24(%1), %%esp\n\t"   // switch to new stack
-
-        // Restore eflags
-        "pushl 36(%1)\n\t"
+        "pushl 36(%%ebx)\n\t"          // Load eflags
         "popf\n\t"
 
-        // Jump to new EIP
-        "jmp *32(%1)\n\t"
+        "movl 28(%%ebx), %%ebp\n\t"    // Load EBP
+        "movl 24(%%ebx), %%esp\n\t"    // Load ESP
+        "pushl 32(%%ebx)\n\t"          // Push EIP
+
+        // Now restore registers (EBX last since it's our pointer)
+        "movl 0(%%ebx), %%eax\n\t"
+        "movl 8(%%ebx), %%ecx\n\t"
+        "movl 12(%%ebx), %%edx\n\t"
+        "movl 16(%%ebx), %%esi\n\t"
+        "movl 20(%%ebx), %%edi\n\t"
+        "movl 4(%%ebx), %%ebx\n\t"     // Load EBX last
+
+        "ret\n\t"                      // Jump to pushed EIP
         :
         : "r"(&(old->regs)), "r"(&(new->regs))
         : "memory"
@@ -108,29 +115,31 @@ switch_process(process* old, process* new)
 }
 
 static inline void
-start_process(uint32_t* new)
+start_process(process* new)
 {
     asm volatile (
-        // --- Load new registers ---
-        "movl 40(%0), %%eax\n\t"   // load CR3
+        // Load using SECOND pointer - save it in EBX first!
+        "movl %0, %%ebx\n\t"           // EBX = &new->regs
+
+        "movl 40(%%ebx), %%eax\n\t"    // Load CR3
         "movl %%eax, %%cr3\n\t"
 
-        "movl 0(%0), %%eax\n\t"
-        "movl 4(%0), %%ebx\n\t"
-        "movl 8(%0), %%ecx\n\t"
-        "movl 12(%0), %%edx\n\t"
-        "movl 16(%0), %%esi\n\t"
-        "movl 20(%0), %%edi\n\t"
-        "movl 28(%0), %%ebp\n\t"
-
-        "movl 24(%0), %%esp\n\t"   // switch to new stack
-
-        // Restore eflags
-        "pushl 36(%0)\n\t"
+        "pushl 36(%%ebx)\n\t"          // Load eflags
         "popf\n\t"
 
-        // Jump to new EIP
-        "jmp *32(%0)\n\t"
+        "movl 28(%%ebx), %%ebp\n\t"    // Load EBP
+        "movl 24(%%ebx), %%esp\n\t"    // Load ESP
+        "pushl 32(%%ebx)\n\t"          // Push EIP
+
+        // Now restore registers (EBX last since it's our pointer)
+        "movl 0(%%ebx), %%eax\n\t"
+        "movl 8(%%ebx), %%ecx\n\t"
+        "movl 12(%%ebx), %%edx\n\t"
+        "movl 16(%%ebx), %%esi\n\t"
+        "movl 20(%%ebx), %%edi\n\t"
+        "movl 4(%%ebx), %%ebx\n\t"     // Load EBX last
+
+        "ret\n\t"                      // Jump to pushed EIP
         :
         : "r"(&(new->regs))
         : "memory"
@@ -191,9 +200,15 @@ fork_process(pid_t p)
 		//fork->children[16]	= current->children[i];
 	}
 
-	if (tail_process) {
+	if (tail_process)
+	{
 		tail_process->next = (uint32_t)fork;
 	}
+	else if (head_process)
+	{
+		head_process->next = (uint32_t)fork;
+	}
+	tail_process = fork;
 
 	return fork_pid;
 }
@@ -202,6 +217,8 @@ void
 exit_process(void)
 {
 	current_process->status = ZOMBIE;
+	kfree(current_process->heap);
+	kfree(current_process->stack);
 	schedule();
 }
 
@@ -213,14 +230,21 @@ create_process(void (*entry)(void))
 	
 	if (!p || !pid) return 0;
 
+	p->stack = kmalloc(4096);
+	p->heap = kmalloc(4096);
+
 	memset(p->stack, 0, 4096);
+	memset(p->heap, 0, 4096);
 	
-	uint32_t stk		= (uint32_t)(p->stack) + 4096;
-	*(uint32_t*)(--stk)	= exit_process;
-	p->regs.esp			= stk;
+	uint32_t*		stk	= (uint32_t*)((uint32_t)(p->stack) + 4096);
+	*(--stk)			= (uint32_t)exit_process;
+	p->regs.esp			= (uint32_t)stk;
 	p->regs.eip			= (uint32_t)entry;
 	p->regs.eax			= p->regs.ebx = p->regs.ecx = p->regs.edx = 0;
 	p->regs.esi			= p->regs.edi = p->regs.ebp = 0;
+	// Note: Enable interrupts (IF flag)
+	p->regs.eflags      = 0x200;
+	p->regs.cr3			= (uint32_t)vmm_get_dir();
 	p->status			= READY;
 	p->next				= 0;
 
@@ -269,6 +293,7 @@ init_multitasking(void)
 		
 		current_process->next = 0;
 		current_process->status = RUNNING;
+		start_process(current_process);
 	}
 }
 
@@ -281,28 +306,22 @@ schedule(void)
 	
 	current_process = head_process;
 	head_process = (process*)current_process->next;
-	current_process->next = 0;
 	current_process->status = RUNNING;
 	
 	if (prev && prev->status == RUNNING)
 	{
+		prev->next = 0;
 		prev->status = READY;
 		if (!head_process)
 		{
 			head_process = prev;
-			tail_process = prev;
+			tail_process = 0;
 		}
 		else
 		{
 			tail_process->next = (uint32_t)prev;
 			tail_process = prev;
 		}
-		prev->next = 0;
-	}
-	
-	if (!head_process)
-	{
-		tail_process = 0;
 	}
 	
 	if (prev)
@@ -318,5 +337,9 @@ schedule(void)
 void
 yield(void)
 {
+    //uint32_t esp_now;
+    //asm volatile("movl %%esp, %0" : "=r"(esp_now));
+    //printf("yield() called, current ESP=%d\n", esp_now);
+
 	schedule();
 }
