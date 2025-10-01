@@ -19,8 +19,79 @@
     } \
 } while(0)
 
-#define MAX_TEST_PTRS 1024
+typedef uint32_t pid_t;
+extern pid_t	create_process(void (*entry)(void));
+extern void		yield();
 
+static void
+process_a(void)
+{
+	printf("Process A starting\n");
+	for (size_t i = 0; i < 5; i++)  // Reduced iterations for testing
+	{
+		printf("a");
+		yield();
+	}
+	printf("Process A ending\n");
+}
+
+static void
+process_b(void)
+{
+	printf("Process B starting\n");
+	for (size_t i = 0; i < 5; i++)  // Reduced iterations for testing
+	{
+		printf("b");
+		yield();
+	}
+	printf("Process B ending\n");
+}
+
+void
+tests_processes(int* total, int* success, int* failure)
+{
+	printf("Creating processes...\n");
+	pid_t	a = create_process(process_a);
+	pid_t	b = create_process(process_b);
+	
+	*total += 2; // Two process creation tests
+	
+	if (a > 0)
+	{
+		(*success)++;
+		printf("Process A created successfully (PID: %d)\n", a);
+	}
+	else
+	{
+		(*failure)++;
+		printf("Process A creation failed\n");
+		return;
+	}
+	
+	if (b > 0)
+	{
+		(*success)++;
+		printf("Process B created successfully (PID: %d)\n", b);
+	}
+	else
+	{
+		(*failure)++;
+		printf("Process B creation failed\n");
+		return;
+	}
+	
+	printf("Starting process execution with multiple yields...\n");
+	// Call yield multiple times to let processes run
+	for (int i = 0; i < 20; i++)
+	{
+		printf("[yield %d] ", i);
+		yield();
+	}
+	printf("\nProcesses execution completed.\n");
+}
+
+
+#define MAX_TEST_PTRS 1024
 extern void*	kmalloc(size_t s);
 
 typedef struct
@@ -410,19 +481,18 @@ run_all_tests(void)
     
     printf("=== STARTING ALL TESTS ===\n\n");
     
-    // Run memory tests
     printf("=== MEMORY TESTS ===\n");
     tests_memory(&total, &success, &failure);
     
-    // Run string tests
     printf("\n=== STRING TESTS ===\n");
     tests_string(&total, &success, &failure);
     
-    // Run stdlib tests
     printf("\n=== STDLIB TESTS ===\n");
     tests_stdlib(&total, &success, &failure);
+
+    printf("\n=== PROCESSES TESTS ===\n");
+    tests_processes(&total, &success, &failure);
     
-    // Print summary
     printf("\n=== TEST SUMMARY ===\n");
     printf("Total tests: %d\n", total);
     printf("Successful: %d\n", success);

@@ -2,7 +2,7 @@ BINARY		=	isoroot/boot/kfs.elf
 ISO			=	kfs.iso
 CC			=	./gcc_kfs/bin/i386-elf-gcc
 LD			=	./gcc_kfs/bin/i386-elf-ld
-LIBS		=	lib/libc.a drivers/drivers.a memory/memory.a #filesystem/filesystem.a
+LIBS		=	lib/libc.a drivers/drivers.a memory/memory.a processes/processes.a #filesystem/filesystem.a
 CFLAGS		= 	-ffreestanding			\
 				-g	\
 				-O0 \
@@ -22,6 +22,7 @@ required	:
 	make -C lib
 	make -C drivers
 	make -C memory
+	make -C processes
 	#make -C filesystem
 
 $(ISO)		:	$(BINARY)
@@ -46,12 +47,14 @@ clean		:
 	rm -rf $(OBJS)
 	make -C lib clean
 	make -C drivers clean
+	make -C processes clean
 
 fclean		: clean
 	make -C lib fclean
 	make -C drivers fclean
 	make -C memory fclean
 	make -C filesystem fclean
+	make -C processes fclean
 	rm -rf obj
 	rm -rf $(ISO)
 	rm -rf $(BINARY)

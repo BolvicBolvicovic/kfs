@@ -51,9 +51,13 @@ kernel_main(uint32_t magic, uint32_t addr)
     pmm_deinit_region(0x100000, 0xC0000000);
     vmm_init();
     asm volatile("sti\n\t");
-    uint32_t cr0;
-    asm volatile("mov %%cr0, %0" : "=r" (cr0));
-    if (cr0 & 0x80000000) printf("Paging enabled: cr0 == %p\n", cr0);
-    else printf("Paging disabled: cr0 == %p\n", cr0);
+	// TEST PAGING ENABLED
+    //uint32_t cr0;
+    //asm volatile("mov %%cr0, %0" : "=r" (cr0));
+    //if (cr0 & 0x80000000) printf("Paging enabled: cr0 == %p\n", cr0);
+    //else printf("Paging disabled: cr0 == %p\n", cr0);
+
+	init_multitasking();
+
     //ide_init(0x1F0, 0x3F6, 0x170, 0x376, 0x000);
 }
