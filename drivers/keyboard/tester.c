@@ -21,7 +21,6 @@
 
 typedef uint32_t pid_t;
 extern pid_t	create_process(void (*entry)(void));
-extern void		yield();
 
 static void
 process_a(void)
@@ -30,7 +29,6 @@ process_a(void)
 	for (size_t i = 0; i < 5; i++)  // Reduced iterations for testing
 	{
 		printf("a");
-		yield();
 	}
 	printf("Process A ending\n");
 }
@@ -42,7 +40,6 @@ process_b(void)
 	for (size_t i = 0; i < 5; i++)  // Reduced iterations for testing
 	{
 		printf("b");
-		yield();
 	}
 	printf("Process B ending\n");
 }

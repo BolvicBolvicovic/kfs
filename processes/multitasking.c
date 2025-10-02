@@ -187,15 +187,9 @@ create_process(void (*entry)(void))
 static void
 kernel_process(void)
 {
-	int	i = 0;
 	while (1)
 	{
-		if (!(i % 100000))
-		{
-			yield();
-		}
-		i++;
-		if (i > 1000000) i = 0;
+		asm volatile ("hlt\n\t");
 	}
 }
 
@@ -255,10 +249,4 @@ schedule(void)
 	{
 		start_process(current_process->stack);
 	}
-}
-
-void
-yield(void)
-{
-	schedule();
 }

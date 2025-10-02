@@ -38,7 +38,7 @@ kernel_main(uint32_t magic, uint32_t addr)
     term_clear();
     isr_install();
     init_keyboard();
-    init_timer(50);
+    init_timer(1000);
     init_syscall();
     pmm_init(mem_size, &bitmap);
     for (size_t i = 0; i < 15; i++)

@@ -1,18 +1,27 @@
 #include "pit.h"
 
+extern void	schedule(void);
+
 static uint32_t tick = 0;
 
-void	sleep(uint32_t ticks) {
+void
+sleep(uint32_t ticks)
+{
 	uint32_t _tick = tick;
 	while (tick > _tick && tick - _tick < ticks) continue;
 }
 
-static void timer_callback(registers_t* regs) {
+static void
+timer_callback(registers_t* regs)
+{
 	tick++;
+	schedule();
 	return;
 }
 
-void init_timer(uint32_t frequency) {
+void
+init_timer(uint32_t frequency)
+{
 	register_interrupt_handler(IRQ0, &timer_callback);
 	uint32_t divisor = CLOCK_RATE / frequency;
 	//    00                 11                      011                         0

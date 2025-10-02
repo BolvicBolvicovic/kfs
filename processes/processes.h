@@ -76,7 +76,6 @@ int				update_status(pid_t p, process_status s);
 pid_t			create_process(void (*entry)(void));
 pid_t			fork_process(pid_t p);
 void			schedule(void);
-void			yield(void);
 void			init_multitasking(void);
 
 
