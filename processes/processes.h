@@ -7,10 +7,6 @@
 typedef uint32_t	pid_t;
 typedef uint32_t	uid_t;
 typedef void		(*sighandler_t)(int);
-typedef struct
-{
-	uint32_t eax, ebx, ecx, edx, esi, edi, esp, ebp, eip, eflags, cr3;
-} pregisters_t;
 
 typedef enum
 {
@@ -62,13 +58,13 @@ typedef struct
 	uid_t			uid;
 	process_status	status;
 	uint32_t		signals;
-	pregisters_t	regs;
 	//pid_t			parent;
 	// TODO: check scheduling info
 	// TODO: dynamize children, fd table, heap and stack
 	//pid_t			children[16];
 	//pid_t			fds[32];
-	uint8_t*		stack;
+	uint32_t*		stack;
+	uint8_t*		stack_base;
 	uint8_t*		heap;
 	uint32_t		next;
 } process;

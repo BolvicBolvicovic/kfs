@@ -127,12 +127,13 @@ kmalloc(size_t size)
 	{
 	    if (!continuous_allocator_map[i].free)
 		{
+            // Note: In case the block has not been initialized (meaning free), break
+            if (continuous_allocator_map[i].virt_addr == 0) break;
 	        j++;
-	        if (!continuous_allocator_map[i].nb_blocks && !continuous_allocator_map[i].virt_addr) break;
 	    }
-	    if (continuous_allocator_map[i].free && continuous_allocator_map[i].nb_blocks == total_pages_needed)
+	    else if (continuous_allocator_map[i].nb_blocks == total_pages_needed)
 		{
-	        continuous_allocator_map[i].free = 1;
+	        continuous_allocator_map[i].free = 0;
 	        vmm_set_flags_pages(continuous_allocator_map[i].virt_addr, continuous_allocator_map[i].nb_blocks, I86_PTE_WRITABLE, 1);
 	        return (void*)continuous_allocator_map[i].virt_addr;
 	    }
@@ -142,6 +143,9 @@ kmalloc(size_t size)
 	{
 	    for (i = 0; i < MAX_ALLOC_C_SAME_TIME; i++)
 		{
+            // Note: In case the block has not been initialized (meaning free), break
+            if (i == j) break;
+
 	        if (continuous_allocator_map[i].free)
 			{
 	        	vmm_free_blocks(continuous_allocator_map[i].virt_addr, continuous_allocator_map[i].nb_blocks);
@@ -166,7 +170,8 @@ kfree(void* virt_addr)
     if (bining_allocator_free((uint32_t)virt_addr)) return;
     for (size_t i = 0; i < MAX_ALLOC_C_SAME_TIME; i++)
 	{
-	    if (!continuous_allocator_map[i].free && !continuous_allocator_map[i].nb_blocks && !continuous_allocator_map[i].virt_addr) break;
+        // Note: End of the map, break
+	    if (!continuous_allocator_map[i].virt_addr) break;
 	    if (continuous_allocator_map[i].virt_addr == (uint32_t)virt_addr)
 		{
 	        vmm_set_flags_pages(continuous_allocator_map[i].virt_addr, continuous_allocator_map[i].nb_blocks, I86_PTE_WRITABLE, 0);
