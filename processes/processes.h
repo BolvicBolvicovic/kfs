@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "../lib/stdio/stdio.h"
+#include "../drivers/descriptor/descriptor.h"
 
 typedef uint32_t	pid_t;
 typedef uint32_t	uid_t;
@@ -53,28 +54,27 @@ typedef enum
 
 typedef struct
 {
-	// Note: Right now, it is an index so no need to store it
-	// pid_t			pid;
+	pid_t			pid;
 	uid_t			uid;
 	process_status	status;
 	uint32_t		signals;
-	//pid_t			parent;
+	pid_t			parent;
 	// TODO: check scheduling info
 	// TODO: dynamize children, fd table, heap and stack
 	//pid_t			children[16];
 	//pid_t			fds[32];
 	uint32_t*		stack;
 	uint8_t*		stack_base;
-	uint8_t*		heap;
+	//uint8_t*		heap;
 	uint32_t		next;
 } process;
 
-int				queue_signal(pid_t p, uint32_t s);
-int				update_status(pid_t p, process_status s);
+int				queue_signal(pid_t, uint32_t s);
+int				update_status(pid_t, process_status);
 // TODO: look up best way to implement sockets between processes
 // TODO: Function to work on the memory of the process (I guess with heap and stack)??
 pid_t			create_process(void (*entry)(void));
-pid_t			fork_process(pid_t p);
+pid_t			fork_process(void);
 void			schedule(void);
 void			init_multitasking(void);
 
@@ -84,8 +84,8 @@ void			init_multitasking(void);
 pid_t			wait(int* wstatus);
 void			exit(int status);
 uid_t			getuid(void);
-sighandler_t	signal(int signum, sighandler_t handler);
-int				kill(pid_t pid, int signal);
+sighandler_t	signal(int signum, sighandler_t);
+int				kill(pid_t, int signal);
 
 /* END SYSCALLS  */
 

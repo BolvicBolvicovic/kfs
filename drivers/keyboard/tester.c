@@ -21,6 +21,7 @@
 
 typedef uint32_t pid_t;
 extern pid_t	create_process(void (*entry)(void));
+extern pid_t	fork_process(void);
 
 static void
 process_a(void)
@@ -44,14 +45,32 @@ process_b(void)
 	printf("Process B ending\n");
 }
 
+static void
+process_forked(void)
+{
+	printf("Process Forked starting\n");
+	
+	pid_t p = fork_process();
+
+	if (!p)
+	{
+		printf("Hello from child\n");
+	}
+	else
+	{
+		printf("Hello from parent\n");
+	}
+}
+
 void
 tests_processes(int* total, int* success, int* failure)
 {
 	printf("Creating processes...\n");
 	pid_t	a = create_process(process_a);
 	pid_t	b = create_process(process_b);
+	//pid_t	f = create_process(process_forked);
 	
-	*total += 2; // Two process creation tests
+	*total += 3; // Two process creation tests
 	
 	if (a > 0)
 	{
@@ -77,14 +96,17 @@ tests_processes(int* total, int* success, int* failure)
 		return;
 	}
 	
-	//printf("Starting process execution with multiple yields...\n");
-	//// Call yield multiple times to let processes run
-	//for (int i = 0; i < 20; i++)
+	//if (f > 0)
 	//{
-	//	printf("[yield %d] ", i);
-	//	yield();
+	//	(*success)++;
+	//	printf("Process F created successfully (PID: %d)\n", f);
 	//}
-	//printf("\nProcesses execution completed.\n");
+	//else
+	//{
+	//	(*failure)++;
+	//	printf("Process F creation failed\n");
+	//	return;
+	//}
 }
 
 

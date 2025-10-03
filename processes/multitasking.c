@@ -2,10 +2,16 @@
 #include "../memory/vmm/vmm.h"
 
 #define PT_SIZE 64
+#define STACK_SIZE (0x1000 * 2)
 
+// TODO: Fix memcpy so that it returns a pointer
+extern void		memcpy(void* d, const void* s, uint32_t n);
 extern void*	memset(void* s, int c, uint32_t n);
-extern void switch_process(uint32_t** old, uint32_t* new);
-extern void start_process(uint32_t* new);
+
+// Note: These are from switch.s
+extern void		switch_process(uint32_t** old, uint32_t* new);
+extern void		start_process(uint32_t* new);
+extern void		save_child_registers(uint32_t** child);
 
 
 void exit_process(void);
@@ -83,33 +89,29 @@ update_status(pid_t p, process_status s)
 }
 
 pid_t
-fork_process(pid_t p)
+fork_process(void)
 {
-	process*	current = get_process(p);
 	process*	fork = get_next_process_space();
 	uint32_t	fork_pid = new_pid();
 
-	if (!current || !fork || !fork_pid)
+	if (!current_process || !fork || !fork_pid)
 	{
 		return 0;
 	}
 
-	//fork->pid 				= fork_pid;
-	fork->uid 				= current->uid;
-	fork->status			= current->status;
-	fork->signals			= current->signals;
+	fork->pid 				= fork_pid;
+	fork->uid 				= current_process->uid;
+	fork->parent			= current_process->pid;
+
+	fork->status			= READY;
+	fork->signals			= 0;
 	fork->next				= 0;
-	//fork->parent			= current->parent;
-	for (uint32_t i = 0; i < 4096; i++)
-	{
-		// TODO: copy 4 by 4
-		fork->stack[i]		= current->stack[i];
-		fork->heap[i] 		= current->heap[i];
-		//if (i > 31) continue;
-		//fork->fds[32]		= current->fds[i];
-		//if (i > 15) continue;
-		//fork->children[16]	= current->children[i];
-	}
+
+	fork->stack_base		= kmalloc(STACK_SIZE);
+	fork->stack				= fork->stack_base + ((uint32_t)current_process->stack - (uint32_t)current_process->stack_base);
+	memcpy(fork->stack_base, current_process->stack_base, STACK_SIZE);
+
+	save_child_registers(&fork->stack);
 
 	if (tail_process)
 	{
@@ -128,12 +130,11 @@ void
 exit_process(void)
 {
 	current_process->status = ZOMBIE;
-	kfree(current_process->heap);
+	//kfree(current_process->heap);
 	kfree(current_process->stack_base);
 	schedule();
 }
 
-#define STACK_SIZE (0x1000 * 2)
 
 pid_t
 create_process(void (*entry)(void))
@@ -143,34 +144,48 @@ create_process(void (*entry)(void))
 	
 	if (!p || !pid) return 0;
 
+	p->pid = pid;
 	p->stack_base = kmalloc(STACK_SIZE);
-	p->heap = kmalloc(4096);
+	//p->heap = kmalloc(4096);
 
 	memset(p->stack_base, 0, STACK_SIZE);
-	memset(p->heap, 0, 4096);
+	//memset(p->heap, 0, 4096);
 
-	uint32_t*		stk	= (uint32_t*)(p->stack_base + STACK_SIZE);
-	*(--stk)			= (uint32_t)exit_process;
-	uint32_t* final_esp = stk;
-	*(--stk)			= (uint32_t)entry;
-	*(--stk)			= 0x200;			// EFLAGS => Note: Enable interrupts (IF flag)
-	// POPF will consume this
-	*(--stk)			= 0; 				// EDI
-	*(--stk)			= 0; 				// ESI
-	*(--stk)			= 0; 				// EBP
-	*(--stk)			= 0; 				// EBX
-	*(--stk)			= (uint32_t)final_esp;
-	*(--stk)			= 0; 				// EDX
-	*(--stk)			= 0; 				// ECX
-	*(--stk)			= 0; 				// EAX
-	// POPA will consume these 8 values
-	*(--stk)			= (uint32_t)vmm_get_dir();	// CR3
-	// POP will consume CR3
-	p->stack			= stk;
-
-	p->status			= READY;
-	p->next				= 0;
-
+	uint32_t* stk = (uint32_t*)(p->stack_base + STACK_SIZE);
+	
+	// Put exit_process as return address on the user stack
+	// (so when entry() returns, it will "ret" to exit_process)
+	*(--stk) = (uint32_t)exit_process;
+	
+	uint32_t* user_esp = stk;  // This is where the user stack pointer should be
+	
+	// Set up interrupt return frame (for iret)
+	//*(--stk) = 0x10;                    // SS (0x23 user data segment/ 0x10 for kernel)
+	//*(--stk) = (uint32_t)user_esp;      // useresp (points to exit_process on user stack)
+	*(--stk) = 0x200;                   // eflags (IF flag set to enable interrupts)
+	*(--stk) = 0x08;                    // CS (0x1B user code segment/ 0x08 for kernel)
+	*(--stk) = (uint32_t)entry;         // eip (entry point)
+	
+	// Error code and interrupt number (skipped by add $8, %esp)
+	*(--stk) = 0;                       // err_code
+	*(--stk) = 0;                       // int_no
+	
+	// General purpose registers (for popa)
+	*(--stk) = 0;                       // EAX
+	*(--stk) = 0;                       // ECX
+	*(--stk) = 0;                       // EDX
+	*(--stk) = 0;                       // EBX
+	*(--stk) = (uint32_t)user_esp;      // ESP (original - points to exit_process)
+	*(--stk) = 0;                       // EBP
+	*(--stk) = 0;                       // ESI
+	*(--stk) = 0;                       // EDI
+	
+	// Segment selector (for ds restore)
+	*(--stk) = 0x10;                    // DS (0x23 user data segment, or 0x10 for kernel)
+	
+	p->stack = stk;
+	p->status = READY;
+	p->next = 0;
 	if (!head_process)
 	{
 		head_process = p;
