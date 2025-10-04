@@ -37,6 +37,13 @@ sys_signal(registers_t* r)
 }
 
 static void
+sys_fork(registers_t* r)
+{
+	extern uint32_t	fork_process(uint32_t* esp);
+	fork_process((uint32_t*)r);
+}
+
+static void
 sys_exit(registers_t* r)
 {
 	printf("Syscall exit : eax == %d\n", r->eax);
@@ -74,17 +81,18 @@ syscall_callback(registers_t* r)
 void
 init_syscall(void)
 {
-	register_interrupt_handler(SYSCALL, &syscall_callback);
-	syscall_tab[0]		= sys_read;
-	syscall_tab[1]		= sys_write;
-	syscall_tab[2]		= sys_open;
-	syscall_tab[3]		= sys_close;
-	syscall_tab[4]		= sys_stat;
+	syscall_tab[0]		= &sys_read;
+	syscall_tab[1]		= &sys_write;
+	syscall_tab[2]		= &sys_open;
+	syscall_tab[3]		= &sys_close;
+	syscall_tab[4]		= &sys_stat;
 	// TODO: change to rt_sigaction
-	syscall_tab[13]		= sys_signal;
-	syscall_tab[60]		= sys_exit;
-	syscall_tab[62]		= sys_kill;
-	syscall_tab[102]	= sys_getuid;
+	syscall_tab[13]		= &sys_signal;
+	syscall_tab[57]		= &sys_fork;
+	syscall_tab[60]		= &sys_exit;
+	syscall_tab[62]		= &sys_kill;
+	syscall_tab[102]	= &sys_getuid;
 	// TODO: change with sys_waitid
-	syscall_tab[247]	= sys_wait;
+	syscall_tab[247]	= &sys_wait;
+	register_interrupt_handler(SYSCALL, &syscall_callback);
 }

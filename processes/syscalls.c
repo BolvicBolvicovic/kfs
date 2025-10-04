@@ -1,6 +1,21 @@
 #include "processes.h"
 
 pid_t
+fork(void)
+{
+	pid_t	res = 0;
+	
+	asm volatile (
+		"mov $57, %%eax\n\t"
+		"int $0x80\n\t"
+		: "=a"(res)
+	);
+
+	return res;
+	
+}
+
+pid_t
 wait(int* wstatus)
 {
 	pid_t	res = 0;

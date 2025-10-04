@@ -3,7 +3,6 @@
 
 #include <stdint.h>
 #include "../lib/stdio/stdio.h"
-#include "../drivers/descriptor/descriptor.h"
 
 typedef uint32_t	pid_t;
 typedef uint32_t	uid_t;
@@ -52,6 +51,8 @@ typedef enum
 #define SIGSYS		(1 << 31)	// Bad system call (SVr4); see also seccomp(2)
 #define SIGUNUSED	SIGSYS	// Synonymous with SIGSYS
 
+#define FRAME_SIZE 36
+
 typedef struct
 {
 	pid_t			pid;
@@ -74,13 +75,14 @@ int				update_status(pid_t, process_status);
 // TODO: look up best way to implement sockets between processes
 // TODO: Function to work on the memory of the process (I guess with heap and stack)??
 pid_t			create_process(void (*entry)(void));
-pid_t			fork_process(void);
+pid_t			fork_process(uint32_t* esp);
 void			schedule(void);
 void			init_multitasking(void);
 
 
 /* SYSCALLS  */
 
+pid_t			fork(void);
 pid_t			wait(int* wstatus);
 void			exit(int status);
 uid_t			getuid(void);
@@ -88,8 +90,5 @@ sighandler_t	signal(int signum, sighandler_t);
 int				kill(pid_t, int signal);
 
 /* END SYSCALLS  */
-
-// Testing function: Note that the example under is not semantically right.
-//void 			exec_process(uint32_t* addr, uint32_t* function, uint32_t size);
 
 #endif

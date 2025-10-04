@@ -3,7 +3,8 @@
 
 //INTERUPTION SERVICE ROUTINE
 
-static char*		exception_msg[] = {
+static char*		exception_msg[] =
+{
     "Division by zero",
     "Debug",
     "Non Maskable Interrupt",
@@ -41,15 +42,22 @@ static char*		exception_msg[] = {
     "Reserved"
 };
 
-void panic(registers_t* r) {
+void
+panic(registers_t* r)
+{
     asm volatile("cli");
+
     uint32_t stack = r->esp;
     if (r->int_no != PAGE_FAULT) printf("Number: %d | Message: %s\n", r->int_no, exception_msg[r->int_no]);
+
     uint32_t* cp_stack = (uint32_t*)kmalloc(0x1000);
     if (cp_stack == NULL) goto gt_xor;
-    for (uint32_t* ptr = (uint32_t*)stack; *ptr && ptr < (uint32_t*)stack + 0x1000; ptr++) {
-	*cp_stack++ = *ptr;
+
+    for (uint32_t* ptr = (uint32_t*)stack; *ptr && ptr < (uint32_t*)stack + 0x1000; ptr++)
+	{
+		*cp_stack++ = *ptr;
     }
+
 gt_xor:
     asm volatile(
 	"xor %eax, %eax\n"
@@ -70,7 +78,9 @@ gt_xor:
 #define PAGE_WRITE_ERROR 2
 #define PAGE_USERMODE_ERROR 4
 
-void	page_fault_handler(registers_t* r) {
+void
+page_fault_handler(registers_t* r)
+{
     uint32_t faulting_addr;
     asm volatile("mov %%cr2, %0" : "=r" (faulting_addr));
 
@@ -88,12 +98,16 @@ void	page_fault_handler(registers_t* r) {
     panic(r);
 }
 
-void	isr_handler(registers_t* r) {
+void
+isr_handler(registers_t* r)
+{
     if (r->int_no == PAGE_FAULT) page_fault_handler(r);
     else panic(r);
 }
 
-void isr_install() {
+void
+isr_install()
+{
     init_gdt();
     init_idt();
 }

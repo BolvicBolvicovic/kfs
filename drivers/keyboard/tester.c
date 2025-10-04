@@ -21,7 +21,7 @@
 
 typedef uint32_t pid_t;
 extern pid_t	create_process(void (*entry)(void));
-extern pid_t	fork_process(void);
+extern pid_t	fork(void);
 
 static void
 process_a(void)
@@ -50,7 +50,7 @@ process_forked(void)
 {
 	printf("Process Forked starting\n");
 	
-	pid_t p = fork_process();
+	pid_t p = fork();
 
 	if (!p)
 	{
@@ -68,9 +68,9 @@ tests_processes(int* total, int* success, int* failure)
 	printf("Creating processes...\n");
 	pid_t	a = create_process(process_a);
 	pid_t	b = create_process(process_b);
-	//pid_t	f = create_process(process_forked);
+	pid_t	f = create_process(process_forked);
 	
-	*total += 3; // Two process creation tests
+	*total += 3;
 	
 	if (a > 0)
 	{
@@ -96,17 +96,17 @@ tests_processes(int* total, int* success, int* failure)
 		return;
 	}
 	
-	//if (f > 0)
-	//{
-	//	(*success)++;
-	//	printf("Process F created successfully (PID: %d)\n", f);
-	//}
-	//else
-	//{
-	//	(*failure)++;
-	//	printf("Process F creation failed\n");
-	//	return;
-	//}
+	if (f > 0)
+	{
+		(*success)++;
+		printf("Process F created successfully (PID: %d)\n", f);
+	}
+	else
+	{
+		(*failure)++;
+		printf("Process F creation failed\n");
+		return;
+	}
 }
 
 

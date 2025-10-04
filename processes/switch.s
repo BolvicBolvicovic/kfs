@@ -1,6 +1,5 @@
 .global switch_process
 .global start_process
-.global save_child_registers
 .set CLEAR_ERRNO_INTNO, 0x08
 
 
@@ -34,35 +33,13 @@ switch_process:
 
 # void start_process(uint32_t* new_stack);
 start_process:
-    # Load new stack
-    mov 4(%esp), %esp               # Get new_stack parameter and set as ESP
+    mov 4(%esp), %esp
     
     # Restore context from new stack
-    pop %eax                        # Restore ds
+    pop %eax
     mov %eax, %ds
-    popa                            # Restore general purpose registers
+    popa
 
-    add $CLEAR_ERRNO_INTNO, %esp    # Skip int_no and err_code
+    add $CLEAR_ERRNO_INTNO, %esp
 
-    iret                            # Return from interrupt (restores eip, cs, eflags, esp, ss)
-
-# void save_child_registers(uint32_t** child, registers_t* regs);
-save_child_registers:
-	push %ebp
-	mov %esp, %ebp			# Save parent sp
-
-    mov 8(%ebp),%ecx        # Get child sp
-	mov $0, %eax			# Set child fork return value
-
-	mov (%ecx), %esp		# Set sp
-	
-    pushf
-	pusha
-    #mov %cr3, %ebx
-    #push %ebx
-
-	mov %esp, (%ecx)		# Save child sp
-
-	mov %ebp, %esp			# Restore parent
-	pop %ebp
-	ret
+    iret

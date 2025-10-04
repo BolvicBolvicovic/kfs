@@ -11,7 +11,6 @@ extern void*	memset(void* s, int c, uint32_t n);
 // Note: These are from switch.s
 extern void		switch_process(uint32_t** old, uint32_t* new);
 extern void		start_process(uint32_t* new);
-extern void		save_child_registers(uint32_t** child);
 
 
 void exit_process(void);
@@ -89,7 +88,7 @@ update_status(pid_t p, process_status s)
 }
 
 pid_t
-fork_process(void)
+fork_process(uint32_t* esp)
 {
 	process*	fork = get_next_process_space();
 	uint32_t	fork_pid = new_pid();
@@ -106,12 +105,14 @@ fork_process(void)
 	fork->status			= READY;
 	fork->signals			= 0;
 	fork->next				= 0;
-
 	fork->stack_base		= kmalloc(STACK_SIZE);
-	fork->stack				= fork->stack_base + ((uint32_t)current_process->stack - (uint32_t)current_process->stack_base);
-	memcpy(fork->stack_base, current_process->stack_base, STACK_SIZE);
+	uint32_t used_stack		= (uint32_t)(current_process->stack_base + STACK_SIZE) - (uint32_t)esp;
+	fork->stack				= fork->stack_base + STACK_SIZE - used_stack;
+	memcpy(fork->stack, esp, used_stack);
 
-	save_child_registers(&fork->stack);
+	*(fork->stack + 8)		= 0; // Set eax to 0
+	*(fork->stack + 3)		= (uint32_t)fork->stack_base + *(esp + 3) - (uint32_t)current_process->stack_base; // Set ebp
+	*(fork->stack + 4)		= (uint32_t)fork->stack; // Set esp
 
 	if (tail_process)
 	{
@@ -120,6 +121,10 @@ fork_process(void)
 	else if (head_process)
 	{
 		head_process->next = (uint32_t)fork;
+	}
+	else
+	{
+		head_process = fork;
 	}
 	tail_process = fork;
 
