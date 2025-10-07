@@ -15,7 +15,9 @@
 static idt_gate_t	    idt[256] = {0};
 static idt_register_t   idt_reg;
 
-void    init_idt() {
+void
+init_idt()
+{
     idt_reg.limit = sizeof(idt_gate_t) * 256 -1;
     idt_reg.base  = (uint32_t)&idt;
 
@@ -95,19 +97,31 @@ void    init_idt() {
 
     // Syscall
 
-    set_idt_gate(SYSCALL, (uint32_t)syscall);
+    set_idt_gate_user(SYSCALL, (uint32_t)syscall);
 
     asm volatile("lidt (%0)" : : "r" (&idt_reg));
 }
 
-void	set_idt_gate(int n, uint32_t handler) {
+void
+set_idt_gate_user(int n, uint32_t handler)
+{
+    idt[n].base_low = LOW_16(handler);
+    idt[n].selector = 0x08; // GDT address
+    idt[n].always0 = 0;
+    idt[n].flags = 0xEE;
+    // 0x8E = 1  11 0 1  110
+    //        P DPL 0 D Type
+    idt[n].base_high = HIGH_16(handler);
+}
+
+void
+set_idt_gate(int n, uint32_t handler)
+{
     idt[n].base_low = LOW_16(handler);
     idt[n].selector = 0x08; // GDT address
     idt[n].always0 = 0;
     idt[n].flags = 0x8E;
     // 0x8E = 1  00 0 1  110
     //        P DPL 0 D Type
-    // In user-mode, we should uncomment the OR bellow.
-    // It sets interrupt gate's privilege to lvl 3.
-    idt[n].base_high = HIGH_16(handler)/* | 0x60 */;
+    idt[n].base_high = HIGH_16(handler);
 }

@@ -20,7 +20,23 @@
 } while(0)
 
 typedef uint32_t pid_t;
-extern pid_t	create_process(void (*entry)(void));
+enum p_type
+{
+	KPROC,
+	UPROC
+};
+
+typedef struct
+{
+	enum p_type	type;
+	uint32_t*	code;
+	uint32_t	code_size;
+	uint32_t*	data;
+	uint32_t	data_size;
+	uint32_t	entry;
+} p_info_t;
+
+extern pid_t	create_process(p_info_t*);
 extern pid_t	fork(void);
 
 static void
@@ -66,45 +82,124 @@ void
 tests_processes(int* total, int* success, int* failure)
 {
 	printf("Creating processes...\n");
-	pid_t	a = create_process(process_a);
-	pid_t	b = create_process(process_b);
-	pid_t	f = create_process(process_forked);
+
+	p_info_t pa =
+	{
+		KPROC, 0, 0, 0, 0,
+		(uint32_t)process_a
+	};
+
+	p_info_t pb =
+	{
+		KPROC, 0, 0, 0, 0,
+		(uint32_t)process_b
+	};
+
+	p_info_t pf =
+	{
+		KPROC, 0, 0, 0, 0,
+		(uint32_t)process_forked
+	};
+
+	uint8_t	u_data[14] =
+	{
+		// Note: "Hello World!\n"
+		0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x20, 0x57, 0x6F, 0x72, 0x6C, 0x64, 0x21, 0x0A, 0x00
+	};
+
+	uint8_t	u_code[27] =
+	{
+		// xor %eax, %eax
+		0x31, 0xC0,
+
+		// inc %eax
+		0x40,
+
+		// xor %ebx, %ebx
+		0x31, 0xDB,
+
+		// Note: u_data should be at 0x08049000
+		// mov u_data, %ecx
+		0xB9, 0x00, 0x90, 0x04, 0x08,
+
+		// mov $0x0D, %edx
+		0xBA, 0x0D, 0x00, 0x00, 0x00,
+
+		// int $0x80
+		0xCD, 0x80,
+
+		// xor %ebx, %ebx
+		0x31, 0xDB,
+
+		// mov $0x3C, %eax
+		0xB8, 0x3C, 0x00, 0x00, 0x00,
+
+		// int $0x80
+		0xCD, 0x80
+	};
+
+	p_info_t pu =
+	{
+		UPROC,
+		(uint32_t*)u_code,
+		sizeof(u_code),
+		(uint32_t*)u_data,
+		sizeof(u_data),
+		PROCESS_CODE_START
+	};
+
+	//pid_t	a = create_process(&pa);
+	//pid_t	b = create_process(&pb);
+	//pid_t	f = create_process(&pf);
+	pid_t	u = create_process(&pu);
 	
-	*total += 3;
+	*total += 4;
 	
-	if (a > 0)
+	//if (a > 0)
+	//{
+	//	(*success)++;
+	//	printf("Process A created successfully (PID: %d)\n", a);
+	//}
+	//else
+	//{
+	//	(*failure)++;
+	//	printf("Process A creation failed\n");
+	//	return;
+	//}
+	//
+	//if (b > 0)
+	//{
+	//	(*success)++;
+	//	printf("Process B created successfully (PID: %d)\n", b);
+	//}
+	//else
+	//{
+	//	(*failure)++;
+	//	printf("Process B creation failed\n");
+	//	return;
+	//}
+	//
+	//if (f > 0)
+	//{
+	//	(*success)++;
+	//	printf("Process F created successfully (PID: %d)\n", f);
+	//}
+	//else
+	//{
+	//	(*failure)++;
+	//	printf("Process F creation failed\n");
+	//	return;
+	//}
+
+	if (u > 0)
 	{
 		(*success)++;
-		printf("Process A created successfully (PID: %d)\n", a);
+		printf("Process U created successfully (PID: %d)\n", u);
 	}
 	else
 	{
 		(*failure)++;
-		printf("Process A creation failed\n");
-		return;
-	}
-	
-	if (b > 0)
-	{
-		(*success)++;
-		printf("Process B created successfully (PID: %d)\n", b);
-	}
-	else
-	{
-		(*failure)++;
-		printf("Process B creation failed\n");
-		return;
-	}
-	
-	if (f > 0)
-	{
-		(*success)++;
-		printf("Process F created successfully (PID: %d)\n", f);
-	}
-	else
-	{
-		(*failure)++;
-		printf("Process F creation failed\n");
+		printf("Process U creation failed\n");
 		return;
 	}
 }
@@ -173,12 +268,12 @@ test_binning_basic(int* total, int* success, int* failure)
             if (ks >= sizes[si])
             {
                 (*success)++;
-                printf("binning allocation size %zu: success\n", sizes[si]);
+                printf("binning allocation size %x: success\n", sizes[si]);
             }
             else
             {
                 (*failure)++;
-                printf("binning allocation size %zu: failure (kget_size too small)\n", sizes[si]);
+                printf("binning allocation size %x: failure (kget_size too small)\n", sizes[si]);
                 return -1;
             }
             /* store */
@@ -192,7 +287,7 @@ test_binning_basic(int* total, int* success, int* failure)
         else
         {
             (*failure)++;
-            printf("binning allocation size %zu: failure (returned NULL)\n", sizes[si]);
+            printf("binning allocation size %x: failure (returned NULL)\n", sizes[si]);
             return -1;
         }
     }
@@ -500,14 +595,14 @@ run_all_tests(void)
     
     printf("=== STARTING ALL TESTS ===\n\n");
     
-    printf("=== MEMORY TESTS ===\n");
-    tests_memory(&total, &success, &failure);
-    
     printf("\n=== STRING TESTS ===\n");
     tests_string(&total, &success, &failure);
     
     printf("\n=== STDLIB TESTS ===\n");
     tests_stdlib(&total, &success, &failure);
+
+    printf("=== MEMORY TESTS ===\n");
+    tests_memory(&total, &success, &failure);
 
     printf("\n=== PROCESSES TESTS ===\n");
     tests_processes(&total, &success, &failure);

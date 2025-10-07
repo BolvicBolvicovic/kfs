@@ -9,6 +9,7 @@ fork(void)
 		"mov $57, %%eax\n\t"
 		"int $0x80\n\t"
 		: "=a"(res)
+		:: "memory"
 	);
 
 	return res;
@@ -21,9 +22,11 @@ wait(int* wstatus)
 	pid_t	res = 0;
 	
 	asm volatile (
-		"syscall"
+		"mov $247, %%eax\n\t"
+		"int $0x80\n\t"
 		: "=a"(res)
-		: "D"(wstatus), "a"(247)
+		: "D"(wstatus)
+		: "memory"
 	);
 
 	return res;
@@ -33,9 +36,10 @@ void
 exit(int status)
 {
 	asm volatile (
-		"syscall"
-		:
-		: "D"(status), "a"(60)
+		"mov $60, %%eax\n\t"
+		"int $0x80\n\t"
+		:: "D"(status)
+		: "memory"
 	);
 
 	return;
@@ -47,9 +51,10 @@ getuid(void)
 	uid_t	res;
 
 	asm volatile (
-		"syscall"
+		"mov $102, %%eax\n\t"
+		"int $0x80\n\t"
 		: "=a"(res)
-		: "a"(102)
+		:: "memory"
 	);
 
 	return res;
@@ -63,9 +68,11 @@ kill(pid_t pid, int signal)
 	int	res;
 
 	asm volatile (
-		"syscall"
+		"mov $62, %%eax\n\t"
+		"int $0x80\n\t"
 		: "=a"(res)
-		: "D"(pid), "S"(signal), "a"(62)
+		: "D"(pid), "S"(signal)
+		: "memory"
 	);
 
 	return res;

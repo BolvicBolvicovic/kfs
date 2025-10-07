@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 #include "../lib/stdio/stdio.h"
+#include "../drivers/descriptor/descriptor.h"
+#include "../memory/vmm/vmm.h"
 
 typedef uint32_t	pid_t;
 typedef uint32_t	uid_t;
@@ -51,33 +53,113 @@ typedef enum
 #define SIGSYS		(1 << 31)	// Bad system call (SVr4); see also seccomp(2)
 #define SIGUNUSED	SIGSYS	// Synonymous with SIGSYS
 
+// TODO: make frame size dependant on if process is user or not
 #define FRAME_SIZE 36
+
+typedef enum
+{
+	KPROC,
+	UPROC
+} proc_type;
 
 typedef struct
 {
+	proc_type	type;
+	uint32_t*	code;
+	uint32_t	code_size;
+	uint32_t*	data;
+	uint32_t	data_size;
+	uint32_t	entry;
+} proc_info_t;
+
+typedef struct
+{
+	uint32_t	_link;
+	uint32_t	esp0;
+	uint32_t	ss0;
+	uint32_t	esp1;
+	uint32_t	ss1;
+	uint32_t	esp2;
+	uint32_t	ss2;
+	uint32_t	cr3;
+	uint32_t	eip;
+	uint32_t	eflags;
+	uint32_t	eax, ecx, edx, ebx;
+	uint32_t	esp, ebp, esi, edi;
+	uint32_t	es, cs, ss;
+	uint32_t	ds, fs, gs;
+	uint32_t	ldtr;
+	uint16_t	trap;
+	uint16_t	io_permission_bitmap;
+	uint32_t	ssp;
+} __attribute__((__packed__)) tss_t;
+
+typedef struct
+{
+	p_dir*		dir;
+	
+	uint32_t	code_start;
+	uint32_t	code_end;
+
+	uint32_t	data_start;
+	uint32_t	data_end;
+
+	uint32_t	stack;
+	uint32_t	stack_base;
+	
+	// uint32_t	heap_start;
+	// uint32_t	heap_end;
+
+} mm_t;
+
+typedef struct
+{
+	// Note: ID and Status
 	pid_t			pid;
-	uid_t			uid;
 	process_status	status;
-	uint32_t		signals;
-	pid_t			parent;
+	uint32_t		exit_code;
+	// TODO: add exit code and exit signal
+
+	// Note: Scheduling
 	// TODO: check scheduling info
-	// TODO: dynamize children, fd table, heap and stack
+	uint32_t		next;
+
+	// Note: Memory managment
+	// Note: if mm == 0 then kernel process else user process
+	mm_t*			mm;
+	uint32_t*		k_stack;
+	uint8_t*		k_stack_base;
+
+	// Note: Relationships
+	uint32_t		parent;
 	//pid_t			children[16];
 	//pid_t			fds[32];
-	uint32_t*		stack;
-	uint8_t*		stack_base;
-	//uint8_t*		heap;
-	uint32_t		next;
+
+	// TODO: when fs exists, add it here
+
+	// Note: Signals
+	// TODO: add signal handlers
+	uint32_t		pending_signals;
+
+	// Note: Credentials & Security
+	// TODO: add credentials and group ids
+	uid_t			uid;
+
+	//TODO: add ressource limit, CPU time and context switch count
 } process;
+
+void			init_multitasking(void);
 
 int				queue_signal(pid_t, uint32_t s);
 int				update_status(pid_t, process_status);
 // TODO: look up best way to implement sockets between processes
 // TODO: Function to work on the memory of the process (I guess with heap and stack)??
-pid_t			create_process(void (*entry)(void));
+pid_t			create_process(proc_info_t*);
 pid_t			fork_process(uint32_t* esp);
+void			exit_user_process(uint32_t status);
+
 void			schedule(void);
-void			init_multitasking(void);
+
 
 
 /* SYSCALLS  */

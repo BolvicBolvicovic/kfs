@@ -1,8 +1,7 @@
 #include "processes.h"
-#include "../memory/vmm/vmm.h"
 
-#define PT_SIZE 64
-#define STACK_SIZE (0x1000 * 2)
+#define PT_SIZE		64
+#define STACK_SIZE	0x1000
 
 // TODO: Fix memcpy so that it returns a pointer
 extern void		memcpy(void* d, const void* s, uint32_t n);
@@ -11,10 +10,9 @@ extern void*	memset(void* s, int c, uint32_t n);
 // Note: These are from switch.s
 extern void		switch_process(uint32_t** old, uint32_t* new);
 extern void		start_process(uint32_t* new);
+extern void		tss_flush(void);
 
-
-void exit_process(void);
-
+static tss_t	tss;
 // TODO: Use hash table instead with pid as index
 static process	process_table[PT_SIZE] = {0};
 static process*	current_process = 0;
@@ -63,6 +61,15 @@ get_process(pid_t p)
 	return &process_table[p - 1];
 }
 
+static void
+exit_process(void)
+{
+	current_process->status = ZOMBIE;
+	kfree(current_process->k_stack_base);
+	schedule();
+}
+
+
 int
 queue_signal(pid_t p, uint32_t sig)
 {
@@ -71,7 +78,7 @@ queue_signal(pid_t p, uint32_t sig)
 		return 0;
 	}
 
-	process_table[p - 1].signals |= sig;
+	process_table[p - 1].pending_signals |= sig;
 	return 1;
 }
 
@@ -100,19 +107,19 @@ fork_process(uint32_t* esp)
 
 	fork->pid 				= fork_pid;
 	fork->uid 				= current_process->uid;
-	fork->parent			= current_process->pid;
+	fork->parent			= current_process;
 
 	fork->status			= READY;
-	fork->signals			= 0;
+	fork->pending_signals	= 0;
 	fork->next				= 0;
-	fork->stack_base		= kmalloc(STACK_SIZE);
-	uint32_t used_stack		= (uint32_t)(current_process->stack_base + STACK_SIZE) - (uint32_t)esp;
-	fork->stack				= fork->stack_base + STACK_SIZE - used_stack;
-	memcpy(fork->stack, esp, used_stack);
+	fork->k_stack_base		= kmalloc(STACK_SIZE);
+	uint32_t used_k_stack		= (uint32_t)(current_process->k_stack_base + STACK_SIZE) - (uint32_t)esp;
+	fork->k_stack				= fork->k_stack_base + STACK_SIZE - used_k_stack;
+	memcpy(fork->k_stack, esp, used_k_stack);
 
-	*(fork->stack + 8)		= 0; // Set eax to 0
-	*(fork->stack + 3)		= (uint32_t)fork->stack_base + *(esp + 3) - (uint32_t)current_process->stack_base; // Set ebp
-	*(fork->stack + 4)		= (uint32_t)fork->stack; // Set esp
+	*(fork->k_stack + 8)		= 0; // Set eax to 0
+	*(fork->k_stack + 3)		= (uint32_t)fork->k_stack_base + *(esp + 3) - (uint32_t)current_process->k_stack_base; // Set ebp
+	*(fork->k_stack + 4)		= (uint32_t)fork->k_stack; // Set esp
 
 	if (tail_process)
 	{
@@ -132,64 +139,103 @@ fork_process(uint32_t* esp)
 }
 
 void
-exit_process(void)
+exit_user_process(uint32_t status)
 {
 	current_process->status = ZOMBIE;
-	//kfree(current_process->heap);
-	kfree(current_process->stack_base);
+	current_process->exit_code = status;
+	// TODO: clear mm content
+	kfree(current_process->mm);
+	kfree(current_process->k_stack_base);
 	schedule();
 }
 
 
 pid_t
-create_process(void (*entry)(void))
+create_process(proc_info_t* info)
 {
 	process*	p = get_next_process_space();
+
+	/* PROCESS PID & STATUS */
 	pid_t		pid = new_pid();
-	
 	if (!p || !pid) return 0;
-
 	p->pid = pid;
-	p->stack_base = kmalloc(STACK_SIZE);
-	//p->heap = kmalloc(4096);
+	p->status = READY;
 
-	memset(p->stack_base, 0, STACK_SIZE);
-	//memset(p->heap, 0, 4096);
+	/* PROCESS KSTACK */
+	p->k_stack_base = kmalloc(STACK_SIZE);
+	if (!p->k_stack_base) return 0;
 
-	uint32_t* stk = (uint32_t*)(p->stack_base + STACK_SIZE);
-	
-	// Put exit_process as return address on the user stack
-	// (so when entry() returns, it will "ret" to exit_process)
-	*(--stk) = (uint32_t)exit_process;
-	
-	uint32_t* user_esp = stk;  // This is where the user stack pointer should be
+	for (uint32_t i = 0; i < STACK_SIZE / 4; i++)
+	{
+		((uint32_t*)p->k_stack_base)[i] = 0;
+	}
+
+	uint32_t* stk = (uint32_t*)(p->k_stack_base + STACK_SIZE);
+
+	if (info->type == KPROC)
+	{
+		*(--stk) = (uint32_t)exit_process;
+	}
+	uint32_t* user_esp = stk;
 	
 	// Set up interrupt return frame (for iret)
-	//*(--stk) = 0x10;                    // SS (0x23 user data segment/ 0x10 for kernel)
-	//*(--stk) = (uint32_t)user_esp;      // useresp (points to exit_process on user stack)
-	*(--stk) = 0x200;                   // eflags (IF flag set to enable interrupts)
-	*(--stk) = 0x08;                    // CS (0x1B user code segment/ 0x08 for kernel)
-	*(--stk) = (uint32_t)entry;         // eip (entry point)
+	if (info->type == UPROC)
+	{
+		*(--stk) = 0x23;							// SS
+		*(--stk) = (uint32_t)user_esp;				// useresp (points to exit_process on user k_stack)
+	}
+	*(--stk) = 0x202;								// eflags (Interrupt flag set)
+	*(--stk) = info->type == UPROC ? 0x1B : 0x08;	// CS (0x1B user code segment/ 0x08 for kernel)
+	*(--stk) = info->entry;							// eip
 	
 	// Error code and interrupt number (skipped by add $8, %esp)
-	*(--stk) = 0;                       // err_code
-	*(--stk) = 0;                       // int_no
+	*(--stk) = 0;									// err_code
+	*(--stk) = 0;									// int_no
 	
 	// General purpose registers (for popa)
-	*(--stk) = 0;                       // EAX
-	*(--stk) = 0;                       // ECX
-	*(--stk) = 0;                       // EDX
-	*(--stk) = 0;                       // EBX
-	*(--stk) = (uint32_t)user_esp;      // ESP (original - points to exit_process)
-	*(--stk) = 0;                       // EBP
-	*(--stk) = 0;                       // ESI
-	*(--stk) = 0;                       // EDI
+	*(--stk) = 0;									// EAX
+	*(--stk) = 0;									// ECX
+	*(--stk) = 0;									// EDX
+	*(--stk) = 0;									// EBX
+	*(--stk) = (uint32_t)user_esp;					// ESP (original - points to exit_process)
+	*(--stk) = 0;									// EBP
+	*(--stk) = 0;									// ESI
+	*(--stk) = 0;									// EDI
 	
 	// Segment selector (for ds restore)
-	*(--stk) = 0x10;                    // DS (0x23 user data segment, or 0x10 for kernel)
+	*(--stk) = info->type == UPROC ? 0x23 : 0x10;	// DS (0x23 user data segment, or 0x10 for kernel)
 	
-	p->stack = stk;
-	p->status = READY;
+	p->k_stack = stk;
+
+	/* PROCESS MEMORY MANAGEMENT */
+	if (info->type == UPROC)
+	{
+		p->mm = kmalloc(sizeof(mm_t));
+		if (!p->mm) return 0; // TODO: cleanup
+
+		for (uint32_t i = 0; i < sizeof(mm_t); i++)
+		{
+			((uint8_t*)p->mm)[i] = 0;
+		}
+		
+		p->mm->dir = vmm_setup_process(info->code_size, info->data_size, info->code, info->data);
+		if (!p->mm->dir) return 0; // TODO: cleanup
+
+		p->mm->code_start	= PROCESS_CODE_START;
+		p->mm->code_end		= PROCESS_CODE_START + info->code_size;
+
+		p->mm->data_start	= PROCESS_CODE_START + ((info->code_size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1));
+		p->mm->data_end		= p->mm->data_start + info->data_size;
+
+		p->mm->stack		= 0xBFFFFFFF;
+		p->mm->stack_base	= PROCESS_STACK_START;
+	}
+
+	/* PROCESS RELATIONSHIPS */
+	// TODO: add children if any and sibilings
+	p->parent = current_process;
+
+	/* PROCESS SCHEDULING */
 	p->next = 0;
 	if (!head_process)
 	{
@@ -213,25 +259,31 @@ kernel_process(void)
 	}
 }
 
-
 void
 init_multitasking(void)
 {
-	if (!current_process)
+	// Note: Init kernel process
+	proc_info_t	kernel_proc_info =
 	{
-		create_process(kernel_process);
-		current_process = head_process;
-		
-		head_process = (process*)current_process->next;
-		if (!head_process)
-		{
-			tail_process = 0;
-		}
-		
-		current_process->next = 0;
-		current_process->status = RUNNING;
-		start_process(current_process->stack);
-	}
+		KPROC, 0, 0, 0, 0,
+		(uint32_t)kernel_process
+	};
+	create_process(&kernel_proc_info);
+	current_process = head_process;
+	current_process->status = RUNNING;
+	head_process = 0;
+	tail_process = 0;
+	
+	// Note: Init TSS
+	tss.esp0 = current_process->k_stack;
+	tss.ss0 = 0x10;
+	tss.io_permission_bitmap = sizeof(tss);
+
+	set_gdt_gate(5, (uint32_t)&tss, sizeof(tss), 0x89, 0);
+	tss_flush();
+
+
+	start_process(current_process->k_stack);
 }
 
 void
@@ -263,10 +315,15 @@ schedule(void)
 	
 	if (prev)
 	{
-		switch_process(&prev->stack, current_process->stack);
+		if (current_process->mm)
+		{
+			vmm_switch_pdir(current_process->mm->dir);
+		}
+		tss.esp0 = current_process->k_stack;
+		switch_process(&prev->k_stack, current_process->k_stack);
 	}
 	else
 	{
-		start_process(current_process->stack);
+		start_process(current_process->k_stack);
 	}
 }

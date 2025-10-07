@@ -64,7 +64,6 @@ typedef struct {
 	uint8_t		access;
 	uint8_t		granularity;
 	uint8_t		base_high;
-
 } __attribute__((packed)) gdt_gate_t;
 
 typedef struct {
@@ -123,10 +122,49 @@ typedef struct {
 #define EOI 0x20 // End Of Interrupt
 #define FIRST_SLAVE_PORT 40
 
+/***	 gdt descriptor access bit flags.	***/
+
+// Note: set access bit
+#define I86_GDT_DESC_ACCESS			0x0001			//00000001
+
+// Note: descriptor is readable and writable. default: read only
+#define I86_GDT_DESC_READWRITE		0x0002			//00000010
+
+// Note: set expansion direction bit
+#define I86_GDT_DESC_EXPANSION		0x0004			//00000100
+
+// Note: executable code segment. Default: data segment
+#define I86_GDT_DESC_EXEC_CODE		0x0008			//00001000
+
+// Note: set code or data descriptor. defult: system defined descriptor
+#define I86_GDT_DESC_CODEDATA		0x0010			//00010000
+
+// Note: set dpl bits
+#define I86_GDT_DESC_DPL			0x0060			//01100000
+
+// Note: set "in memory" bit
+#define I86_GDT_DESC_MEMORY			0x0080			//10000000
+
+/**	gdt descriptor grandularity bit flags	***/
+
+// Note: masks out limitHi (High 4 bits of limit)
+#define I86_GDT_GRAND_LIMITHI_MASK	0x0f			//00001111
+
+// Note: set os defined bit
+#define I86_GDT_GRAND_OS			0x10			//00010000
+
+// Note: set if 32bit. default: 16 bit
+#define I86_GDT_GRAND_32BIT			0x40			//01000000
+
+// Note: 4k grandularity. default: none
+#define I86_GDT_GRAND_4K			0x80			//10000000
+
+
 void	init_gdt();
 void    init_idt();
 void    isr_install();
 void	set_idt_gate(int n, uint32_t handler);
+void	set_gdt_gate(int num, uint32_t base, uint32_t limit, uint8_t access, uint8_t gran);
 void    isr_handler(registers_t* r);
 void    irq_handler(registers_t* r);
 void    register_interrupt_handler(uint8_t n, isr_t handler);

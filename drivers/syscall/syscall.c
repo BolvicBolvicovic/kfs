@@ -9,7 +9,15 @@ sys_read(registers_t* r)
 static void
 sys_write(registers_t* r)
 {
-	printf("Syscall write: eax == %d\n", r->eax);
+	if (r->ebx == 0 || r->ebx == 1)
+	{
+		term_print(r->ecx, r->edx);
+		r->eax = r->edx;
+	}
+	else
+	{
+		printf("Writing to anything else than terminal is currently unsupported\n");
+	}
 }
 
 static void
@@ -43,10 +51,12 @@ sys_fork(registers_t* r)
 	fork_process((uint32_t*)r);
 }
 
+// Note: this should not be called from the kernel
 static void
 sys_exit(registers_t* r)
 {
-	printf("Syscall exit : eax == %d\n", r->eax);
+	extern void		exit_user_process(uint32_t);
+	exit_user_process(r->ebx);
 }
 
 static void

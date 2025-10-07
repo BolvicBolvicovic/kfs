@@ -69,7 +69,7 @@ bining_allocator(size_t size)
         if (!bining_allocator_map[i].size_type) break;
     }
 
-    void* new_page = vmm_alloc_blocks(1);
+    void* new_page = vmm_alloc_blocks(1, I86_PTE_KERNEL);
     if (new_page == NULL) return NULL;
     bining_allocator_map[i].virt_addr = (uint32_t)new_page;
     bining_allocator_map[i].size_type = size_type;
@@ -101,7 +101,7 @@ bining_allocator_free(uint32_t addr)
                 }
                 if (count == MAX_BITMAP_ELEM)
 				{
-                    vmm_free_blocks(bining_allocator_map[i].virt_addr, 1);
+                    vmm_free_blocks(bining_allocator_map[i].virt_addr, 1, I86_PTE_KERNEL);
                     // Do not set virt_addr to 0 as it is used to find the edge of the bining_allocator_map
                     bining_allocator_map[i].size_type = 0;
                     bining_allocator_map[i].offset_next_free = 0;
@@ -148,12 +148,12 @@ kmalloc(size_t size)
 
 	        if (continuous_allocator_map[i].free)
 			{
-	        	vmm_free_blocks(continuous_allocator_map[i].virt_addr, continuous_allocator_map[i].nb_blocks);
+	        	vmm_free_blocks(continuous_allocator_map[i].virt_addr, continuous_allocator_map[i].nb_blocks, I86_PTE_KERNEL);
 	        	break;
 	        }
 	    }
     }
-    void* block_virt_addr = vmm_alloc_blocks(total_pages_needed);
+    void* block_virt_addr = vmm_alloc_blocks(total_pages_needed, I86_PTE_KERNEL);
     if (block_virt_addr == NULL) return NULL;
     // vmm_alloc_blocks sets the flags, no need to do it again
     continuous_allocator_map[i].virt_addr = (uint32_t)block_virt_addr;

@@ -1,7 +1,12 @@
-.global switch_process
-.global start_process
-.set CLEAR_ERRNO_INTNO, 0x08
+.global	tss_flush
+.global	switch_process
+.global	start_process
+.set	CLEAR_ERRNO_INTNO, 0x08
 
+tss_flush:
+	mov $0x28, %ax
+	ltr %ax
+	ret
 
 # typedef struct {
 # 	uint32_t	ds;

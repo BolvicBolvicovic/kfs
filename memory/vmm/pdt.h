@@ -6,6 +6,7 @@
 
 enum PAGE_PTE_FLAGS {
 								// Represents what bits of a 32 bits value
+	I86_PTE_KERNEL			=	0, // Note that this is just to set flags, cannot be used for other purpose
 	I86_PTE_PRESENT			=	1,		// 0000000000000000000000000000001
 	I86_PTE_WRITABLE		=	2,		// 0000000000000000000000000000010
 	I86_PTE_USER			=	4,		// 0000000000000000000000000000100
