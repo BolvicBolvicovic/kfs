@@ -21,18 +21,23 @@ char* strMemoryTypes[] = {
 	"ACPI NVS Memory"	//memory_region.type==4
 	"Bad RAM"       	//memory_region.type==5
 };
-extern uint32_t end_kernel_virt;
-extern uint32_t start_kernel_virt;
-extern uint32_t bitmap;
-#define MAX_MEMORY_SIZE 0xFFFFF
 
+extern uint32_t start_kernel;
+extern uint32_t endkernel;
+extern uint32_t start_kernel_virt;
+extern uint32_t end_kernel_virt;
+extern uint32_t bitmap;
+
+#define MAX_MEMORY_SIZE (0xFFFFFFFF / 0x1000)
 
 void
 kernel_main(uint32_t magic, uint32_t addr)
 {
     multiboot_info_t* mbi = (multiboot_info_t*)addr;
     struct multiboot_mmap_entry* region = (struct multiboot_mmap_entry*) mbi->mmap_addr;
-    uint32_t mem_size = MAX_MEMORY_SIZE;
+    uint32_t region_count = mbi->mmap_length / sizeof(struct multiboot_mmap_entry);
+    uint32_t kernel_size = ((uint32_t)&endkernel - (uint32_t)&start_kernel);
+    uint32_t kernel_size_aligned = kernel_size & -0x1000 + 0x1000; 
 
     init_current_screen(BLUE, WHITE);
     term_clear();
@@ -40,24 +45,15 @@ kernel_main(uint32_t magic, uint32_t addr)
     init_keyboard();
     init_timer(250);
     init_syscall();
-    pmm_init(mem_size, &bitmap);
-    for (size_t i = 0; i < 15; i++)
+    pmm_init(MAX_MEMORY_SIZE, &bitmap);
+    for (size_t i = 0; i < region_count; i++)
     {
-        if (region[i].type > 5)           region[i].type = MULTIBOOT_MEMORY_AVAILABLE;
-        if (i > 0 && region[i].addr_low == 0) break;
-        if (region[i].type == MULTIBOOT_MEMORY_AVAILABLE) pmm_init_region(region[i].addr_low, region[i].len_low);
+        if (region[i].type > 5) region[i].type = MULTIBOOT_MEMORY_AVAILABLE;
+        if (region[i].type != MULTIBOOT_MEMORY_AVAILABLE) pmm_deinit_region(region[i].addr_low, region[i].len_low);
     }
-    pmm_deinit_region(0x100000, 0);
-    pmm_deinit_region(0x100000, 0xC0000000);
+	pmm_deinit_region((uint32_t)&start_kernel, kernel_size_aligned);
+	pmm_deinit_region(0, 0x1000);
     vmm_init();
-    asm volatile("sti\n\t");
-	// TEST PAGING ENABLED
-    //uint32_t cr0;
-    //asm volatile("mov %%cr0, %0" : "=r" (cr0));
-    //if (cr0 & 0x80000000) printf("Paging enabled: cr0 == %p\n", cr0);
-    //else printf("Paging disabled: cr0 == %p\n", cr0);
-
 	init_multitasking();
-
     //ide_init(0x1F0, 0x3F6, 0x170, 0x376, 0x000);
 }

@@ -1,11 +1,10 @@
 #ifndef VMM_H
 #define VMM_H
 
-#include "pdt.h"
 #include "../pmm/pmm.h"
 
 #define PAGES_PER_TABLE 1024
-#define PAGES_PER_DIR	1024
+#define TABLES_PER_DIR	1024
 
 #define PAGE_DIR_INDEX(ADDR) (((ADDR) >> 22) & 0x3FF)
 #define PAGE_TAB_INDEX(ADDR) (((ADDR) >> 12) & 0x3FF)
@@ -22,24 +21,31 @@
 #define KPD_ENTRIES_START	768
 #define KPD_ENTRIES_END		1024
 
+#define PE_KERNEL	0
 
-typedef struct
-{
-   pt_entry m_entries[PAGES_PER_TABLE];
-} p_table;
+#define PE_PRESENT	1
 
-typedef struct
-{
-   pd_entry m_entries[PAGES_PER_DIR];
-} p_dir;
+#define PE_WRITABLE	2
+
+#define PE_USER		4
+
+#define KTABLES_SIZE (KPD_ENTRIES_END - KPD_ENTRIES_START)
+// The page directory is always accessible at this virtual address.
+// It's the last page in the virtual address space.
+#define RECURSIVE_PAGEDIR_ADDR 0xFFFFF000
+
+// All page tables are accessible as a contiguous 4MB array at this address.
+#define RECURSIVE_PAGETABLES_ADDR 0xFFC00000
+
+
+typedef uint32_t pt_entry; 
+typedef uint32_t pd_entry; 
 
 // Note: the user parameter in the vmm functions should be set to either I86_PTE_KERNEL (0) or I86_PTE_USER (4)
 
-p_dir*		vmm_setup_process(uint32_t code_size, uint32_t data_size, uint32_t* code, uint32_t* data);
-p_dir*		vmm_get_dir(void);
-void		vmm_set_pdir(p_dir* dir);
-void		vmm_switch_pdir(p_dir* dir);
-void    	vmm_init(void);
+void		vmm_init(void);
+pd_entry*	vmm_setup_process(uint32_t code_size, uint32_t data_size, uint32_t* code, uint32_t* data);
+void		vmm_switch_pdir(pd_entry* dir);
 void		vmm_set_flags_pages(uint32_t virt_addr, uint32_t nb_blocks, uint32_t flags, uint8_t set);
 void*   	vmm_alloc_blocks(size_t size, uint32_t user);
 void    	vmm_free_blocks(uint32_t virtual_addr, uint32_t nb_blocks, uint32_t user);

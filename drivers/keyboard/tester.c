@@ -148,48 +148,48 @@ tests_processes(int* total, int* success, int* failure)
 		PROCESS_CODE_START
 	};
 
-	//pid_t	a = create_process(&pa);
-	//pid_t	b = create_process(&pb);
-	//pid_t	f = create_process(&pf);
+	pid_t	a = create_process(&pa);
+	pid_t	b = create_process(&pb);
+	pid_t	f = create_process(&pf);
 	pid_t	u = create_process(&pu);
 	
 	*total += 4;
 	
-	//if (a > 0)
-	//{
-	//	(*success)++;
-	//	printf("Process A created successfully (PID: %d)\n", a);
-	//}
-	//else
-	//{
-	//	(*failure)++;
-	//	printf("Process A creation failed\n");
-	//	return;
-	//}
-	//
-	//if (b > 0)
-	//{
-	//	(*success)++;
-	//	printf("Process B created successfully (PID: %d)\n", b);
-	//}
-	//else
-	//{
-	//	(*failure)++;
-	//	printf("Process B creation failed\n");
-	//	return;
-	//}
-	//
-	//if (f > 0)
-	//{
-	//	(*success)++;
-	//	printf("Process F created successfully (PID: %d)\n", f);
-	//}
-	//else
-	//{
-	//	(*failure)++;
-	//	printf("Process F creation failed\n");
-	//	return;
-	//}
+	if (a > 0)
+	{
+		(*success)++;
+		printf("Process A created successfully (PID: %d)\n", a);
+	}
+	else
+	{
+		(*failure)++;
+		printf("Process A creation failed\n");
+		return;
+	}
+	
+	if (b > 0)
+	{
+		(*success)++;
+		printf("Process B created successfully (PID: %d)\n", b);
+	}
+	else
+	{
+		(*failure)++;
+		printf("Process B creation failed\n");
+		return;
+	}
+	
+	if (f > 0)
+	{
+		(*success)++;
+		printf("Process F created successfully (PID: %d)\n", f);
+	}
+	else
+	{
+		(*failure)++;
+		printf("Process F creation failed\n");
+		return;
+	}
 
 	if (u > 0)
 	{

@@ -3,7 +3,7 @@
 static uint32_t  _memory_size           = 0;
 static uint32_t  _memory_used_blocks    = 0;
 static uint32_t  _memory_max_blocks     = 0;
-static uint32_t* _memory_map            = NULL;
+static uint32_t* _memory_map            = 0;
 
 static void
 mmap_set(int bit)
@@ -26,7 +26,7 @@ mmap_test(int bit)
 static int
 mmap_find_first_free()
 {
-    for (size_t i = 0; i < _memory_max_blocks - _memory_used_blocks; i++)
+    for (size_t i = 0; i < _memory_size; i++)
 	{
         if (_memory_map[i] != 0xFFFFFFFF)
 		{
@@ -46,7 +46,7 @@ mmap_find_first_free_s (size_t size)
 	if (size==0) return -1;
 	if (size==1) return mmap_find_first_free();
 
-	for (size_t i = 0; i < _memory_max_blocks - _memory_used_blocks; i++)
+	for (size_t i = 0; i < _memory_size; i++)
 	{
 		if (_memory_map[i] != 0xffffffff)
 		{
@@ -75,12 +75,11 @@ mmap_find_first_free_s (size_t size)
 void
 pmm_init(size_t mem_size, uint32_t bitmap)
 {
-    _memory_size = mem_size;
     _memory_map  = (uint32_t*)bitmap;
-    _memory_max_blocks = _memory_size * 1024 / PMM_BLOCK_SIZE;
-    _memory_used_blocks = _memory_max_blocks;
+    _memory_max_blocks = mem_size * 1024 / PMM_BLOCK_SIZE;
+    _memory_size = _memory_max_blocks / PMM_BLOCKS_PER_BYTE / 4;
 
-    memset(_memory_map, 0xF, _memory_max_blocks / PMM_BLOCKS_PER_BYTE);
+    memset(_memory_map, 0, _memory_size * 4);
 }
 
 void

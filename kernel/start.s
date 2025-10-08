@@ -1,7 +1,7 @@
 .global stack_top
 .global stack_bottom
 
-.set ALIGN,		(1 << 0)
+.set ALIGN,			(1 << 0)
 .set MEMINFO,     	(1 << 1)
 .set MB_MAGIC,	  	0x1BADB002
 .set MB_FLAGS,	  	(ALIGN | MEMINFO)
@@ -65,6 +65,9 @@ _start:
     # Map the page table to both address 0x00000000 and 0xC0000000 because enabling paging does not change the next instruction that continues to be physical
     movl $(boot_page_table0 - KERNEL_VIRT_BASE + PRIV), boot_page_dir - KERNEL_VIRT_BASE
     movl $(boot_page_table0 - KERNEL_VIRT_BASE + PRIV), boot_page_dir - KERNEL_VIRT_BASE + 768 * 4
+
+	# Map the boot pdir to its last entry for recursive paging
+    movl $(boot_page_dir - KERNEL_VIRT_BASE + PRIV), boot_page_dir - KERNEL_VIRT_BASE + 1023 * 4
 
     # Set page dir to cr3
     movl $(boot_page_dir - KERNEL_VIRT_BASE), %ecx

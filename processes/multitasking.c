@@ -15,8 +15,8 @@ extern void		tss_flush(void);
 static tss_t	tss;
 // TODO: Use hash table instead with pid as index
 static process	process_table[PT_SIZE] = {0};
+static process*	kernel_process = 0;
 static process*	current_process = 0;
-static process*	head_process = 0;
 static process*	tail_process = 0;
 
 static inline pid_t
@@ -97,8 +97,9 @@ update_status(pid_t p, process_status s)
 pid_t
 fork_process(uint32_t* esp)
 {
-	process*	fork = get_next_process_space();
-	uint32_t	fork_pid = new_pid();
+	// TODO: Handle user process
+	process*	fork		= get_next_process_space();
+	uint32_t	fork_pid	= new_pid();
 
 	if (!current_process || !fork || !fork_pid)
 	{
@@ -111,29 +112,18 @@ fork_process(uint32_t* esp)
 
 	fork->status			= READY;
 	fork->pending_signals	= 0;
-	fork->next				= 0;
+	fork->next				= kernel_process;
 	fork->k_stack_base		= kmalloc(STACK_SIZE);
-	uint32_t used_k_stack		= (uint32_t)(current_process->k_stack_base + STACK_SIZE) - (uint32_t)esp;
-	fork->k_stack				= fork->k_stack_base + STACK_SIZE - used_k_stack;
+	uint32_t used_k_stack	= (uint32_t)(current_process->k_stack_base + STACK_SIZE) - (uint32_t)esp;
+	fork->k_stack			= fork->k_stack_base + STACK_SIZE - used_k_stack;
 	memcpy(fork->k_stack, esp, used_k_stack);
 
-	*(fork->k_stack + 8)		= 0; // Set eax to 0
-	*(fork->k_stack + 3)		= (uint32_t)fork->k_stack_base + *(esp + 3) - (uint32_t)current_process->k_stack_base; // Set ebp
-	*(fork->k_stack + 4)		= (uint32_t)fork->k_stack; // Set esp
+	*(fork->k_stack + 8)	= 0; // Set eax to 0
+	*(fork->k_stack + 3)	= (uint32_t)fork->k_stack_base + *(esp + 3) - (uint32_t)current_process->k_stack_base; // Set ebp
+	*(fork->k_stack + 4)	= (uint32_t)fork->k_stack; // Set esp
 
-	if (tail_process)
-	{
-		tail_process->next = (uint32_t)fork;
-	}
-	else if (head_process)
-	{
-		head_process->next = (uint32_t)fork;
-	}
-	else
-	{
-		head_process = fork;
-	}
-	tail_process = fork;
+	tail_process->next		= (uint32_t)fork;
+	tail_process			= fork;
 
 	return fork_pid;
 }
@@ -236,10 +226,10 @@ create_process(proc_info_t* info)
 	p->parent = current_process;
 
 	/* PROCESS SCHEDULING */
-	p->next = 0;
-	if (!head_process)
+	p->next = kernel_process;
+	if (!current_process)
 	{
-		head_process = p;
+		current_process = p;
 	}
 	else
 	{
@@ -251,8 +241,9 @@ create_process(proc_info_t* info)
 }
 
 static void
-kernel_process(void)
+ft_kernel_process(void)
 {
+    asm volatile("sti\n\t");
 	while (1)
 	{
 		asm volatile ("hlt\n\t");
@@ -266,64 +257,47 @@ init_multitasking(void)
 	proc_info_t	kernel_proc_info =
 	{
 		KPROC, 0, 0, 0, 0,
-		(uint32_t)kernel_process
+		(uint32_t)ft_kernel_process
 	};
 	create_process(&kernel_proc_info);
-	current_process = head_process;
-	current_process->status = RUNNING;
-	head_process = 0;
-	tail_process = 0;
+	kernel_process = current_process;
+	// Note: need to do this else next is 0
+	kernel_process->next = kernel_process;
+	kernel_process->status = RUNNING;
 	
 	// Note: Init TSS
-	tss.esp0 = current_process->k_stack;
+	tss.esp0 = kernel_process->k_stack;
 	tss.ss0 = 0x10;
 	tss.io_permission_bitmap = sizeof(tss);
 
 	set_gdt_gate(5, (uint32_t)&tss, sizeof(tss), 0x89, 0);
 	tss_flush();
 
-
-	start_process(current_process->k_stack);
+	start_process(kernel_process->k_stack);
 }
 
 void
 schedule(void)
 {
-	if (!head_process) return;
+	if (!current_process || (current_process == kernel_process && tail_process == kernel_process)) return;
 
 	process* prev = current_process;
 	
-	current_process = head_process;
-	head_process = (process*)current_process->next;
+	current_process = (process*)current_process->next;
 	current_process->status = RUNNING;
 	
-	if (prev && prev->status == RUNNING)
+	if (prev->status == RUNNING)
 	{
-		prev->next = 0;
+		prev->next = kernel_process;
 		prev->status = READY;
-		if (!head_process)
-		{
-			head_process = prev;
-			tail_process = prev;
-		}
-		else
-		{
-			tail_process->next = (uint32_t)prev;
-			tail_process = prev;
-		}
+		tail_process->next = (uint32_t)prev;
+		tail_process = prev;
 	}
-	
-	if (prev)
+
+	if (current_process->mm)
 	{
-		if (current_process->mm)
-		{
-			vmm_switch_pdir(current_process->mm->dir);
-		}
-		tss.esp0 = current_process->k_stack;
-		switch_process(&prev->k_stack, current_process->k_stack);
+		vmm_switch_pdir(current_process->mm->dir);
 	}
-	else
-	{
-		start_process(current_process->k_stack);
-	}
+	tss.esp0 = current_process->k_stack;
+	switch_process(&prev->k_stack, current_process->k_stack);
 }
