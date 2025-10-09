@@ -6,6 +6,7 @@
 // TODO: Fix memcpy so that it returns a pointer
 extern void		memcpy(void* d, const void* s, uint32_t n);
 extern void*	memset(void* s, int c, uint32_t n);
+extern void		switch_dir(uint32_t dir);
 
 // Note: These are from switch.s
 extern void		switch_process(uint32_t** old, uint32_t* new);
@@ -14,10 +15,10 @@ extern void		tss_flush(void);
 
 static tss_t	tss;
 // TODO: Use hash table instead with pid as index
-static process	process_table[PT_SIZE] = {0};
-static process*	kernel_process = 0;
-static process*	current_process = 0;
-static process*	tail_process = 0;
+static process	process_table[PT_SIZE];
+static process*	kernel_process;
+static process*	current_process;
+static process*	tail_process;
 
 static inline pid_t
 new_pid(void)
@@ -108,14 +109,14 @@ fork_process(uint32_t* esp)
 
 	fork->pid 				= fork_pid;
 	fork->uid 				= current_process->uid;
-	fork->parent			= current_process;
+	fork->parent			= (uint32_t)current_process;
 
 	fork->status			= READY;
 	fork->pending_signals	= 0;
-	fork->next				= kernel_process;
-	fork->k_stack_base		= kmalloc(STACK_SIZE);
+	fork->next				= (uint32_t)kernel_process;
+	fork->k_stack_base		= (uint8_t*)kmalloc(STACK_SIZE);
 	uint32_t used_k_stack	= (uint32_t)(current_process->k_stack_base + STACK_SIZE) - (uint32_t)esp;
-	fork->k_stack			= fork->k_stack_base + STACK_SIZE - used_k_stack;
+	fork->k_stack			= (uint32_t*)(fork->k_stack_base + STACK_SIZE - used_k_stack);
 	memcpy(fork->k_stack, esp, used_k_stack);
 
 	*(fork->k_stack + 8)	= 0; // Set eax to 0
@@ -143,6 +144,8 @@ exit_user_process(uint32_t status)
 pid_t
 create_process(proc_info_t* info)
 {
+	// Note: Disable interruption to avoid race condition when creating a process.
+	asm volatile ("cli;");
 	process*	p = get_next_process_space();
 
 	/* PROCESS PID & STATUS */
@@ -223,10 +226,10 @@ create_process(proc_info_t* info)
 
 	/* PROCESS RELATIONSHIPS */
 	// TODO: add children if any and sibilings
-	p->parent = current_process;
+	p->parent = (uint32_t)current_process;
 
 	/* PROCESS SCHEDULING */
-	p->next = kernel_process;
+	p->next = (uint32_t)kernel_process;
 	if (!current_process)
 	{
 		current_process = p;
@@ -236,6 +239,9 @@ create_process(proc_info_t* info)
 		tail_process->next = (uint32_t)p;
 	}
 	tail_process = p;
+
+	// Note: Re-enable interrupion.
+	asm volatile ("sti;");
 
 	return pid;
 }
@@ -262,11 +268,11 @@ init_multitasking(void)
 	create_process(&kernel_proc_info);
 	kernel_process = current_process;
 	// Note: need to do this else next is 0
-	kernel_process->next = kernel_process;
+	kernel_process->next = (uint32_t)kernel_process;
 	kernel_process->status = RUNNING;
 	
 	// Note: Init TSS
-	tss.esp0 = kernel_process->k_stack;
+	tss.esp0 = (uint32_t)kernel_process->k_stack;
 	tss.ss0 = 0x10;
 	tss.io_permission_bitmap = sizeof(tss);
 
@@ -288,7 +294,7 @@ schedule(void)
 	
 	if (prev->status == RUNNING)
 	{
-		prev->next = kernel_process;
+		prev->next = (uint32_t)kernel_process;
 		prev->status = READY;
 		tail_process->next = (uint32_t)prev;
 		tail_process = prev;
@@ -296,8 +302,8 @@ schedule(void)
 
 	if (current_process->mm)
 	{
-		vmm_switch_pdir(current_process->mm->dir);
+		switch_dir((uint32_t)current_process->mm->dir);
 	}
-	tss.esp0 = current_process->k_stack;
+	tss.esp0 = (uint32_t)current_process->k_stack;
 	switch_process(&prev->k_stack, current_process->k_stack);
 }

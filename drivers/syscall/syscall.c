@@ -11,7 +11,7 @@ sys_write(registers_t* r)
 {
 	if (r->ebx == 0 || r->ebx == 1)
 	{
-		term_print(r->ecx, r->edx);
+		term_print((const char*)r->ecx, r->edx);
 		r->eax = r->edx;
 	}
 	else

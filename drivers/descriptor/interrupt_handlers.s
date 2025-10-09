@@ -19,6 +19,8 @@ gdt_flush:
 	ret
 
 isr_common_stub:
+	cli
+
 	# push all general purpuse registers
 	pusha
 
@@ -34,6 +36,7 @@ isr_common_stub:
 	mov	%ax, %gs
 	push %esp
 
+	sti
 	call	isr_handler
 
 	# restore original segment pointers segment and registers

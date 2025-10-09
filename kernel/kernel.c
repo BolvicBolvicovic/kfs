@@ -45,7 +45,7 @@ kernel_main(uint32_t magic, uint32_t addr)
     init_keyboard();
     init_timer(250);
     init_syscall();
-    pmm_init(MAX_MEMORY_SIZE, &bitmap);
+    pmm_init(MAX_MEMORY_SIZE, (uint32_t)&bitmap);
     for (size_t i = 0; i < region_count; i++)
     {
         if (region[i].type > 5) region[i].type = MULTIBOOT_MEMORY_AVAILABLE;
@@ -53,7 +53,6 @@ kernel_main(uint32_t magic, uint32_t addr)
     }
 	pmm_deinit_region((uint32_t)&start_kernel, kernel_size_aligned);
 	pmm_deinit_region(0, 0x1000);
-    vmm_init();
 	init_multitasking();
     //ide_init(0x1F0, 0x3F6, 0x170, 0x376, 0x000);
 }

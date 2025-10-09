@@ -1,8 +1,8 @@
 #include "keyboard.h"
 
-static char line[256];
-static size_t index = 0;
-extern current_screen_t current_screen;
+static char				line[256];
+static size_t			index = 0;
+extern current_screen_t	current_screen;
 
 const char*  color_list[16] =
 {
@@ -35,9 +35,33 @@ init_current_screen(enum vga_color fg, enum vga_color bg)
 {
 	term_set_color(vga_entry_color(fg, bg));
     enable_cursor();
-	current_screen.lists[0] = (list_option_t) { .list = {.list = color_list, .current_item_index = bg, .list_vga_index = 0 }};
-	current_screen.lists[1] = (list_option_t) { .list = {.list = color_list, .current_item_index = fg, .list_vga_index = 0 }};
-	current_screen.lists[2] = (list_option_t) { .list = {.list = keyboard_list, .current_item_index = 0, .list_vga_index = 0 }};
+	current_screen.lists[0] = (list_option_t)
+	{
+		.list = 
+		{
+			.list = (char**)color_list,
+			.current_item_index = bg,
+			.list_vga_index = 0
+		}
+	};
+	current_screen.lists[1] = (list_option_t)
+	{
+		.list = 
+		{
+			.list = (char**)color_list,
+			.current_item_index = fg,
+			.list_vga_index = 0
+		}
+	};
+	current_screen.lists[2] = (list_option_t)
+	{
+		.list =
+		{
+			.list = (char**)keyboard_list,
+			.current_item_index = 0,
+			.list_vga_index = 0
+		}
+	};
 }
 
 static void

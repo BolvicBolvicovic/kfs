@@ -107,24 +107,24 @@ pmm_deinit_region(uint32_t base, size_t size)
     }
 }
 
-void*
+uint32_t
 pmm_alloc_block()
 {
-    if (_memory_max_blocks - _memory_used_blocks <= 0) return NULL;
+    if (_memory_max_blocks - _memory_used_blocks <= 0) return 0;
 
     int frame = mmap_find_first_free();
-    if (frame == -1) return NULL;
+    if (frame == -1) return 0;
 
     mmap_set(frame);
     _memory_used_blocks++;
 
-    return (void*)(frame * PMM_BLOCK_SIZE);
+    return (uint32_t)(frame * PMM_BLOCK_SIZE);
 }
 
-void*
+uint32_t
 pmm_alloc_blocks(size_t nb_blocks)
 {
-    if (_memory_max_blocks - _memory_used_blocks <= 0) return NULL;
+    if (_memory_max_blocks - _memory_used_blocks <= 0) return 0;
 
     int frame = mmap_find_first_free_s(nb_blocks);
     if (frame == -1) return 0;
@@ -135,7 +135,7 @@ pmm_alloc_blocks(size_t nb_blocks)
 	}
     _memory_used_blocks += nb_blocks;
 
-    return (void*)(frame * PMM_BLOCK_SIZE);
+    return (uint32_t)(frame * PMM_BLOCK_SIZE);
 }
 
 void
