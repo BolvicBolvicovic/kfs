@@ -61,8 +61,7 @@ bining_allocator(size_t size)
         return (void*)virt_addr;
     }
 
-	// TODO: switch to the continues allocator
-    if (i == MAX_ALLOC_B_SAME_TIME) return NULL;
+    if (i == MAX_ALLOC_B_SAME_TIME) return kmalloc(MAX_SIZE_B_ALLOC + 1);
 
     for (i = 0; i < MAX_ALLOC_B_SAME_TIME; i++)
 	{
