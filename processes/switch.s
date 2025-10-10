@@ -33,7 +33,6 @@ switch_process:
     popa                    		# Restore general purpose registers
     
     add $CLEAR_ERRNO_INTNO, %esp    # Skip int_no and err_code
-    
     iret                    		# Return from interrupt (restores eip, cs, eflags, esp, ss)
 
 # void start_process(uint32_t* new_stack);

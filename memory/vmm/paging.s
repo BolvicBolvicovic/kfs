@@ -21,7 +21,5 @@ enable_paging:
     ret
 
 flush_tlb_entry:
-    cli
     invlpg (%edi)
-    sti
     ret

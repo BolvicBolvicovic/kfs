@@ -145,7 +145,7 @@ pid_t
 create_process(proc_info_t* info)
 {
 	// Note: Disable interruption to avoid race condition when creating a process.
-	asm volatile ("cli;");
+	//asm volatile ("cli;");
 	process*	p = get_next_process_space();
 
 	/* PROCESS PID & STATUS */
@@ -241,7 +241,7 @@ create_process(proc_info_t* info)
 	tail_process = p;
 
 	// Note: Re-enable interrupion.
-	asm volatile ("sti;");
+	//asm volatile ("sti;");
 
 	return pid;
 }
@@ -249,7 +249,7 @@ create_process(proc_info_t* info)
 static void
 ft_kernel_process(void)
 {
-    asm volatile("sti\n\t");
+    //asm volatile("sti\n\t");
 	while (1)
 	{
 		asm volatile ("hlt\n\t");
@@ -285,7 +285,7 @@ init_multitasking(void)
 void
 schedule(void)
 {
-	if (!current_process || (current_process == kernel_process && tail_process == kernel_process)) return;
+	if (!kernel_process || (current_process == kernel_process && tail_process == kernel_process)) return;
 
 	process* prev = current_process;
 	

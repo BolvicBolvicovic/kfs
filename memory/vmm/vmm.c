@@ -33,6 +33,7 @@ vmm_map_page(pd_entry* dir, uint32_t phys, uint32_t virt, uint32_t flags)
 		if (dir == page_directory)
 		{
 			table_virt = (pt_entry*)&page_tables[pd_index][0];
+			flush_tlb_entry((uint32_t)table_virt);
 		}
 		else
 		{
@@ -148,7 +149,6 @@ vmm_temp_map(uint32_t physical_addr, uint32_t nb_blocks)
 	{
 		vmm_map_page(page_directory, physical_addr + (i * PAGE_SIZE), virtual_addr + (i * PAGE_SIZE), PE_KERNEL | PE_WRITABLE | PE_PRESENT);
     }
-
     return (void*)virtual_addr;
 }
 
@@ -161,8 +161,9 @@ vmm_temp_unmap(uint32_t virtual_addr, uint32_t nb_blocks)
 
     for (size_t i = 0; i < nb_blocks; i++)
 	{
-		table[i] &= ~(PE_PRESENT | PE_WRITABLE);
+		table[i] = 0;
     }
+	flush_tlb_entry((uint32_t)virtual_addr);
 }
 
 void*

@@ -19,7 +19,7 @@ gdt_flush:
 	ret
 
 isr_common_stub:
-	cli
+	#cli
 
 	# push all general purpuse registers
 	pusha
@@ -36,7 +36,7 @@ isr_common_stub:
 	mov	%ax, %gs
 	push %esp
 
-	sti
+	#sti
 	call	isr_handler
 
 	# restore original segment pointers segment and registers
@@ -52,6 +52,7 @@ isr_common_stub:
 	iret
 
 irq_common_stub:
+	#cli
     # 1. Save CPU state
     pusha
     mov %ds, %ax
@@ -63,6 +64,7 @@ irq_common_stub:
     mov %ax, %gs
     push %esp
 
+	#sti
     # 2. Call C handler
     call irq_handler # Different than the ISR code
 
