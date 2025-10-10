@@ -38,7 +38,7 @@ obj/%.o		: $(SRCS_DIR)%.s
 	$(CC) $(CFLAGS) -c $^ -o $@
 
 qemu		: $(ISO)
-	qemu-system-i386 -cdrom $< #-drive file=disk.img,if=ide,format=raw
+	qemu-system-i386 -cdrom $< -d int,cpu_reset -no-reboot #-drive file=disk.img,if=ide,format=raw
 
 qemu_debug	: $(ISO)
 	qemu-system-i386 -cdrom $< -s -S #-drive file=disk.img,if=ide,format=raw

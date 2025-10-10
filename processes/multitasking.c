@@ -10,6 +10,7 @@ extern void		switch_dir(uint32_t dir);
 
 // Note: These are from switch.s
 extern void		switch_process(uint32_t** old, uint32_t* new);
+extern void		switch_process_user(uint32_t** old_stack, uint32_t* new_stack, uint32_t dir);
 extern void		start_process(uint32_t* new);
 extern void		tss_flush(void);
 
@@ -300,10 +301,10 @@ schedule(void)
 		tail_process = prev;
 	}
 
+	tss.esp0 = (uint32_t)current_process->k_stack;
 	if (current_process->mm)
 	{
-		switch_dir((uint32_t)current_process->mm->dir);
+		switch_process_user(&prev->k_stack, current_process->k_stack, (uint32_t)current_process->mm->dir);
 	}
-	tss.esp0 = (uint32_t)current_process->k_stack;
 	switch_process(&prev->k_stack, current_process->k_stack);
 }

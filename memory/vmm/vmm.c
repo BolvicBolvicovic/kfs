@@ -197,6 +197,7 @@ vmm_free_blocks(uint32_t virtual_addr, uint32_t nb_blocks, uint32_t user)
 	{
         vmm_free_page(&table[i], user);
     }
+	flush_tlb_entry((uint32_t)virtual_addr);
 }
 
 void
@@ -224,89 +225,87 @@ vmm_set_flags_pages(uint32_t virt_addr, uint32_t nb_blocks, uint32_t flags, uint
 pd_entry*
 vmm_setup_process(uint32_t code_size, uint32_t data_size, uint32_t* code, uint32_t* data)
 {
-	// Note: INIT DIR
-	uint32_t	dir_raw	= pmm_alloc_block();
-	if (!dir_raw) return 0;
+	uint32_t	code_pages = (code_size + PAGE_SIZE - 1) / PAGE_SIZE;
+	uint32_t	data_pages = (data_size + PAGE_SIZE - 1) / PAGE_SIZE;
+	uint32_t 	data_virt  = PROCESS_CODE_START + ((code_size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1));
 
-	pd_entry*	dir		= (pd_entry*)vmm_temp_map(dir_raw, 1);
+	// Allocate physical memory
+	uint32_t	code_block = (uint32_t)pmm_alloc_blocks(code_pages);
+	if (!code_block) return 0;
+	
+	uint32_t	data_block = (uint32_t)pmm_alloc_blocks(data_pages);
+	if (!data_block)
+	{
+		pmm_free_blocks((void*)code_block, code_pages);
+		return 0;
+	}
+	
+	uint32_t	stack_block = (uint32_t)pmm_alloc_blocks(STACK_PAGES);
+	if (!stack_block)
+	{
+		pmm_free_blocks((void*)data_block, data_pages);
+		pmm_free_blocks((void*)code_block, code_pages);
+		return 0;
+	}
+
+	// Create new page directory
+	uint32_t	dir_raw	= pmm_alloc_block();
+	if (!dir_raw)
+	{
+		pmm_free_blocks((void*)stack_block, STACK_PAGES);
+		pmm_free_blocks((void*)data_block, data_pages);
+		pmm_free_blocks((void*)code_block, code_pages);
+		return 0;
+	}
+
+	pd_entry*	dir	= (pd_entry*)vmm_temp_map(dir_raw, 1);
 	if (!dir)
 	{
 		pmm_free_block((void*)dir_raw);
+		pmm_free_blocks((void*)stack_block, STACK_PAGES);
+		pmm_free_blocks((void*)data_block, data_pages);
+		pmm_free_blocks((void*)code_block, code_pages);
 		return 0;
 	}
 	
 	memset(dir, 0, PAGE_SIZE);
-
-	dir[0]		= page_directory[0];
-	dir[1023]	= dir_raw | PE_PRESENT | PE_WRITABLE;
-
+	dir[0] = page_directory[0];
+	dir[1023] = dir_raw | PE_PRESENT | PE_WRITABLE;
 	for (uint32_t i = KPD_ENTRIES_START; i < KPD_ENTRIES_END - 1; i++)
-	{
-		dir[i]	= page_directory[i];
-	}
+		dir[i] = page_directory[i];
 
-	// Note: CODE BLOCK
-	uint32_t	code_pages = (code_size + PAGE_SIZE - 1) / PAGE_SIZE;
-	uint32_t	code_block = (uint32_t)pmm_alloc_blocks(code_pages);
-	if (!code_block)
-	{
-		vmm_free_blocks((uint32_t)dir, 1, PE_KERNEL);
-		return 0;
-	}
-
-	uint32_t*	code_map = (uint32_t*)vmm_temp_map(code_block, code_pages);
-
+	// Map pages into new directory and copy data directly
 	for (uint32_t i = 0; i < code_pages; i++)
 	{
-		vmm_map_page(dir, code_block + i * PAGE_SIZE, PROCESS_CODE_START + i * PAGE_SIZE, PE_PRESENT | PE_USER);
-		for (uint32_t j = 0; j < PAGE_SIZE / 4; j++)
+		uint32_t phys = code_block + i * PAGE_SIZE;
+		vmm_map_page(dir, phys, PROCESS_CODE_START + i * PAGE_SIZE, PE_PRESENT | PE_USER);
+		
+		uint32_t* page = (uint32_t*)vmm_temp_map(phys, 1);
+		if (page)
 		{
-			code_map[j + (i * PAGE_SIZE) / 4] = code[j + (i * PAGE_SIZE) / 4];
+			for (uint32_t j = 0; j < PAGE_SIZE / 4; j++)
+				page[j] = code[i * (PAGE_SIZE / 4) + j];
+			vmm_temp_unmap((uint32_t)page, 1);
 		}
 	}
-
-	vmm_temp_unmap(code_block, code_pages);
-
-	// Note: DATA BLOCK
-	uint32_t	data_pages = (data_size + PAGE_SIZE - 1) / PAGE_SIZE;
-	uint32_t	data_block = (uint32_t)pmm_alloc_blocks(data_pages);
-	uint32_t 	data_virt  = PROCESS_CODE_START + ((code_size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1));
-	if (!data_block)
-	{
-		vmm_free_blocks((uint32_t)dir, 1, PE_KERNEL);
-		pmm_free_blocks((void*)code_block, code_pages);
-		return 0;
-	}
-
-	uint32_t*	data_map = (uint32_t*)vmm_temp_map(data_block, data_pages);
-
+	
 	for (uint32_t i = 0; i < data_pages; i++)
 	{
-		vmm_map_page(dir, data_block + i * PAGE_SIZE, data_virt + i * PAGE_SIZE, PE_PRESENT | PE_WRITABLE | PE_USER);
-		for (uint32_t j = 0; j < PAGE_SIZE / 4; j++)
+		uint32_t phys = data_block + i * PAGE_SIZE;
+		vmm_map_page(dir, phys, data_virt + i * PAGE_SIZE, PE_PRESENT | PE_WRITABLE | PE_USER);
+		
+		uint32_t* page = (uint32_t*)vmm_temp_map(phys, 1);
+		if (page)
 		{
-			data_map[j + (i * PAGE_SIZE) / 4] = data[j + (i * PAGE_SIZE) / 4];
+			for (uint32_t j = 0; j < PAGE_SIZE / 4; j++)
+				page[j] = data[i * (PAGE_SIZE / 4) + j];
+			vmm_temp_unmap((uint32_t)page, 1);
 		}
 	}
-
-	vmm_temp_unmap(data_block, data_pages);
-
-	// Note: STACK
-	uint32_t	stack_block = (uint32_t)pmm_alloc_blocks(STACK_PAGES);
-	if (!stack_block)
-	{
-		vmm_free_blocks((uint32_t)dir, 1, PE_KERNEL);
-		pmm_free_blocks((void*)code_block, code_pages);
-		pmm_free_blocks((void*)data_block, data_pages);
-		return 0;
-	}
-
+	
 	for (uint32_t i = 0; i < STACK_PAGES; i++)
-	{
 		vmm_map_page(dir, stack_block + i * PAGE_SIZE, PROCESS_STACK_START + i * PAGE_SIZE, PE_PRESENT | PE_WRITABLE | PE_USER);
-	}
 
 	vmm_temp_unmap((uint32_t)dir, 1);
-
-	return (pd_entry*)dir_raw;	
+	return (pd_entry*)dir_raw;
 }
