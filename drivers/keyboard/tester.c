@@ -115,9 +115,9 @@ tests_processes(void)
 		// xor %ebx, %ebx
 		0x31, 0xDB,
 
-		// Note: u_data should be at 0x08049000
+		// Note: u_data should be at 0x08400000 
 		// mov u_data, %ecx
-		0xB9, 0x00, 0x90, 0x04, 0x08,
+		0xB9, 0x00, 0x00, 0x40, 0x08,
 
 		// mov $0x0D, %edx
 		0xBA, 0x0D, 0x00, 0x00, 0x00,
@@ -147,8 +147,11 @@ tests_processes(void)
 
 	pid_t	u = create_process(&pu);
 	pid_t	a = create_process(&pa);
+	pid_t	u1 = create_process(&pu);
 	pid_t	b = create_process(&pb);
+	pid_t	u2 = create_process(&pu);
 	pid_t	f = create_process(&pf);
+	pid_t	u3 = create_process(&pu);
 	ASSERT("Error creating a", a > 0);
 	ASSERT("Error creating b", b > 0);
 	ASSERT("Error creating f", f > 0);

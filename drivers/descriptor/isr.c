@@ -77,12 +77,28 @@ gt_xor:
 #define PAGE_PRESENT_PROT_VIOLATION 1
 #define PAGE_WRITE_ERROR 2
 #define PAGE_USERMODE_ERROR 4
+#define KVIRT ((uint32_t)&start_kernel_virt)
+
+extern uint32_t		start_kernel_virt;
+extern void			flush_tlb_entry(uint32_t);
+static pt_entry		(*page_tables)[1024] = (uint32_t(*)[1024])RECURSIVE_PAGETABLES_ADDR;
 
 void
 page_fault_handler(registers_t* r)
 {
     uint32_t faulting_addr;
     asm volatile("mov %%cr2, %0" : "=r" (faulting_addr));
+
+	if (faulting_addr &&
+		(r->err_code & PAGE_USERMODE_ERROR) &&
+		!(r->err_code & PAGE_PRESENT_PROT_VIOLATION) &&
+		faulting_addr < KVIRT)
+	{
+		uint32_t	pd_index	= PAGE_DIR_INDEX(faulting_addr);
+		uint32_t	pt_index	= PAGE_TAB_INDEX(faulting_addr);
+		page_tables[pd_index][pt_index] = pmm_alloc_block() | PE_PRESENT | PE_WRITABLE | PE_USER;
+		flush_tlb_entry((uint32_t)faulting_addr);
+	}
 
     if (r->err_code & PAGE_USERMODE_ERROR) printf("Page fault: usermode error ");
     else if (r->err_code & PAGE_PRESENT_PROT_VIOLATION && faulting_addr && faulting_addr < PAGE_SIZE) return;

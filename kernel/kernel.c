@@ -53,6 +53,7 @@ kernel_main(uint32_t magic, uint32_t addr)
     }
 	pmm_deinit_region((uint32_t)&start_kernel, kernel_size_aligned);
 	pmm_deinit_region(0, 0x1000);
+	init_vmm();
 	init_multitasking();
     //ide_init(0x1F0, 0x3F6, 0x170, 0x376, 0x000);
 }

@@ -2,7 +2,7 @@ BINARY		=	isoroot/boot/kfs.elf
 ISO			=	kfs.iso
 CC			=	./gcc_kfs/bin/i386-elf-gcc
 LD			=	./gcc_kfs/bin/i386-elf-ld
-LIBS		=	lib/libc.a drivers/drivers.a memory/memory.a processes/processes.a #filesystem/filesystem.a
+LIBS		=	lib/libc.a memory/memory.a drivers/drivers.a processes/processes.a #filesystem/filesystem.a
 CFLAGS		= 	-ffreestanding			\
 				-g	\
 				-O0 \
@@ -20,8 +20,8 @@ all		:	 $(ISO)
 required	:
 	@if [ ! -d obj ]; then mkdir obj; fi
 	make -C lib
-	make -C drivers
 	make -C memory
+	make -C drivers
 	make -C processes
 	#make -C filesystem
 
@@ -38,6 +38,9 @@ obj/%.o		: $(SRCS_DIR)%.s
 	$(CC) $(CFLAGS) -c $^ -o $@
 
 qemu		: $(ISO)
+	qemu-system-i386 -cdrom $< #-drive file=disk.img,if=ide,format=raw
+
+qemu_logs	: $(ISO)
 	qemu-system-i386 -cdrom $< -d int,cpu_reset -no-reboot #-drive file=disk.img,if=ide,format=raw
 
 qemu_debug	: $(ISO)

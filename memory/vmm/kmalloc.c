@@ -100,7 +100,7 @@ bining_allocator_free(uint32_t addr)
                 }
                 if (count == MAX_BITMAP_ELEM)
 				{
-                    vmm_free_blocks(bining_allocator_map[i].virt_addr, 1, PE_KERNEL);
+                    vmm_free_blocks(bining_allocator_map[i].virt_addr, 1);
                     // Do not set virt_addr to 0 as it is used to find the edge of the bining_allocator_map
                     bining_allocator_map[i].size_type = 0;
                     bining_allocator_map[i].offset_next_free = 0;
@@ -147,7 +147,7 @@ kmalloc(size_t size)
 
 	        if (continuous_allocator_map[i].free)
 			{
-	        	vmm_free_blocks(continuous_allocator_map[i].virt_addr, continuous_allocator_map[i].nb_blocks, PE_KERNEL);
+	        	vmm_free_blocks(continuous_allocator_map[i].virt_addr, continuous_allocator_map[i].nb_blocks);
 	        	break;
 	        }
 	    }
