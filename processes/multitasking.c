@@ -5,7 +5,7 @@
 
 // TODO: Fix memcpy so that it returns a pointer
 extern void		memcpy(void* d, const void* s, uint32_t n);
-extern void*	memset(void* s, int c, uint32_t n);
+extern void*	memset(void* s, uint8_t c, uint32_t n);
 extern void		switch_dir(uint32_t dir);
 
 // Note: These are from switch.s

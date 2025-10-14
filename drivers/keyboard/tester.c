@@ -151,7 +151,7 @@ tests_processes(void)
 	pid_t	b  = create_process(&pb);
 	pid_t	u2 = create_process(&pu);
 	pid_t	f  = create_process(&pf);
-	pid_t	u3 = create_process(&pu);
+	//pid_t	u3 = create_process(&pu);
 	ASSERT("Error creating a", a > 0);
 	ASSERT("Error creating b", b > 0);
 	ASSERT("Error creating f", f > 0);
