@@ -43,9 +43,9 @@ typedef uint32_t pd_entry;
 // Note: the user parameter in the vmm functions should be set to either I86_PTE_KERNEL (0) or I86_PTE_USER (4)
 
 void		init_vmm(void);
-pd_entry*	vmm_setup_process(uint32_t code_size, uint32_t data_size, uint32_t* code, uint32_t* data);
+uint32_t	vmm_setup_process(uint32_t code_size, uint32_t data_size, uint32_t* code, uint32_t* data);
 void		vmm_set_flags_pages(uint32_t virt_addr, uint32_t nb_blocks, uint32_t flags, uint8_t set);
-void*   	vmm_alloc_blocks(size_t size, uint32_t user);
+void*		vmm_alloc_kblocks(size_t nb_blocks);
 void		vmm_free_blocks(uint32_t virtual_addr, uint32_t nb_blocks);
 void*   	kmalloc(size_t size);
 void    	kfree(void* virt_addr);

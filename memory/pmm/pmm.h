@@ -16,7 +16,7 @@ void		pmm_init_region(uint32_t base, size_t size);
 void		pmm_deinit_region(uint32_t base, size_t size);
 uint32_t	pmm_alloc_block();
 uint32_t	pmm_alloc_blocks(size_t nb_blocks);
-void		pmm_free_block(void* p);
-void		pmm_free_blocks (void* p, size_t size);
+void		pmm_free_block(uint32_t p);
+void		pmm_free_blocks (uint32_t p, size_t size);
 
 #endif

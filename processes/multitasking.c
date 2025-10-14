@@ -286,7 +286,7 @@ init_multitasking(void)
 void
 schedule(void)
 {
-	if (!kernel_process || (current_process == kernel_process && tail_process == kernel_process)) return;
+	if (!kernel_process || !current_process || (current_process == kernel_process && tail_process == kernel_process)) return;
 
 	process* prev = current_process;
 	
@@ -302,9 +302,13 @@ schedule(void)
 	}
 
 	tss.esp0 = (uint32_t)current_process->k_stack;
+	
 	if (current_process->mm)
 	{
 		switch_process_user(&prev->k_stack, current_process->k_stack, (uint32_t)current_process->mm->dir);
 	}
-	switch_process(&prev->k_stack, current_process->k_stack);
+	else
+	{
+		switch_process(&prev->k_stack, current_process->k_stack);
+	}
 }

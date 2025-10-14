@@ -96,7 +96,7 @@ typedef struct
 
 typedef struct
 {
-	pd_entry*	dir;
+	uint32_t	dir;
 	
 	uint32_t	code_start;
 	uint32_t	code_end;

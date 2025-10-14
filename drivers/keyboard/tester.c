@@ -145,12 +145,12 @@ tests_processes(void)
 		PROCESS_CODE_START
 	};
 
-	pid_t	u = create_process(&pu);
-	pid_t	a = create_process(&pa);
+	pid_t	u  = create_process(&pu);
+	pid_t	a  = create_process(&pa);
 	pid_t	u1 = create_process(&pu);
-	pid_t	b = create_process(&pb);
+	pid_t	b  = create_process(&pb);
 	pid_t	u2 = create_process(&pu);
-	pid_t	f = create_process(&pf);
+	pid_t	f  = create_process(&pf);
 	pid_t	u3 = create_process(&pu);
 	ASSERT("Error creating a", a > 0);
 	ASSERT("Error creating b", b > 0);

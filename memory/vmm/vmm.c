@@ -4,12 +4,8 @@
 extern void switch_dir(uint32_t dir);
 extern void flush_tlb_entry(uint32_t addr);
 
-// Note: A pointer to the page directory, treated as an array of 1024 entries.
-static pd_entry*	page_directory = (uint32_t*)RECURSIVE_PAGEDIR_ADDR;
-
-// Note: A pointer to the page tables, treated as a 2D array.
-// Accessing page_tables[pd_index][pt_index] gives you the PTE.
-static pt_entry	(*page_tables)[1024] = (uint32_t(*)[1024])RECURSIVE_PAGETABLES_ADDR;
+#define PAGE_DIR 	((uint32_t*)RECURSIVE_PAGEDIR_ADDR)
+#define PAGE_TABLES ((uint32_t(*)[1024])RECURSIVE_PAGETABLES_ADDR)
 
 void
 init_vmm(void)
@@ -20,35 +16,24 @@ init_vmm(void)
 	// Note: Map them.
 	for (uint32_t i = KPD_ENTRIES_START + 1; i < TABLES_PER_DIR - 1; i++, kphys_tables += PAGE_SIZE)
 	{
-		page_directory[i] = kphys_tables | PE_PRESENT | PE_WRITABLE;
+		PAGE_DIR[i] = kphys_tables | PE_PRESENT | PE_WRITABLE;
 	}
 
 	// Note: reload page dir
-	switch_dir(page_directory[1023]);
+	switch_dir(PAGE_DIR[1023] & ~0xFFF);
 }
 
-static void
+static inline void
 vmm_map_kpage(uint32_t phys, uint32_t virt)
 {
 	uint32_t	pd_index	= PAGE_DIR_INDEX(virt);
 	uint32_t	pt_index	= PAGE_TAB_INDEX(virt);
-	
-	page_tables[pd_index][pt_index] = phys | PE_PRESENT | PE_WRITABLE;
+
+	PAGE_TABLES[pd_index][pt_index] = phys | PE_PRESENT | PE_WRITABLE;
 	flush_tlb_entry((uint32_t)virt);
 }
 
-static void
-vmm_lazy_map_upage(pd_entry* dir, uint32_t virt)
-{
-	uint32_t	pd_index	= PAGE_DIR_INDEX(virt);
-
-	if (!(dir[pd_index] & PE_PRESENT))
-	{
-		dir[pd_index] = pmm_alloc_block() | PE_PRESENT | PE_WRITABLE | PE_USER;
-	}
-}
-
-static void
+static inline void
 vmm_unmap_pages(uint32_t virt, uint32_t total_virt_blocks)
 {
 	uint32_t	pd_index	= PAGE_DIR_INDEX(virt);
@@ -56,105 +41,220 @@ vmm_unmap_pages(uint32_t virt, uint32_t total_virt_blocks)
 
 	for (uint32_t i = 0; i < total_virt_blocks; i++)
 	{
-		page_tables[pd_index + i / PAGES_PER_TABLE][pt_index + i % PAGES_PER_TABLE] = 0;
+		PAGE_TABLES[pd_index + i / PAGES_PER_TABLE][pt_index + i % PAGES_PER_TABLE] = 0;
 		flush_tlb_entry(virt + i * PAGE_SIZE);
 	}
 }
 
-static void
-vmm_free_page(pt_entry* entry)
-{
-	void* p = (void*)((uint32_t)entry & ~0xFFF);
-	if (p) pmm_free_block(p);
-	*entry = 0;
-}
-
-static uint32_t
+static inline uint32_t
 build_virt_addr(uint32_t pd_index, uint32_t pt_index)
 {
     return (pd_index << 22) | (pt_index << 12);
 }
 
 static uint32_t
-vmm_find_next_free(uint32_t user)
+vmm_find_next_free_user(void)
 {
-	size_t i = user ? 0 : KPD_ENTRIES_START;
+	static uint32_t	user_dir_index = 0;
+	static uint32_t user_tab_index = 0;
 
-    for (; i < TABLES_PER_DIR; i++)
+	uint32_t	i = user_dir_index;
+	uint32_t	j = user_tab_index;
+
+    for (; i < KPD_ENTRIES_START; i++)
 	{
-        if (page_directory[i] & PE_PRESENT)
+        if (PAGE_DIR[i] & PE_PRESENT)
 		{
-            pt_entry* entry = &page_tables[i][0];
-            for (size_t j = 0; j < PAGES_PER_TABLE; j++)
+            for (; j < PAGES_PER_TABLE; j++)
 			{
-                if (!(entry[j] & PE_PRESENT)) return build_virt_addr(i, j);
+                if (!(PAGE_TABLES[i][j] & PE_PRESENT))
+				{
+					uint32_t	addr = build_virt_addr(i, j);
+					user_dir_index = i; 
+					user_tab_index = j + 1;
+					return addr;
+				}
             }
+			j = 0;
         }
 		else
 		{
-            return build_virt_addr(i, 0);
+			uint32_t	addr = build_virt_addr(i, 0);
+			PAGE_DIR[i] = pmm_alloc_block() | PE_PRESENT | PE_WRITABLE | PE_USER;
+			if (PAGE_DIR[i] == (PE_PRESENT | PE_WRITABLE | PE_USER))
+			{
+				PAGE_DIR[i] = 0;
+				return 0;
+			}
+			user_dir_index = i;
+			user_tab_index = j + 1;
+            return addr;
         }
     }
+
+	if (user_dir_index && user_tab_index)
+	{
+		user_dir_index = 0;
+		user_tab_index = 0;
+		return vmm_find_next_free_user();
+	}
+
     return 0;
 }
 
 static uint32_t
-vmm_find_next_free_s(size_t nb_blocks, uint32_t user)
+vmm_find_next_free_kernel(void)
 {
-    if (nb_blocks == 1) return vmm_find_next_free(user);
-    if (nb_blocks > PAGES_PER_TABLE) return 0;
+	static uint32_t	kernel_dir_index = KPD_ENTRIES_START;
+	static uint32_t	kernel_tab_index = 0;
 
-	size_t i = user ? 0 : KPD_ENTRIES_START;
+	uint32_t	i = kernel_dir_index;
+	uint32_t	j = kernel_tab_index;
+
     for (; i < TABLES_PER_DIR; i++)
 	{
-        if (page_directory[i] & PE_PRESENT)
+    	for (; j < PAGES_PER_TABLE; j++)
 		{
-            pt_entry* entry = &page_tables[i][0];
-            for (size_t j = 0; j < PAGES_PER_TABLE; j++)
+    	    if (!(PAGE_TABLES[i][j] & PE_PRESENT))
 			{
-                if (entry[j] & PE_PRESENT) continue;
-
-		        for (size_t k = 1; k < PAGES_PER_TABLE - j; k++)
-				{
-		            if (!(entry[j + k] & PE_PRESENT) && k + 1 >= nb_blocks) return build_virt_addr(i, j);
-		            else if (entry[j + k] & PE_PRESENT) break;
-		        }
-            }
-        }
-		else
-		{
-            return build_virt_addr(i, 0);
-        }
+				uint32_t	addr = build_virt_addr(i, j);
+				kernel_dir_index = i;
+				kernel_tab_index = j + 1;
+				return addr;
+			}
+    	}
+		j = 0;
     }
+
+	if (kernel_dir_index != KPD_ENTRIES_START && kernel_tab_index)
+	{
+		kernel_dir_index = KPD_ENTRIES_START;
+		kernel_tab_index = 0;
+		return vmm_find_next_free_kernel();
+	}
+
     return 0;
 }
 
-void*
-vmm_alloc_blocks(size_t nb_blocks, uint32_t user)
+static uint32_t
+vmm_find_next_frees_user(size_t nb_blocks)
 {
-    uint32_t virtual_addr	= (uint32_t)vmm_find_next_free_s(nb_blocks, user);
-    if (virtual_addr == 0) return 0;
+	static uint32_t	user_dir_index = 0;
+	static uint32_t	user_tab_index = 0;
 
-	if (user)
+    if (nb_blocks == 1) return vmm_find_next_free_user();
+    if (nb_blocks > PAGES_PER_TABLE) return 0;
+
+	uint32_t	i = user_dir_index;
+	uint32_t	j = user_tab_index;
+
+    for (; i < KPD_ENTRIES_START; i++)
 	{
-    	for (size_t i = 0; i < nb_blocks; i+=PAGES_PER_TABLE)
+        if (PAGE_DIR[i] & PE_PRESENT)
 		{
-			vmm_lazy_map_upage(page_directory, virtual_addr + i);
-    	}
-	}
-	else
-	{
-    	for (size_t i = 0; i < nb_blocks; i++)
-		{
-			uint32_t physical_addr = pmm_alloc_block();
-			if (!physical_addr)
+            for (;j < PAGES_PER_TABLE; j++)
 			{
-				vmm_free_blocks(virtual_addr, i);
+                if (PAGE_TABLES[i][j] & PE_PRESENT) continue;
+
+		        for (uint32_t k = 1; k < PAGES_PER_TABLE - j; k++)
+				{
+		            if (!(PAGE_TABLES[i][j + k] & PE_PRESENT) && k + 1 == nb_blocks)
+					{
+						uint32_t	addr = build_virt_addr(i, j + k);
+						user_dir_index = i;
+						user_tab_index = j + k + 1;
+						return addr;
+					}
+		            else if (PAGE_TABLES[i][j + k] & PE_PRESENT) break;
+		        }
+            }
+
+			j = 0;
+        }
+		else
+		{
+			uint32_t	addr = build_virt_addr(i, 0);
+			PAGE_DIR[i] = pmm_alloc_block() | PE_PRESENT | PE_WRITABLE | PE_USER;
+			if (PAGE_DIR[i] == (PE_PRESENT | PE_WRITABLE | PE_USER))
+			{
+				PAGE_DIR[i] = 0;
 				return 0;
 			}
-			vmm_map_kpage(physical_addr, virtual_addr + (i * PAGE_SIZE));
-    	}
+			user_dir_index = i;
+			user_tab_index = j + nb_blocks + 1;
+			return addr;
+        }
+    }
+
+	if (user_dir_index && user_tab_index)
+	{
+		user_dir_index = 0;
+		user_tab_index = 0;
+		return vmm_find_next_frees_user(nb_blocks);
 	}
+
+    return 0;
+}
+
+static uint32_t
+vmm_find_next_frees_kernel(size_t nb_blocks)
+{
+	static uint32_t	kernel_dir_index = KPD_ENTRIES_START;
+	static uint32_t	kernel_tab_index = 0;
+
+    if (nb_blocks == 1) return vmm_find_next_free_kernel();
+    if (nb_blocks > PAGES_PER_TABLE) return 0;
+
+	uint32_t	i = kernel_dir_index;
+	uint32_t	j = kernel_tab_index;
+
+    for (; i < TABLES_PER_DIR; i++)
+	{
+        for (;j < PAGES_PER_TABLE; j++)
+		{
+            if (PAGE_TABLES[i][j] & PE_PRESENT) continue;
+
+		    for (uint32_t k = 1; k < PAGES_PER_TABLE - j; k++)
+			{
+		        if (!(PAGE_TABLES[i][j + k] & PE_PRESENT) && k + 1 == nb_blocks)
+				{
+					uint32_t	addr = build_virt_addr(i, j + k);
+					kernel_dir_index = i;
+					kernel_tab_index = j + k + 1;
+					return addr;
+				}
+		        else if (PAGE_TABLES[i][j + k] & PE_PRESENT) break;
+		    }
+        }
+
+		j = 0;
+    }
+
+	if (kernel_dir_index != KPD_ENTRIES_START && kernel_tab_index)
+	{
+		kernel_dir_index = 0;
+		kernel_tab_index = 0;
+		return vmm_find_next_frees_kernel(nb_blocks);
+	}
+
+    return 0;
+}
+
+// Note: Lazy alloc for user. No need for a alloc user block functions.
+// Just call vmm_find_next_frees_user.
+void*
+vmm_alloc_kblocks(size_t nb_blocks)
+{
+    uint32_t	virtual_addr = (uint32_t)vmm_find_next_frees_kernel(nb_blocks);
+    if (virtual_addr == 0) return 0;
+
+	uint32_t	physical_addr = pmm_alloc_blocks(nb_blocks);
+	if (!physical_addr) return 0;
+
+	for (uint32_t i = 0; i < nb_blocks; i++)
+	{
+		vmm_map_kpage(physical_addr + (i * PAGE_SIZE), virtual_addr + (i * PAGE_SIZE));
+    }
 
     return (void*)virtual_addr;
 }
@@ -164,13 +264,9 @@ vmm_free_blocks(uint32_t virtual_addr, uint32_t nb_blocks)
 {
     uint32_t	pd_index	= PAGE_DIR_INDEX(virtual_addr);
     uint32_t	pt_index	= PAGE_TAB_INDEX(virtual_addr);
-    pt_entry*	table		= &page_tables[pd_index][pt_index];
 
-    for (size_t i = 0; i < nb_blocks; i++)
-	{
-        vmm_free_page(&table[i]);
-    }
-	flush_tlb_entry((uint32_t)virtual_addr);
+	pmm_free_blocks(PAGE_TABLES[pd_index][pt_index] & ~0xFFF, nb_blocks);
+	vmm_unmap_pages(virtual_addr, nb_blocks);
 }
 
 void
@@ -178,7 +274,7 @@ vmm_set_flags_pages(uint32_t virt_addr, uint32_t nb_blocks, uint32_t flags, uint
 {
     uint32_t	pd_index	= PAGE_DIR_INDEX(virt_addr);
     uint32_t	pt_index	= PAGE_TAB_INDEX(virt_addr);
-    pt_entry*	table		= &page_tables[pd_index][pt_index];
+    pt_entry*	table		= &PAGE_TABLES[pd_index][pt_index];
     if (set)
 	{
     	for (size_t i = 0; i < nb_blocks; i++)
@@ -195,103 +291,94 @@ vmm_set_flags_pages(uint32_t virt_addr, uint32_t nb_blocks, uint32_t flags, uint
 	}
 }
 
-pd_entry*
+uint32_t
 vmm_setup_process(uint32_t code_size, uint32_t data_size, uint32_t* code, uint32_t* data)
 {
-	uint32_t	i;
-	uint32_t	offset;
+	uint32_t	i = 0;
+	uint32_t	offset = 0;
 
 	// PHYS ALLOCATIONS
-	uint32_t	code_pages = code_size   / PAGE_SIZE 	   + 1;										// OK
-	uint32_t	code_tsize = code_pages  / PAGES_PER_TABLE + 1;										// OK
-	uint32_t	data_pages = data_size   / PAGE_SIZE 	   + 1;										// OK
-	uint32_t	data_tsize = data_pages  / PAGES_PER_TABLE + 1;										// OK
-	uint32_t	stack_tsize= STACK_PAGES / PAGES_PER_TABLE + 1;										// OK
-	uint32_t	table_nbs  = code_tsize + data_tsize + stack_tsize + 1; 							// OK Note: + 1 accounts for the directory
-	uint32_t	page_nbs   = code_pages + data_pages + STACK_PAGES;									// OK
+	uint32_t	code_pages = (code_size + PAGE_SIZE - 1) 		 / PAGE_SIZE;
+	uint32_t	code_tsize = (code_pages  + PAGES_PER_TABLE - 1) / PAGES_PER_TABLE;
+	uint32_t	data_pages = (data_size   + PAGE_SIZE - 1) 		 / PAGE_SIZE;
+	uint32_t	data_tsize = (data_pages  + PAGES_PER_TABLE - 1) / PAGES_PER_TABLE;
+ 	// Note: + 2 accounts for the directory and stack table
+	uint32_t	total_blocks = code_pages + data_pages + code_tsize + data_tsize + 2;
 
-	uint32_t	total_phys_blocks = page_nbs + table_nbs;											// OK
-	uint32_t	total_virt_blocks = total_phys_blocks - STACK_PAGES;								// OK
 
-	uint32_t	phys_page_dir	= (uint32_t)pmm_alloc_blocks(total_phys_blocks);					// OK
-	uint32_t	phys_code_table = phys_page_dir    + PAGE_SIZE;										// OK
-	uint32_t	phys_data_table = phys_code_table  + PAGE_SIZE * code_tsize;						// OK
-	uint32_t	phys_stack_table= phys_data_table  + PAGE_SIZE * data_tsize;						// OK
-	uint32_t	phys_code_start = phys_stack_table + PAGE_SIZE * stack_tsize;						// OK
-	uint32_t	phys_data_start = phys_code_start  + PAGE_SIZE * code_pages;						// OK
-	uint32_t	phys_stack_start= phys_data_start  + PAGE_SIZE * data_pages;						// OK
+	uint32_t	phys_page_dir	= (uint32_t)pmm_alloc_blocks(total_blocks);
+	uint32_t	phys_code_table = phys_page_dir    + PAGE_SIZE;
+	uint32_t	phys_data_table = phys_code_table  + PAGE_SIZE * code_tsize;
+	uint32_t	phys_stack_table= phys_data_table  + PAGE_SIZE * data_tsize;
+	uint32_t	phys_code_start = phys_stack_table + PAGE_SIZE;
+	uint32_t	phys_data_start = phys_code_start  + PAGE_SIZE * code_pages;
 
-	if (!phys_page_dir) return 0;																	// OK
+	if (!phys_page_dir) return 0;
 
 	// INIT TABLES
-	pd_entry*	dir	= (pd_entry*)vmm_find_next_free_s(total_virt_blocks, PE_KERNEL);				// OK
-	pt_entry*	virt_code_table = (pt_entry*)((uint32_t)dir + PAGE_SIZE);							// OK
-	pt_entry*	virt_data_table = (pt_entry*)((uint32_t)virt_code_table + PAGE_SIZE * code_tsize);	// OK
-	pt_entry*	virt_stack_table= (pt_entry*)((uint32_t)virt_data_table + PAGE_SIZE * data_tsize);	// OK
-	uint32_t	virt_code_start	= (uint32_t)virt_stack_table + PAGE_SIZE * stack_tsize;				// OK
-	uint32_t	virt_data_start	= virt_code_start + PAGE_SIZE * code_pages;							// OK
+	pd_entry*	dir	= (pd_entry*)vmm_find_next_frees_kernel(total_blocks);
+	pt_entry*	virt_code_table = (pt_entry*)((uint32_t)dir + PAGE_SIZE);
+	pt_entry*	virt_data_table = (pt_entry*)((uint32_t)virt_code_table + PAGE_SIZE * code_tsize);
+	pt_entry*	virt_stack_table= (pt_entry*)((uint32_t)virt_data_table + PAGE_SIZE * data_tsize);
+	uint32_t	virt_code_start	= (uint32_t)virt_stack_table + PAGE_SIZE;
+	uint32_t	virt_data_start	= virt_code_start + PAGE_SIZE * code_pages;	
 
-	if (!dir)																						// OK
+	if (!dir)
 	{
-		pmm_free_blocks((void*)phys_page_dir, total_phys_blocks);									// OK
-		return 0;																					// OK
+		pmm_free_blocks(phys_page_dir, total_blocks);
+		return 0;
 	}
 
-	for (i = 0; i < total_virt_blocks * PAGE_SIZE; i+=PAGE_SIZE)
+	for (i = 0; i < total_blocks * PAGE_SIZE; i+=PAGE_SIZE)
 	{
-		vmm_map_kpage(phys_page_dir + i, (uint32_t)dir + i);										// OK
+		vmm_map_kpage(phys_page_dir + i, (uint32_t)dir + i);
 	}
 
-	memset(dir, 0, PAGE_SIZE * total_virt_blocks);													// OK
-	
+	memset(dir, 0, PAGE_SIZE * total_blocks);
+
 	// INIT DIR
 	// Note: PROCESS_CODE_START and PROCESS_STACK_START are macros
 	// Round up to next 4MB boundary
-	uint32_t	process_data_start		 = ((PROCESS_CODE_START + code_size + PTABLE_ADDR_SPACE_SIZE - 1) & ~(PTABLE_ADDR_SPACE_SIZE - 1));
-	uint32_t	process_code_table_index = PAGE_DIR_INDEX(PROCESS_CODE_START);						// OK 
-	uint32_t	process_data_table_index = PAGE_DIR_INDEX(process_data_start);						// OK
-	uint32_t	process_stack_table_index= PAGE_DIR_INDEX(PROCESS_STACK_START);						// OK
-	uint32_t	process_code_page_index  = PAGE_TAB_INDEX(PROCESS_CODE_START);						// OK
-	uint32_t	process_stack_page_index = PAGE_TAB_INDEX(PROCESS_STACK_START);						// OK
+	uint32_t	process_data_start		 = (PROCESS_CODE_START & -PTABLE_ADDR_SPACE_SIZE) + PTABLE_ADDR_SPACE_SIZE;
+	uint32_t	process_code_table_index = PAGE_DIR_INDEX(PROCESS_CODE_START);
+	uint32_t	process_data_table_index = PAGE_DIR_INDEX(process_data_start);
+	uint32_t	process_stack_table_index= PAGE_DIR_INDEX(PROCESS_STACK_START);
+	uint32_t	process_code_page_index  = PAGE_TAB_INDEX(PROCESS_CODE_START);
 
-	dir[0] = page_directory[0];																		// OK
-	dir[1023] = (uint32_t)phys_page_dir | PE_PRESENT | PE_WRITABLE;									// OK
+	dir[0] = PAGE_DIR[0];
+	dir[1023] = (uint32_t)phys_page_dir | PE_PRESENT | PE_WRITABLE;
 
-	for (offset = 0, i = process_code_table_index;													// OK
-		i < process_code_table_index + code_tsize;													// OK
-		offset++, i++)																				// OK
+	for (offset = 0, i = process_code_table_index;
+		i < process_code_table_index + code_tsize;
+		offset++, i++)
 	{
-		dir[i] = (phys_code_table + offset * PAGE_SIZE) | PE_PRESENT | PE_WRITABLE | PE_USER;		// OK
+		dir[i] = (phys_code_table + offset * PAGE_SIZE) | PE_PRESENT | PE_WRITABLE | PE_USER;
 	}
 
 
-	for (offset = 0, i = process_data_table_index;													// OK
-		i < process_data_table_index + data_tsize;													// OK
-		offset++, i++)																				// OK
+	for (offset = 0, i = process_data_table_index;
+		i < process_data_table_index + data_tsize;
+		offset++, i++)
 	{
-		dir[i] = (phys_data_table + offset * PAGE_SIZE) | PE_PRESENT | PE_WRITABLE | PE_USER;		// OK
+		dir[i] = (phys_data_table + offset * PAGE_SIZE) | PE_PRESENT | PE_WRITABLE | PE_USER;
 	}
 
-	for (offset = 0, i = process_stack_table_index;													// OK
-		i < process_stack_table_index + stack_tsize;												// OK
-		offset++, i++)																				// OK
-	{
-		dir[i] = (phys_stack_table + offset * PAGE_SIZE) | PE_PRESENT | PE_WRITABLE | PE_USER;		// OK
-	}
+	// Note: We don't allocate stack pages here, they will be allocated lazily.
+	dir[process_stack_table_index] = phys_stack_table | PE_PRESENT | PE_WRITABLE | PE_USER;
 
-	for (i = KPD_ENTRIES_START; i < TABLES_PER_DIR - 1; i++)										// OK
+	for (i = KPD_ENTRIES_START; i < TABLES_PER_DIR - 1; i++)
 	{
-		dir[i] = page_directory[i];																	// OK
+		dir[i] = PAGE_DIR[i];
 	}
 
 	// INIT CODE SECTION
 
 	for (i = 0; i < code_pages; i++)
 	{
-		uint32_t	phys = phys_code_start + i * PAGE_SIZE;											// OK
-		uint32_t*	virt = (uint32_t*)(virt_code_start + i * PAGE_SIZE);							// OK
+		uint32_t	phys = phys_code_start + i * PAGE_SIZE;
+		uint32_t*	virt = (uint32_t*)(virt_code_start + i * PAGE_SIZE);
 
-		virt_code_table[i + process_code_page_index] = phys | PE_PRESENT | PE_WRITABLE | PE_USER;
+		virt_code_table[i + process_code_page_index] = phys | PE_PRESENT | PE_USER;
 		
 		for (uint32_t j = 0; j < PAGE_SIZE / 4; j++)
 		{
@@ -313,14 +400,7 @@ vmm_setup_process(uint32_t code_size, uint32_t data_size, uint32_t* code, uint32
 			virt[j] = data[i * (PAGE_SIZE / 4) + j];
 		}
 	}
-	
-	// INIT (STACK) BSS SECTION
-	for (i = 0; i < STACK_PAGES; i++)
-	{
-		uint32_t	phys = phys_stack_start + i * PAGE_SIZE;
-		virt_stack_table[i + process_stack_page_index] = phys | PE_PRESENT | PE_WRITABLE | PE_USER;
-	}
 
-	vmm_unmap_pages((uint32_t)dir, total_virt_blocks);
-	return (pd_entry*)phys_page_dir;
+	vmm_unmap_pages((uint32_t)dir, total_blocks);
+	return phys_page_dir;
 }

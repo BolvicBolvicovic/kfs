@@ -68,7 +68,7 @@ bining_allocator(size_t size)
         if (!bining_allocator_map[i].size_type) break;
     }
 
-    void* new_page = vmm_alloc_blocks(1, PE_KERNEL);
+    void* new_page = vmm_alloc_kblocks(1);
     if (new_page == NULL) return NULL;
     bining_allocator_map[i].virt_addr = (uint32_t)new_page;
     bining_allocator_map[i].size_type = size_type;
@@ -152,9 +152,8 @@ kmalloc(size_t size)
 	        }
 	    }
     }
-    void* block_virt_addr = vmm_alloc_blocks(total_pages_needed, PE_KERNEL);
+    void* block_virt_addr = vmm_alloc_kblocks(total_pages_needed);
     if (block_virt_addr == NULL) return NULL;
-    // vmm_alloc_blocks sets the flags, no need to do it again
     continuous_allocator_map[i].virt_addr = (uint32_t)block_virt_addr;
     continuous_allocator_map[i].nb_blocks = total_pages_needed;
     continuous_allocator_map[i].free = 0;
@@ -167,10 +166,8 @@ kfree(void* virt_addr)
 {
     if (virt_addr == NULL) goto error;
     if (bining_allocator_free((uint32_t)virt_addr)) return;
-    for (size_t i = 0; i < MAX_ALLOC_C_SAME_TIME; i++)
+    for (size_t i = 0; i < MAX_ALLOC_C_SAME_TIME && continuous_allocator_map[i].virt_addr; i++)
 	{
-        // Note: End of the map, break
-	    if (!continuous_allocator_map[i].virt_addr) break;
 	    if (continuous_allocator_map[i].virt_addr == (uint32_t)virt_addr)
 		{
 	        vmm_set_flags_pages(continuous_allocator_map[i].virt_addr, continuous_allocator_map[i].nb_blocks, PE_WRITABLE, 0);

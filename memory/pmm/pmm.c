@@ -59,7 +59,7 @@ mmap_find_first_free_s (size_t size)
 					uint32_t startingBit = i*32 + j;
 					uint32_t free=0; // Note: loop through each bit to see if its enough space
 
-					for (uint32_t count=0; count<=size;count++)
+					for (uint32_t count=0; count<size;count++)
 					{
 						if (! mmap_test(startingBit+count)) free++;	// Note: this bit is clear (free frame)
 						if (free==size) return startingBit; 			// Note: free count==size needed; return index
@@ -139,19 +139,17 @@ pmm_alloc_blocks(size_t nb_blocks)
 }
 
 void
-pmm_free_block(void* p)
+pmm_free_block(uint32_t p)
 {
-    uint32_t addr = (uint32_t)p;
-    int frame = addr / PMM_BLOCK_SIZE;
+    int frame = p / PMM_BLOCK_SIZE;
     mmap_unset(frame);
     _memory_used_blocks--;
 }
 
 void
-pmm_free_blocks(void* p, size_t size)
+pmm_free_blocks(uint32_t p, size_t size)
 {
-	uint32_t addr = (uint32_t)p;
-	int frame = addr / PMM_BLOCK_SIZE;
+	int frame = p / PMM_BLOCK_SIZE;
 
 	for (uint32_t i = 0; i < size; i++)
 	{
