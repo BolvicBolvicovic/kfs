@@ -53,7 +53,7 @@ bining_allocator(size_t size)
         uint32_t virt_addr = bining_allocator_map[i].virt_addr + bining_allocator_map[i].offset_next_free * bining_allocator_map[i].size_type;
         bining_allocator_map[i].offset_next_free++;
         bining_allocator_map[i].bitmap[bining_allocator_map[i].bitmap_offset] |= (1 << bining_allocator_map[i].bitmap_elem_offset);
-        if (++bining_allocator_map[i].bitmap_elem_offset == 31)
+        if (++bining_allocator_map[i].bitmap_elem_offset == 32)
 		{
             bining_allocator_map[i].bitmap_elem_offset = 0;
             bining_allocator_map[i].bitmap_offset++;
@@ -88,8 +88,8 @@ bining_allocator_free(uint32_t addr)
         if (!bining_allocator_map[i].virt_addr) break;
         if (bining_allocator_map[i].virt_addr == page)
 		{
-            uint16_t bitmap_index = (addr & OFFSET_ADDR_MASK) / (bining_allocator_map[i].size_type * MAX_BITMAP_ELEM);
-            uint8_t bitmap_elem_offset = (addr & OFFSET_ADDR_MASK) % (bining_allocator_map[i].size_type * MAX_BITMAP_ELEM);
+            uint16_t bitmap_index = (addr & OFFSET_ADDR_MASK) / bining_allocator_map[i].size_type / 32;
+            uint8_t bitmap_elem_offset = (addr & OFFSET_ADDR_MASK) / bining_allocator_map[i].size_type % 32;
             bining_allocator_map[i].bitmap[bitmap_index] &= ~(1 << bitmap_elem_offset);
             if (bining_allocator_map[i].offset_next_free * bining_allocator_map[i].size_type >= FREE_LIMIT_B_ALLOC)
 			{

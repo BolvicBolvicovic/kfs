@@ -16,15 +16,11 @@ tss_flush:
 # 	uint32_t	eip, cs, eflafs, useresp, ss;
 # } registers_t;
 
-# void switch_process(uint32_t** old_stack, uint32_t* new_stack);
+# void switch_process(uint32_t* new_stack);
 switch_process:
     # Get parameters
-	mov 4(%esp), %eax				# Get old_stack
-	mov 8(%esp), %ebx				# Get new_stack
-	add $56, %esp					# Move esp after return adress, where the registers have been saved by the cpu and the irq stub
-    
-    mov %esp, (%eax)       	 		# Store current ESP at *old_stack
-    mov %ebx, %esp  	    		# Set new_stack parameter as ESP
+	mov 4(%esp), %eax				# Get new_stack
+    mov %eax, %esp  	    		# Set new_stack parameter as ESP
     
     # Restore context from new stack
     pop %eax                		# Restore ds
@@ -35,17 +31,14 @@ switch_process:
     add $CLEAR_ERRNO_INTNO, %esp    # Skip int_no and err_code
     iret                    		# Return from interrupt (restores eip, cs, eflags, esp, ss)
 
-# void switch_process_user(uint32_t** old_stack, uint32_t* new_stack, uint32_t dir);
+# void switch_process_user(uint32_t* new_stack, uint32_t dir);
 switch_process_user:
     # Get parameters
-	mov 4(%esp), %eax				# Get old_stack
-	mov 8(%esp), %ebx				# Get new_stack
-	mov 12(%esp), %ecx				# Get dir
-	add $56, %esp					# Move esp after return adress, where the registers have been saved by the cpu and the irq stub
+	mov 4(%esp), %eax				# Get new_stack 
+	mov 8(%esp), %ebx				# Get dir
     
-    mov %esp, (%eax)       	 		# Store current ESP at *old_stack
-	mov %ecx, %cr3					# Reload cr3
-    mov %ebx, %esp  	    		# Set new_stack parameter as ESP
+	mov %ebx, %cr3					# Reload cr3
+    mov %eax, %esp  	    		# Set new_stack parameter as ESP
     
     # Restore context from new stack
     pop %eax                		# Restore ds

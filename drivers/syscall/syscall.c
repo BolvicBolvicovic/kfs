@@ -55,8 +55,8 @@ sys_fork(registers_t* r)
 static void
 sys_exit(registers_t* r)
 {
-	extern void		exit_user_process(uint32_t);
-	exit_user_process(r->ebx);
+	extern void		exit_user_process(uint32_t, uint32_t*);
+	exit_user_process(r->ebx, (uint32_t*)r);
 }
 
 static void

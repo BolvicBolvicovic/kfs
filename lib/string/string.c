@@ -45,7 +45,7 @@ memcpy(void* dest, const void* src, size_t n)
 void*
 memset(void* s, uint8_t c, size_t n)
 {
-	uint8_t*	ptr;
+	uint8_t*	ptr = (uint8_t*)s;
 	word		wc = REPEAT_BYTE_IN_WORD(c);
 
 	if (!n)

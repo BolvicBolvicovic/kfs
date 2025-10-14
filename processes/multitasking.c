@@ -1,7 +1,7 @@
 #include "processes.h"
 
 #define PT_SIZE		64
-#define STACK_SIZE	0x1000
+#define STACK_SIZE	0x2000
 
 // TODO: Fix memcpy so that it returns a pointer
 extern void		memcpy(void* d, const void* s, uint32_t n);
@@ -9,28 +9,28 @@ extern void*	memset(void* s, uint8_t c, uint32_t n);
 extern void		switch_dir(uint32_t dir);
 
 // Note: These are from switch.s
-extern void		switch_process(uint32_t** old, uint32_t* new);
-extern void		switch_process_user(uint32_t** old_stack, uint32_t* new_stack, uint32_t dir);
+extern void		switch_process(uint32_t* new);
+extern void		switch_process_user(uint32_t* new_stack, uint32_t dir);
 extern void		start_process(uint32_t* new);
 extern void		tss_flush(void);
 
 static tss_t	tss;
 // TODO: Use hash table instead with pid as index
-static process	process_table[PT_SIZE];
-static process*	kernel_process;
-static process*	current_process;
-static process*	tail_process;
+static process*	process_table[PT_SIZE] = {0};
+static process*	kernel_process = 0;
+static process*	current_process = 0;
+static process*	tail_process = 0;
 
 static inline pid_t
 new_pid(void)
 {
 	static uint32_t g_pid_count = 0;
 	g_pid_count++;
-	if (g_pid_count == PT_SIZE - 1 && process_table[0].status == ZOMBIE)
+	if (g_pid_count == PT_SIZE - 1 && process_table[0]->status == ZOMBIE)
 	{
 		g_pid_count = 1;
 	}
-	else if (g_pid_count == PT_SIZE - 1 && process_table[0].status != ZOMBIE)
+	else if (g_pid_count == PT_SIZE - 1 && process_table[0]->status != ZOMBIE)
 	{
 		g_pid_count--;
 		return 0;
@@ -38,15 +38,24 @@ new_pid(void)
 	return g_pid_count;
 }
 
-static inline process*
+static inline process**
 get_next_process_space(void)
 {
-	for (uint32_t i = 0; i < PT_SIZE; i++)
+	static uint32_t last_idx = 0;
+	
+	for (uint32_t i = last_idx; i < PT_SIZE; i++)
 	{
-		if (process_table[i].status == ZOMBIE)
+		if (!process_table[i])
 		{
+			last_idx = i + 1;
 			return &process_table[i];
 		}
+	}
+
+	if (last_idx)
+	{
+		last_idx = 0;
+		return get_next_process_space();
 	}
 
 	return 0;
@@ -60,15 +69,18 @@ get_process(pid_t p)
 		return 0;
 	}
 
-	return &process_table[p - 1];
+	return process_table[p - 1];
 }
 
 static void
 exit_process(void)
 {
 	current_process->status = ZOMBIE;
-	kfree(current_process->k_stack_base);
-	schedule();
+	//kfree(current_process->k_stack_base);
+	for (;;)
+	{
+		asm volatile ("hlt\n\t");
+	}
 }
 
 
@@ -80,7 +92,7 @@ queue_signal(pid_t p, uint32_t sig)
 		return 0;
 	}
 
-	process_table[p - 1].pending_signals |= sig;
+	process_table[p - 1]->pending_signals |= sig;
 	return 1;
 }
 
@@ -92,7 +104,7 @@ update_status(pid_t p, process_status s)
 		return 0;
 	}
 
-	process_table[p - 1].status = s;
+	process_table[p - 1]->status = s;
 	return 1;
 }
 
@@ -100,10 +112,19 @@ pid_t
 fork_process(uint32_t* esp)
 {
 	// TODO: Handle user process
-	process*	fork		= get_next_process_space();
-	uint32_t	fork_pid	= new_pid();
+	process**	p_tab = get_next_process_space();
+	pid_t		fork_pid = new_pid();
+	if (!p_tab || !fork_pid) return 0;
 
-	if (!current_process || !fork || !fork_pid)
+	uint8_t*	k_stack_base = (uint8_t*)kmalloc(STACK_SIZE);
+	if (!k_stack_base) return 0;
+
+	memset(k_stack_base, 0, STACK_SIZE);
+
+	process*	fork = (process*)k_stack_base;
+	*p_tab = fork;
+
+	if (!k_stack_base)
 	{
 		return 0;
 	}
@@ -115,9 +136,10 @@ fork_process(uint32_t* esp)
 	fork->status			= READY;
 	fork->pending_signals	= 0;
 	fork->next				= (uint32_t)kernel_process;
-	fork->k_stack_base		= (uint8_t*)kmalloc(STACK_SIZE);
+	fork->k_stack_base		= k_stack_base;
 	uint32_t used_k_stack	= (uint32_t)(current_process->k_stack_base + STACK_SIZE) - (uint32_t)esp;
 	fork->k_stack			= (uint32_t*)(fork->k_stack_base + STACK_SIZE - used_k_stack);
+
 	memcpy(fork->k_stack, esp, used_k_stack);
 
 	*(fork->k_stack + 8)	= 0; // Set eax to 0
@@ -131,14 +153,13 @@ fork_process(uint32_t* esp)
 }
 
 void
-exit_user_process(uint32_t status)
+exit_user_process(uint32_t status, uint32_t* esp)
 {
 	current_process->status = ZOMBIE;
 	current_process->exit_code = status;
 	// TODO: clear mm content
-	kfree(current_process->mm);
-	kfree(current_process->k_stack_base);
-	schedule();
+	//kfree(current_process->k_stack_base);
+	schedule(esp);
 }
 
 
@@ -147,22 +168,24 @@ create_process(proc_info_t* info)
 {
 	// Note: Disable interruption to avoid race condition when creating a process.
 	//asm volatile ("cli;");
-	process*	p = get_next_process_space();
+	process**	p_tab = get_next_process_space();
+	pid_t		pid = new_pid();
+	if (!p_tab || !pid) return 0;
+
+	uint8_t*	k_stack_base = (uint8_t*)kmalloc(STACK_SIZE);
+	if (!k_stack_base) return 0;
+
+	memset(k_stack_base, 0, STACK_SIZE);
+
+	process*	p = (process*)k_stack_base;
+	*p_tab = p;
 
 	/* PROCESS PID & STATUS */
-	pid_t		pid = new_pid();
-	if (!p || !pid) return 0;
 	p->pid = pid;
 	p->status = READY;
 
 	/* PROCESS KSTACK */
-	p->k_stack_base = kmalloc(STACK_SIZE);
-	if (!p->k_stack_base) return 0;
-
-	for (uint32_t i = 0; i < STACK_SIZE / 4; i++)
-	{
-		((uint32_t*)p->k_stack_base)[i] = 0;
-	}
+	p->k_stack_base = k_stack_base;
 
 	uint32_t* stk = (uint32_t*)(p->k_stack_base + STACK_SIZE);
 
@@ -204,8 +227,7 @@ create_process(proc_info_t* info)
 	/* PROCESS MEMORY MANAGEMENT */
 	if (info->type == UPROC)
 	{
-		p->mm = kmalloc(sizeof(mm_t));
-		if (!p->mm) return 0; // TODO: cleanup
+		p->mm = (mm_t*)((uint32_t)(p->k_stack_base + sizeof(process) + 7) & ~3);
 
 		for (uint32_t i = 0; i < sizeof(mm_t); i++)
 		{
@@ -284,12 +306,13 @@ init_multitasking(void)
 }
 
 void
-schedule(void)
+schedule(uint32_t* old_esp)
 {
 	if (!kernel_process || !current_process || (current_process == kernel_process && tail_process == kernel_process)) return;
 
 	process* prev = current_process;
 	
+	prev->k_stack = old_esp;
 	current_process = (process*)current_process->next;
 	current_process->status = RUNNING;
 	
@@ -305,10 +328,10 @@ schedule(void)
 	
 	if (current_process->mm)
 	{
-		switch_process_user(&prev->k_stack, current_process->k_stack, (uint32_t)current_process->mm->dir);
+		switch_process_user(current_process->k_stack, (uint32_t)current_process->mm->dir);
 	}
 	else
 	{
-		switch_process(&prev->k_stack, current_process->k_stack);
+		switch_process(current_process->k_stack);
 	}
 }

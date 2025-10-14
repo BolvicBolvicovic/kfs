@@ -1,6 +1,6 @@
 #include "pit.h"
 
-extern void	schedule(void);
+extern void	schedule(uint32_t* old_esp);
 
 static uint32_t tick = 0;
 
@@ -15,7 +15,7 @@ static void
 timer_callback(registers_t* regs)
 {
 	tick++;
-	schedule();
+	schedule((uint32_t*)regs);
 	return;
 }
 

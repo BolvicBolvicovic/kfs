@@ -156,9 +156,9 @@ int				update_status(pid_t, process_status);
 // TODO: Function to work on the memory of the process (I guess with heap and stack)??
 pid_t			create_process(proc_info_t*);
 pid_t			fork_process(uint32_t* esp);
-void			exit_user_process(uint32_t status);
+void			exit_user_process(uint32_t status, uint32_t* esp);
 
-void			schedule(void);
+void			schedule(uint32_t* old_esp);
 
 
 

@@ -37,7 +37,7 @@ kernel_main(uint32_t magic, uint32_t addr)
     struct multiboot_mmap_entry* region = (struct multiboot_mmap_entry*) mbi->mmap_addr;
     uint32_t region_count = mbi->mmap_length / sizeof(struct multiboot_mmap_entry);
     uint32_t kernel_size = ((uint32_t)&endkernel - (uint32_t)&start_kernel);
-    uint32_t kernel_size_aligned = kernel_size & -0x1000 + 0x1000; 
+    uint32_t kernel_size_aligned = (kernel_size + 0x1000 - 1) & ~0xFFF;
 
     init_current_screen(BLUE, WHITE);
     term_clear();

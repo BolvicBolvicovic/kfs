@@ -69,17 +69,15 @@ vmm_find_next_free_user(void)
 			{
                 if (!(PAGE_TABLES[i][j] & PE_PRESENT))
 				{
-					uint32_t	addr = build_virt_addr(i, j);
 					user_dir_index = i; 
 					user_tab_index = j + 1;
-					return addr;
+					return build_virt_addr(i, j);
 				}
             }
 			j = 0;
         }
 		else
 		{
-			uint32_t	addr = build_virt_addr(i, 0);
 			PAGE_DIR[i] = pmm_alloc_block() | PE_PRESENT | PE_WRITABLE | PE_USER;
 			if (PAGE_DIR[i] == (PE_PRESENT | PE_WRITABLE | PE_USER))
 			{
@@ -87,8 +85,8 @@ vmm_find_next_free_user(void)
 				return 0;
 			}
 			user_dir_index = i;
-			user_tab_index = j + 1;
-            return addr;
+			user_tab_index = 1;
+            return build_virt_addr(i, 0);
         }
     }
 
@@ -117,10 +115,9 @@ vmm_find_next_free_kernel(void)
 		{
     	    if (!(PAGE_TABLES[i][j] & PE_PRESENT))
 			{
-				uint32_t	addr = build_virt_addr(i, j);
 				kernel_dir_index = i;
 				kernel_tab_index = j + 1;
-				return addr;
+				return build_virt_addr(i, j);
 			}
     	}
 		j = 0;
@@ -160,10 +157,9 @@ vmm_find_next_frees_user(size_t nb_blocks)
 				{
 		            if (!(PAGE_TABLES[i][j + k] & PE_PRESENT) && k + 1 == nb_blocks)
 					{
-						uint32_t	addr = build_virt_addr(i, j + k);
 						user_dir_index = i;
 						user_tab_index = j + k + 1;
-						return addr;
+						return build_virt_addr(i, j);
 					}
 		            else if (PAGE_TABLES[i][j + k] & PE_PRESENT) break;
 		        }
@@ -173,7 +169,6 @@ vmm_find_next_frees_user(size_t nb_blocks)
         }
 		else
 		{
-			uint32_t	addr = build_virt_addr(i, 0);
 			PAGE_DIR[i] = pmm_alloc_block() | PE_PRESENT | PE_WRITABLE | PE_USER;
 			if (PAGE_DIR[i] == (PE_PRESENT | PE_WRITABLE | PE_USER))
 			{
@@ -181,8 +176,8 @@ vmm_find_next_frees_user(size_t nb_blocks)
 				return 0;
 			}
 			user_dir_index = i;
-			user_tab_index = j + nb_blocks + 1;
-			return addr;
+			user_tab_index = 1;
+			return build_virt_addr(i, 0);
         }
     }
 
@@ -218,10 +213,9 @@ vmm_find_next_frees_kernel(size_t nb_blocks)
 			{
 		        if (!(PAGE_TABLES[i][j + k] & PE_PRESENT) && k + 1 == nb_blocks)
 				{
-					uint32_t	addr = build_virt_addr(i, j + k);
 					kernel_dir_index = i;
 					kernel_tab_index = j + k + 1;
-					return addr;
+					return build_virt_addr(i, j);
 				}
 		        else if (PAGE_TABLES[i][j + k] & PE_PRESENT) break;
 		    }
