@@ -1,10 +1,9 @@
 #include "processes.h"
 
-#define PT_SIZE		64
+#define PT_SIZE		1024
 #define STACK_SIZE	0x2000
 
-// TODO: Fix memcpy so that it returns a pointer
-extern void		memcpy(void* d, const void* s, uint32_t n);
+extern void*	memcpy(void* d, const void* s, uint32_t n);
 extern void*	memset(void* s, uint8_t c, uint32_t n);
 extern void		switch_dir(uint32_t dir);
 
@@ -24,47 +23,29 @@ static process*	tail_process = 0;
 static inline pid_t
 new_pid(void)
 {
-	static uint32_t g_pid_count = 0;
-	g_pid_count++;
-	if (g_pid_count == PT_SIZE - 1 && process_table[0]->status == ZOMBIE)
-	{
-		g_pid_count = 1;
-	}
-	else if (g_pid_count == PT_SIZE - 1 && process_table[0]->status != ZOMBIE)
-	{
-		g_pid_count--;
-		return 0;
-	}
-	return g_pid_count;
-}
+	static uint32_t g_pid_count	= 1;
 
-static inline process**
-get_next_process_space(void)
-{
-	static uint32_t last_idx = 0;
-	
-	for (uint32_t i = last_idx; i < PT_SIZE; i++)
+	uint32_t		start_pid	= g_pid_count;
+
+	do
 	{
-		if (!process_table[i])
+		if (!process_table[g_pid_count - 1] || process_table[g_pid_count - 1]->status == ZOMBIE)
 		{
-			last_idx = i + 1;
-			return &process_table[i];
+			pid_t	pid = g_pid_count;
+            g_pid_count = (pid % (PT_SIZE - 1)) + 1;
+			return pid;
 		}
-	}
-
-	if (last_idx)
-	{
-		last_idx = 0;
-		return get_next_process_space();
-	}
-
+		
+		g_pid_count = (g_pid_count % (PT_SIZE - 1)) + 1;
+	} while (g_pid_count != start_pid);
+	
 	return 0;
 }
 
 static inline process*
 get_process(pid_t p)
 {
-	if (!p || p > PT_SIZE - 1)
+	if (p <= 1 || p > PT_SIZE - 1)
 	{
 		return 0;
 	}
@@ -73,9 +54,9 @@ get_process(pid_t p)
 }
 
 static void
-exit_process(void)
+exit_process(uint32_t pid)
 {
-	current_process->status = ZOMBIE;
+	process_table[pid - 1]->status = ZOMBIE;
 	//kfree(current_process->k_stack_base);
 	for (;;)
 	{
@@ -112,9 +93,8 @@ pid_t
 fork_process(uint32_t* esp)
 {
 	// TODO: Handle user process
-	process**	p_tab = get_next_process_space();
 	pid_t		fork_pid = new_pid();
-	if (!p_tab || !fork_pid) return 0;
+	if (!fork_pid) return 0;
 
 	uint8_t*	k_stack_base = (uint8_t*)kmalloc(STACK_SIZE);
 	if (!k_stack_base) return 0;
@@ -122,7 +102,7 @@ fork_process(uint32_t* esp)
 	memset(k_stack_base, 0, STACK_SIZE);
 
 	process*	fork = (process*)k_stack_base;
-	*p_tab = fork;
+	process_table[fork_pid - 1] = fork;
 
 	if (!k_stack_base)
 	{
@@ -141,6 +121,16 @@ fork_process(uint32_t* esp)
 	fork->k_stack			= (uint32_t*)(fork->k_stack_base + STACK_SIZE - used_k_stack);
 
 	memcpy(fork->k_stack, esp, used_k_stack);
+
+	if (!current_process->mm)
+	{
+		*(uint32_t*)(fork->k_stack_base + STACK_SIZE - 4) = fork_pid; // Set exit_process input
+	}
+	else
+	{
+		// TODO: check how to handle page directory for parent/child
+		fork->mm = memcpy((void*)((uint32_t)(fork->k_stack_base + sizeof(process) + 7) & ~3), current_process->mm, sizeof(mm_t));
+	}
 
 	*(fork->k_stack + 8)	= 0; // Set eax to 0
 	*(fork->k_stack + 3)	= (uint32_t)fork->k_stack_base + *(esp + 3) - (uint32_t)current_process->k_stack_base; // Set ebp
@@ -168,19 +158,17 @@ create_process(proc_info_t* info)
 {
 	// Note: Disable interruption to avoid race condition when creating a process.
 	//asm volatile ("cli;");
-	process**	p_tab = get_next_process_space();
 	pid_t		pid = new_pid();
-	if (!p_tab || !pid) return 0;
+	if (!pid) return 0;
 
 	uint8_t*	k_stack_base = (uint8_t*)kmalloc(STACK_SIZE);
 	if (!k_stack_base) return 0;
 
 	memset(k_stack_base, 0, STACK_SIZE);
 
-	process*	p = (process*)k_stack_base;
-	*p_tab = p;
-
 	/* PROCESS PID & STATUS */
+	process*	p = (process*)k_stack_base;
+	process_table[pid - 1] = p;
 	p->pid = pid;
 	p->status = READY;
 
@@ -191,6 +179,9 @@ create_process(proc_info_t* info)
 
 	if (info->type == KPROC)
 	{
+		*(--stk) = pid;
+		// Note: Dummy
+		*(--stk) = 0;
 		*(--stk) = (uint32_t)exit_process;
 	}
 	uint32_t* user_esp = stk;
