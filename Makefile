@@ -2,7 +2,7 @@ BINARY		=	isoroot/boot/kfs.elf
 ISO			=	kfs.iso
 CC			=	./gcc_kfs/bin/i386-elf-gcc
 LD			=	./gcc_kfs/bin/i386-elf-ld
-LIBS		=	lib/libc.a memory/memory.a drivers/drivers.a processes/processes.a #filesystem/filesystem.a
+LIBS		=	lib/libc.a memory/memory.a drivers/drivers.a kshell/kshell.a processes/processes.a #filesystem/filesystem.a
 CFLAGS		= 	-ffreestanding			\
 				-g	\
 				-O0 \
@@ -22,6 +22,7 @@ required	:
 	make -C lib
 	make -C memory
 	make -C drivers
+	make -C kshell
 	make -C processes
 	#make -C filesystem
 
@@ -49,14 +50,18 @@ qemu_debug	: $(ISO)
 clean		:
 	rm -rf $(OBJS)
 	make -C lib clean
+	make -C memory clean
 	make -C drivers clean
+	make -C kshell clean
 	make -C processes clean
+	#make -C filesystem clean
 
 fclean		: clean
 	make -C lib fclean
 	make -C drivers fclean
 	make -C memory fclean
-	make -C filesystem fclean
+	#make -C filesystem fclean
+	make -C kshell fclean
 	make -C processes fclean
 	rm -rf obj
 	rm -rf $(ISO)

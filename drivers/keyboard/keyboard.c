@@ -6,7 +6,9 @@
 #define SC_MAX 57
 #define KEYBOARD_INPUT_BUFFER 0x60
 
-const char sc_ascii[2][58] = {
+const char
+sc_ascii[2][58] =
+{
         {
             '?', '?', '1', '2', '3', '4', '5', '6',
             '7', '8', '9', '0', '-', '=', '?', '?', 'Q', 'W', 'E', 'R', 'T', 'Y',
@@ -27,9 +29,12 @@ static size_t keyboard_index = 0;
 static size_t settings_index = 0;
 current_screen_t current_screen = { .type = SHELL, .lists = { {.null = NULL}, {.null = NULL}, {.null = NULL} } };
 
-static void handle_settings(uint8_t scancode) {
+static void
+handle_settings(uint8_t scancode)
+{
     uint8_t list_limit = 0;
-    switch (sc_ascii[keyboard_index][scancode]) {
+    switch (sc_ascii[keyboard_index][scancode])
+	{
         case 'Q':
             term_set_color(vga_entry_color(current_screen.lists[1].list.current_item_index, current_screen.lists[0].list.current_item_index));
             keyboard_index = current_screen.lists[2].list.current_item_index;
@@ -79,22 +84,34 @@ static void handle_settings(uint8_t scancode) {
     }
 }
 
-static void keyboard_callback(registers_t* regs) {
+static void
+keyboard_callback(registers_t* regs)
+{
+	extern void	exec_command(void);
+
     uint8_t scancode = port_byte_in(KEYBOARD_INPUT_BUFFER);
     asm volatile("cli");
     if (scancode > SC_MAX) return;
-    if (current_screen.type == SHELL) {
-        if (scancode == BACKSPACE) {
+    if (current_screen.type == SHELL)
+	{
+        if (scancode == BACKSPACE)
+		{
             term_backspace();
             cmd_add_char(BACKSPACE_CHAR);
-        } else if (scancode == ENTER) {
+        }
+		else if (scancode == ENTER)
+		{
             term_print(&sc_ascii[keyboard_index][scancode], 1);
             exec_command();
-        } else {
+        }
+		else
+		{
             term_print(&sc_ascii[keyboard_index][scancode], 1);
             cmd_add_char(sc_ascii[keyboard_index][scancode]);
         }
-    } else {
+    }
+	else
+	{
         handle_settings(scancode);
     }
 }

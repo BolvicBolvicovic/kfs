@@ -1,4 +1,4 @@
-#include "keyboard.h"
+#include "kshell.h"
 
 static char				line[256];
 static size_t			index = 0;
@@ -209,28 +209,47 @@ exec_command()
     line[index] = 0;
     index = 0;
 
-    for (size_t k = 0; k < 4; k++) {
+    for (size_t k = 0; k < 4; k++)
+	{
         while (line[i] == ' ') i++;
         for (j = 0; line[i] >= 0x21 && line[i] <= 0x7E; j++) words[k][j] = line[i++];
         words[k][j] = 0;
     }
-    if (!strcmp(words[0], "SET")) {
+
+    if (!strcmp(words[0], "SET"))
+	{
         set();
-    } else if (!strcmp(words[0], "CLEAR")) {
+    }
+	else if (!strcmp(words[0], "CLEAR"))
+	{
         term_clear();
-    } else if (!strcmp(words[0], "TEST")){
+    }
+	else if (!strcmp(words[0], "TEST"))
+	{
         run_all_tests();
-    } else if (!strcmp(words[0], "REBOOT")){
+    }
+	else if (!strcmp(words[0], "REBOOT"))
+	{
         reboot();
-    } else if (!strcmp(words[0], "EXIT")){
+    }
+	else if (!strcmp(words[0], "EXIT"))
+	{
         shut_down();
-    } else if (!strcmp(words[0], "HALT")){
+    }
+	else if (!strcmp(words[0], "HALT"))
+	{
         asm volatile("hlt\n\t");
-    } else if (!strcmp(words[0], "STACK")){
+    }
+	else if (!strcmp(words[0], "STACK"))
+	{
         print_stack();
-    } else if (!strcmp(words[0], "INT")){
+    }
+	else if (!strcmp(words[0], "INT"))
+	{
         do_interrupt(words[1]);
-    } else if (!strcmp(words[0], "HELP")) {
+    }
+	else if (!strcmp(words[0], "HELP"))
+	{
         printf("WELCOME TO THE KERNEL\n\
 THE CLI IS STILL UNDER DEVELOPMENT.\n\
 \n\

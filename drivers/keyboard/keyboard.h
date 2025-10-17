@@ -7,7 +7,6 @@
 void    init_keyboard();
 void    exec_command();
 void    cmd_add_char(uint8_t c);
-void    run_all_tests(void);
 
 typedef enum
 {
