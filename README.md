@@ -28,6 +28,7 @@ Current features available:
 - Virtual Memory Manager
 - Kmalloc, Kfree (binning allacator for allocations smaller than 0x800 bytes, simple cache for larger ones)
 - Base for ABI syscall implementation with IDT
+- Multiprocessing at kernel and user level
 
 ## Usage
 
