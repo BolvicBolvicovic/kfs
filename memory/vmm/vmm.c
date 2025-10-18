@@ -398,3 +398,92 @@ vmm_setup_process(uint32_t code_size, uint32_t data_size, uint32_t* code, uint32
 	vmm_unmap_pages((uint32_t)dir, total_blocks);
 	return phys_page_dir;
 }
+
+// Note: Pages have to be read anyway so useless flag
+#define PROT_READ		0
+// Note: Pages that can be read (all of them) are executable by default.
+// It is possible to implement specific PAGEEXEC protection but
+// it would trigger page faults to do the check and is IMO costly in terms of performance.
+// Check https://pax.grsecurity.net/docs/pageexec.txt for more infos.
+#define PROT_EXEC		0
+#define PROT_WRITE		2
+#define PROT_NONE		4
+
+// Note: if unset, map is private
+#define MAP_SHARED		1
+#define MAP_ANONYMOUS	2
+#define MAP_DENYWRITE	4
+#define MAP_EXECUTABLE	8
+#define MAP_FILE		16
+#define MAP_FIXED		32
+#define MAP_GROWSDOWN	64
+#define MAP_POPULATE	128
+#define MAP_STACK		256
+#define MAP_SYNC		512
+#define MAP_UNINIT		1024
+
+#define MMAP_ERROR		((uint32_t)-1)
+
+uint32_t
+mmap_user(
+	uint32_t addr,
+	uint32_t len,
+	uint32_t prot,
+	uint32_t flags,
+	uint32_t fd,
+	uint32_t off)
+{
+	if (!len)
+	{
+		// TODO: set errno
+		return MMAP_ERROR;
+	}
+
+	len = len / PAGE_SIZE + (len % PAGE_SIZE ? 1 : 0);
+
+	if (!addr)
+	{
+		addr = vmm_find_next_frees_user(len);
+	}
+	else
+	{
+		addr = (addr & ~0xFFF) == addr ? addr : (addr & ~0xFFF) + PAGE_SIZE;
+
+		for (uint32_t i = 0; i < len; i++)
+		{
+			if (PAGE_TABLES[PAGE_DIR_INDEX(addr)][PAGE_TAB_INDEX(addr) + i])
+			{
+				// TODO: Check hint and select a new addr
+				addr = vmm_find_next_frees_user(len);
+				break;
+			}
+
+		}
+	}
+
+	if (addr)
+	{
+		// Note: Do not set user flag so that we can trigger a page fault.
+		prot = prot & PROT_NONE ? PE_PRESENT : prot | PE_PRESENT;
+		for (uint32_t i = 0; i < len; i++)
+		{
+			// Note: Lazy allocation. We'll add the frame when the user tries to access the page.
+			PAGE_TABLES[PAGE_DIR_INDEX(addr)][PAGE_TAB_INDEX(addr) + i] = prot;
+		}
+	}
+
+	return addr;
+}
+
+uint32_t
+munmap_user(uint32_t addr, uint32_t len)
+{
+	// TODO: set errno
+	// Note: check range
+	if (addr < 0x100000 || addr + len > 0xC0000000) return MMAP_ERROR;
+
+	len = len / PAGE_SIZE + (len % PAGE_SIZE ? 1 : 0);
+	vmm_unmap_pages(addr, len);
+
+	return 0;
+}

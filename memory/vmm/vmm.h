@@ -21,11 +21,8 @@
 #define KPD_ENTRIES_START	768
 
 #define PE_KERNEL	0
-
 #define PE_PRESENT	1
-
 #define PE_WRITABLE	2
-
 #define PE_USER		4
 
 #define KTABLES_SIZE (KPD_ENTRIES_END - KPD_ENTRIES_START)
@@ -50,5 +47,6 @@ void		vmm_free_blocks(uint32_t virtual_addr, uint32_t nb_blocks);
 void*   	kmalloc(size_t size);
 void    	kfree(void* virt_addr);
 uint32_t	kget_size(void* virt_addr);
+uint32_t	mmap_user(uint32_t addr, uint32_t len, uint32_t prot, uint32_t flags, uint32_t fd, uint32_t off);
 
 #endif

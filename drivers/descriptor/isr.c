@@ -1,5 +1,6 @@
 #include "descriptor.h"
-#define PAGE_FAULT 14
+#define PAGE_FAULT		14
+#define INVALID_OPCODE	6
 
 //INTERUPTION SERVICE ROUTINE
 
@@ -91,12 +92,12 @@ page_fault_handler(registers_t* r)
 
 	if (faulting_addr &&
 		(r->err_code & PAGE_USERMODE_ERROR) &&
-		!(r->err_code & PAGE_PRESENT_PROT_VIOLATION) &&
+		(r->err_code & PAGE_PRESENT_PROT_VIOLATION) &&
 		faulting_addr < KVIRT)
 	{
 		uint32_t	pd_index	= PAGE_DIR_INDEX(faulting_addr);
 		uint32_t	pt_index	= PAGE_TAB_INDEX(faulting_addr);
-		page_tables[pd_index][pt_index] = pmm_alloc_block() | PE_PRESENT | PE_WRITABLE | PE_USER;
+		page_tables[pd_index][pt_index] |= pmm_alloc_block() | PE_USER;
 		flush_tlb_entry((uint32_t)faulting_addr);
 	}
 

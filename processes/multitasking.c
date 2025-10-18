@@ -3,11 +3,14 @@
 #define PT_SIZE		1024
 #define STACK_SIZE	0x2000
 
+// Note: From lib/string
 extern void*	memcpy(void* d, const void* s, uint32_t n);
 extern void*	memset(void* s, uint8_t c, uint32_t n);
+
+// Note: From memory/vmm
 extern void		switch_dir(uint32_t dir);
 
-// Note: These are from switch.s
+// Note: From switch.s
 extern void		switch_process(uint32_t* new);
 extern void		switch_process_user(uint32_t* new_stack, uint32_t dir);
 extern void		start_process(uint32_t* new);
@@ -172,6 +175,29 @@ create_process(proc_info_t* info)
 	p->pid = pid;
 	p->status = READY;
 
+	/* PROCESS MEMORY MANAGEMENT */
+	if (info->type == UPROC)
+	{
+		p->mm = (mm_t*)((uint32_t)(p->k_stack_base + sizeof(process) + 7) & ~3);
+
+		for (uint32_t i = 0; i < sizeof(mm_t); i++)
+		{
+			((uint8_t*)p->mm)[i] = 0;
+		}
+		
+		p->mm->dir = vmm_setup_process(info->code_size, info->data_size, info->code, info->data);
+		if (!p->mm->dir) return 0; // TODO: cleanup
+
+		p->mm->code_start	= PROCESS_CODE_START;
+		p->mm->code_end		= PROCESS_CODE_START + info->code_size;
+
+		p->mm->data_start	= PROCESS_CODE_START + ((info->code_size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1));
+		p->mm->data_end		= p->mm->data_start + info->data_size;
+
+		p->mm->stack		= 0xBFFFFFFF;
+		p->mm->stack_base	= PROCESS_STACK_START;
+	}
+
 	/* PROCESS KSTACK */
 	p->k_stack_base = k_stack_base;
 
@@ -180,7 +206,7 @@ create_process(proc_info_t* info)
 	if (info->type == KPROC)
 	{
 		*(--stk) = pid;
-		// Note: Dummy
+		// Note: Dummy return address (we pretend that it is a simple ret call)
 		*(--stk) = 0;
 		*(--stk) = (uint32_t)exit_process;
 	}
@@ -190,7 +216,7 @@ create_process(proc_info_t* info)
 	if (info->type == UPROC)
 	{
 		*(--stk) = 0x23;							// SS
-		*(--stk) = (uint32_t)user_esp;				// useresp (points to exit_process on user k_stack)
+		*(--stk) = p->mm->stack;					// user esp
 	}
 	*(--stk) = 0x202;								// eflags (Interrupt flag set)
 	*(--stk) = info->type == UPROC ? 0x1B : 0x08;	// CS (0x1B user code segment/ 0x08 for kernel)
@@ -214,29 +240,6 @@ create_process(proc_info_t* info)
 	*(--stk) = info->type == UPROC ? 0x23 : 0x10;	// DS (0x23 user data segment, or 0x10 for kernel)
 	
 	p->k_stack = stk;
-
-	/* PROCESS MEMORY MANAGEMENT */
-	if (info->type == UPROC)
-	{
-		p->mm = (mm_t*)((uint32_t)(p->k_stack_base + sizeof(process) + 7) & ~3);
-
-		for (uint32_t i = 0; i < sizeof(mm_t); i++)
-		{
-			((uint8_t*)p->mm)[i] = 0;
-		}
-		
-		p->mm->dir = vmm_setup_process(info->code_size, info->data_size, info->code, info->data);
-		if (!p->mm->dir) return 0; // TODO: cleanup
-
-		p->mm->code_start	= PROCESS_CODE_START;
-		p->mm->code_end		= PROCESS_CODE_START + info->code_size;
-
-		p->mm->data_start	= PROCESS_CODE_START + ((info->code_size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1));
-		p->mm->data_end		= p->mm->data_start + info->data_size;
-
-		p->mm->stack		= 0xBFFFFFFF;
-		p->mm->stack_base	= PROCESS_STACK_START;
-	}
 
 	/* PROCESS RELATIONSHIPS */
 	// TODO: add children if any and sibilings

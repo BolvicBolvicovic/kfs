@@ -47,7 +47,7 @@ sys_signal(registers_t* r)
 static void
 sys_fork(registers_t* r)
 {
-	extern uint32_t	fork_process(uint32_t* esp);
+	extern uint32_t	fork_process(uint32_t*);
 	fork_process((uint32_t*)r);
 }
 
@@ -77,6 +77,31 @@ sys_wait(registers_t* r)
 	printf("Syscall wait : eax == %d\n", r->eax);
 }
 
+static void
+sys_mmap(registers_t* r)
+{
+	extern uint32_t	mmap_user(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
+
+	uint32_t	addr  = r->ebx;
+	uint32_t	len   = r->ecx;
+	uint32_t	prot  = r->edx;
+	uint32_t	flags = r->esi;
+	uint32_t	fd    = r->edi;
+	uint32_t	off   = r->ebp;
+
+	r->eax = mmap_user(addr, len, prot, flags, fd, off);
+}
+
+static void
+sys_munmap(registers_t* r)
+{
+	extern uint32_t	munmap_user(uint32_t, uint32_t);
+	uint32_t	addr  = r->ebx;
+	uint32_t	len   = r->ecx;
+
+	r->eax = munmap_user(addr, len);
+}
+
 #define NB_OF_SC 468
 
 // TODO: Write all handlers here based on Linux system call table when all implemented
@@ -96,6 +121,8 @@ init_syscall(void)
 	syscall_tab[2]		= &sys_open;
 	syscall_tab[3]		= &sys_close;
 	syscall_tab[4]		= &sys_stat;
+	syscall_tab[9]		= &sys_mmap;
+	syscall_tab[11]		= &sys_munmap;
 	// TODO: change to rt_sigaction
 	syscall_tab[13]		= &sys_signal;
 	syscall_tab[57]		= &sys_fork;
