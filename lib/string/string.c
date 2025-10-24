@@ -32,16 +32,136 @@ strcpy(char* restrict dest, const char* restrict src)
 }
 
 inline void*
-memcpy(void* dest, const void* src, size_t n)
+memcpy(void* dst, const void* src, size_t n)
 {
-	unsigned char* d = (unsigned char*)dest;
-	unsigned char* s = (unsigned char*)src;
-	for (size_t i = 0; i < n; i++)
+	unsigned char		*d = dst;
+	const unsigned char	*s = src;
+
+	uint32_t	w, x;
+
+	for (; (uintptr_t)s % 4 && n; n--) *d++ = *s++;
+
+	if ((uintptr_t)d % 4 == 0)
 	{
-		d[i] = s[i];
+		for (; n>=16; s+=16, d+=16, n-=16)
+		{
+			*(uint32_t*)(d+0) = *(uint32_t*)(s+0);
+			*(uint32_t*)(d+4) = *(uint32_t*)(s+4);
+			*(uint32_t*)(d+8) = *(uint32_t*)(s+8);
+			*(uint32_t*)(d+12) = *(uint32_t*)(s+12);
+		}
+
+		if (n&8)
+		{
+			*(uint32_t*)(d+0) = *(uint32_t*)(s+0);
+			*(uint32_t*)(d+4) = *(uint32_t*)(s+4);
+			d += 8; s += 8;
+		}
+
+		if (n&4)
+		{
+			*(uint32_t*)(d+0) = *(uint32_t*)(s+0);
+			d += 4; s += 4;
+		}
+
+		if (n&2)
+		{
+			*d++ = *s++; *d++ = *s++;
+		}
+
+		if (n&1)
+		{
+			*d = *s;
+		}
+
+		return dst;
+	}
+	
+	if (n >= 32)
+	{
+		switch ((uintptr_t)d % 4)
+		{
+		case 1:
+			w = *(uint32_t*)s;
+			*d++ = *s++;
+			*d++ = *s++;
+			*d++ = *s++;
+			n -= 3;
+			for (; n>=17; s+=16, d+=16, n-=16) {
+				x = *(uint32_t*)(s+1);
+				*(uint32_t*)(d+0) = (w >> 24) | (x << 8);
+				w = *(uint32_t*)(s+5);
+				*(uint32_t*)(d+4) = (x >> 24) | (w << 8);
+				x = *(uint32_t*)(s+9);
+				*(uint32_t*)(d+8) = (w >> 24) | (x << 8);
+				w = *(uint32_t*)(s+13);
+				*(uint32_t*)(d+12) = (x >> 24) | (w << 8);
+			}
+			break;
+		case 2:
+			w = *(uint32_t*)s;
+			*d++ = *s++;
+			*d++ = *s++;
+			n -= 2;
+			for (; n>=18; s+=16, d+=16, n-=16) {
+				x = *(uint32_t*)(s+2);
+				*(uint32_t*)(d+0) = (w >> 16) | (x << 16);
+				w = *(uint32_t*)(s+6);
+				*(uint32_t*)(d+4) = (x >> 16) | (w << 16);
+				x = *(uint32_t*)(s+10);
+				*(uint32_t*)(d+8) = (w >> 16) | (x << 16);
+				w = *(uint32_t*)(s+14);
+				*(uint32_t*)(d+12) = (x >> 16) | (w << 16);
+			}
+			break;
+		case 3:
+			w = *(uint32_t*)s;
+			*d++ = *s++;
+			n -= 1;
+			for (; n>=19; s+=16, d+=16, n-=16) {
+				x = *(uint32_t*)(s+3);
+				*(uint32_t*)(d+0) = (w >> 8) | (x << 24);
+				w = *(uint32_t*)(s+7);
+				*(uint32_t*)(d+4) = (x >> 8) | (w << 24);
+				x = *(uint32_t*)(s+11);
+				*(uint32_t*)(d+8) = (w >> 8) | (x << 24);
+				w = *(uint32_t*)(s+15);
+				*(uint32_t*)(d+12) = (x >> 8) | (w << 24);
+			}
+			break;
+		}
 	}
 
-	return dest;
+	if (n&16)
+	{
+		*d++ = *s++; *d++ = *s++; *d++ = *s++; *d++ = *s++;
+		*d++ = *s++; *d++ = *s++; *d++ = *s++; *d++ = *s++;
+		*d++ = *s++; *d++ = *s++; *d++ = *s++; *d++ = *s++;
+		*d++ = *s++; *d++ = *s++; *d++ = *s++; *d++ = *s++;
+	}
+
+	if (n&8)
+	{
+		*d++ = *s++; *d++ = *s++; *d++ = *s++; *d++ = *s++;
+		*d++ = *s++; *d++ = *s++; *d++ = *s++; *d++ = *s++;
+	}
+
+	if (n&4)
+	{
+		*d++ = *s++; *d++ = *s++; *d++ = *s++; *d++ = *s++;
+	}
+
+	if (n&2)
+	{
+		*d++ = *s++; *d++ = *s++;
+	}
+
+	if (n&1)
+	{
+		*d = *s;
+	}
+
+	return dst;
 }
 
 void*

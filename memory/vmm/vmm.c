@@ -23,7 +23,7 @@ init_vmm(void)
 	switch_dir(PAGE_DIR[1023] & ~0xFFF);
 }
 
-static inline void
+inline void
 vmm_map_kpage(uint32_t phys, uint32_t virt)
 {
 	uint32_t	pd_index	= PAGE_DIR_INDEX(virt);
@@ -191,7 +191,7 @@ vmm_find_next_frees_user(size_t nb_blocks)
     return 0;
 }
 
-static uint32_t
+uint32_t
 vmm_find_next_frees_kernel(size_t nb_blocks)
 {
 	static uint32_t	kernel_dir_index = KPD_ENTRIES_START;
@@ -399,6 +399,16 @@ vmm_setup_process(uint32_t code_size, uint32_t data_size, uint32_t* code, uint32
 	return phys_page_dir;
 }
 
+uint32_t
+vmm_virt_to_phys(void* virt_addr)
+{
+	uint32_t	virt		= (uint32_t)virt_addr;
+	uint32_t	pd_index	= PAGE_DIR_INDEX(virt);
+	uint32_t	pt_index	= PAGE_TAB_INDEX(virt);
+	uint32_t	entry		= PAGE_TABLES[pd_index][pt_index];
+	return (entry & ~0xFFF) | (virt & 0xFFF);
+}
+
 // Note: Pages have to be read anyway so useless flag
 #define PROT_READ		0
 // Note: Pages that can be read (all of them) are executable by default.
@@ -453,7 +463,7 @@ mmap_user(
 		{
 			if (PAGE_TABLES[PAGE_DIR_INDEX(addr)][PAGE_TAB_INDEX(addr) + i])
 			{
-				// TODO: Check hint and select a new addr
+				// TODO: Check hint and select a new addr and handle file mapping
 				addr = vmm_find_next_frees_user(len);
 				break;
 			}
@@ -461,15 +471,14 @@ mmap_user(
 		}
 	}
 
-	if (addr)
+	if (!addr) return MMAP_ERROR;
+
+	// Note: Do not set user flag so that we can trigger a page fault.
+	prot = prot & PROT_NONE ? PE_PRESENT : prot | PE_PRESENT;
+	for (uint32_t i = 0; i < len; i++)
 	{
-		// Note: Do not set user flag so that we can trigger a page fault.
-		prot = prot & PROT_NONE ? PE_PRESENT : prot | PE_PRESENT;
-		for (uint32_t i = 0; i < len; i++)
-		{
-			// Note: Lazy allocation. We'll add the frame when the user tries to access the page.
-			PAGE_TABLES[PAGE_DIR_INDEX(addr)][PAGE_TAB_INDEX(addr) + i] = prot;
-		}
+		// Note: Lazy allocation. We'll add the frame when the user tries to access the page.
+		PAGE_TABLES[PAGE_DIR_INDEX(addr)][PAGE_TAB_INDEX(addr) + i] = prot;
 	}
 
 	return addr;

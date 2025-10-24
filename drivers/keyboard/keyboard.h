@@ -34,7 +34,6 @@ typedef struct
 } current_screen_t;
 
 
-void            init_current_screen(enum vga_color fg, enum vga_color bg);
 list_option_t   draw_list(char* name, const char** list, uint8_t list_index, uint8_t row, uint8_t col, uint8_t span);
 void            draw_line(char* line, uint8_t row, uint8_t col);
 void            draw_selector(size_t index);

@@ -314,6 +314,9 @@ tests_string(void)
 		printf("memcpy: failure | expected copy == \"TES\", got %s\n", copy);
 		return 1;
     }
+	char copy2[1000] = {0};
+	memcpy(copy2, "jekeiwypmsflwwzndbiagbhjinatuifqqqwxiuojcuuixywvgrzlplnazvuzaodypisgtrnrjwpjuljvpjfabeilgscswxqfojmeanpxkpusejwqagdiomswbeywzowxjzrugdfzsjwdyrenkkfkmv", 150);
+	ASSERT("memcpy long string: failure\n", strcmp(copy2,"jekeiwypmsflwwzndbiagbhjinatuifqqqwxiuojcuuixywvgrzlplnazvuzaodypisgtrnrjwpjuljvpjfabeilgscswxqfojmeanpxkpusejwqagdiomswbeywzowxjzrugdfzsjwdyrenkkfkmv" ) == 0);
 
     // Test strcpy
     strcpy(copy, tester);

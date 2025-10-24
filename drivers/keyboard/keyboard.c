@@ -116,6 +116,8 @@ keyboard_callback(registers_t* regs)
     }
 }
 
-void init_keyboard() {
+void
+init_keyboard(void)
+{
     register_interrupt_handler(IRQ1, &keyboard_callback);
 }

@@ -62,13 +62,15 @@ sys_exit(registers_t* r)
 static void
 sys_kill(registers_t* r)
 {
+	// Note: kill current process?
 	printf("Syscall kill : eax == %d\n", r->eax);
 }
 
 static void
 sys_getuid(registers_t* r)
 {
-	printf("Syscall getuid : eax == %d\n", r->eax);
+	extern uint32_t	kgetuid(void);
+	r->eax = kgetuid();
 }
 
 static void

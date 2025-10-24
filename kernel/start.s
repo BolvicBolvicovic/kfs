@@ -1,8 +1,8 @@
 .global stack_top
 .global stack_bottom
 
-.set ALIGN,			(1 << 0)
-.set MEMINFO,     	(1 << 1)
+.set ALIGN,			1
+.set MEMINFO,     	2
 .set MB_MAGIC,	  	0x1BADB002
 .set MB_FLAGS,	  	(ALIGN | MEMINFO)
 .set MB_CHECKSUM, 	-(MB_MAGIC + MB_FLAGS)

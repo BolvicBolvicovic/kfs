@@ -5,7 +5,7 @@ LD			=	./gcc_kfs/bin/i386-elf-ld
 LIBS		=	lib/libc.a memory/memory.a drivers/drivers.a kshell/kshell.a processes/processes.a #filesystem/filesystem.a
 CFLAGS		= 	-ffreestanding			\
 				-g	\
-				-O0 \
+				-O2 \
 				-std=gnu99				
 LFLAGS		=	-T linker/linker.ld --whole-archive
 
@@ -39,13 +39,28 @@ obj/%.o		: $(SRCS_DIR)%.s
 	$(CC) $(CFLAGS) -c $^ -o $@
 
 qemu		: $(ISO)
-	qemu-system-i386 -cdrom $< #-drive file=disk.img,if=ide,format=raw
+	qemu-system-i386 \
+		-cdrom $< \
+		-device virtio-gpu-gl,max_outputs=1,xres=1920,yres=1080 \
+		-display gtk,gl=on \
+		#-drive file=disk.img,if=ide,format=raw
 
 qemu_logs	: $(ISO)
-	qemu-system-i386 -cdrom $< -d int,cpu_reset -no-reboot #-drive file=disk.img,if=ide,format=raw
+	qemu-system-i386 \
+		-cdrom $< \
+		-device virtio-gpu-pci,max_outputs=1,xres=1920,yres=1080 \
+		-display gtk,gl=on \
+		-d int,cpu_reset \
+		-no-reboot
+		#-drive file=disk.img,if=ide,format=raw
 
 qemu_debug	: $(ISO)
-	qemu-system-i386 -cdrom $< -s -S #-drive file=disk.img,if=ide,format=raw
+	qemu-system-i386 \
+		-cdrom $< \
+		-device virtio-gpu-pci,max_outputs=1,xres=1920,yres=1080 \
+		-display gtk,gl=on \
+		-s -S
+		#-drive file=disk.img,if=ide,format=raw
 
 clean		:
 	rm -rf $(OBJS)

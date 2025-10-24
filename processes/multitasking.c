@@ -45,6 +45,12 @@ new_pid(void)
 	return 0;
 }
 
+uint32_t
+kgetuid(void)
+{
+	return current_process->uid;
+}
+
 static inline process*
 get_process(pid_t p)
 {

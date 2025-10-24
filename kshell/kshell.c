@@ -31,7 +31,7 @@ const char* keyboard_list[2] =
 };
 
 void
-init_current_screen(enum vga_color fg, enum vga_color bg)
+init_kshell(enum vga_color fg, enum vga_color bg)
 {
 	term_set_color(vga_entry_color(fg, bg));
     enable_cursor();

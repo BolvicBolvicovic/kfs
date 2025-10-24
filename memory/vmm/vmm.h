@@ -44,9 +44,12 @@ uint32_t	vmm_setup_process(uint32_t code_size, uint32_t data_size, uint32_t* cod
 void		vmm_set_flags_pages(uint32_t virt_addr, uint32_t nb_blocks, uint32_t flags, uint8_t set);
 void*		vmm_alloc_kblocks(size_t nb_blocks);
 void		vmm_free_blocks(uint32_t virtual_addr, uint32_t nb_blocks);
+void		vmm_map_kpage(uint32_t phys, uint32_t virt);
 void*   	kmalloc(size_t size);
 void    	kfree(void* virt_addr);
 uint32_t	kget_size(void* virt_addr);
 uint32_t	mmap_user(uint32_t addr, uint32_t len, uint32_t prot, uint32_t flags, uint32_t fd, uint32_t off);
+uint32_t	vmm_virt_to_phys(void* virt_addr);
+uint32_t	vmm_find_next_frees_kernel(size_t nb_blocks);
 
 #endif
