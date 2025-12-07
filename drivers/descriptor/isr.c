@@ -46,8 +46,6 @@ static char*		exception_msg[] =
 void
 panic(registers_t* r)
 {
-    asm volatile("cli");
-
     uint32_t stack = r->esp;
     if (r->int_no != PAGE_FAULT) printf("Number: %d | Message: %s\n", r->int_no, exception_msg[r->int_no]);
 

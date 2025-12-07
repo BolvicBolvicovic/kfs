@@ -1,51 +1,62 @@
 #include "processes.h"
+#include "locks.h"
 
 #define PT_SIZE		1024
 #define STACK_SIZE	0x2000
 
 // Note: From lib/string
-extern void*	memcpy(void* d, const void* s, uint32_t n);
-extern void*	memset(void* s, uint8_t c, uint32_t n);
+extern void*	memcpy(void* d, const void* s, u32 n);
+extern void*	memset(void* s, u8 c, u32 n);
 
 // Note: From memory/vmm
-extern void		switch_dir(uint32_t dir);
+extern void	switch_dir(u32 dir);
 
 // Note: From switch.s
-extern void		switch_process(uint32_t* new);
-extern void		switch_process_user(uint32_t* new_stack, uint32_t dir);
-extern void		start_process(uint32_t* new);
-extern void		tss_flush(void);
+extern void	switch_process(u32* new);
+extern void	switch_process_user(u32* new_stack, u32 dir);
+extern void	start_process(u32* new);
+extern void	tss_flush(void);
 
 static tss_t	tss;
 // TODO: Use hash table instead with pid as index
-static process*	process_table[PT_SIZE] = {0};
-static process*	kernel_process = 0;
-static process*	current_process = 0;
-static process*	tail_process = 0;
+static process*	process_table[PT_SIZE]	= {0};
+static process*	kernel_process		= 0;
+static process*	current_process		= 0;
+static process*	tail_process		= 0;
+static process* new_process_head	= 0;
+static process* new_process_tail	= 0;
+static u32 	pid_count		= 1;
+
+static SPINLOCK_DEFINE(sl_new_process);
+static SPINLOCK_DEFINE(sl_pid_count);
 
 static inline pid_t
 new_pid(void)
 {
-	static uint32_t g_pid_count	= 1;
-
-	uint32_t		start_pid	= g_pid_count;
+	spinlock_lock(&sl_pid_count);
+	u32	start_pid = pid_count;
 
 	do
 	{
-		if (!process_table[g_pid_count - 1] || process_table[g_pid_count - 1]->status == ZOMBIE)
+		if (!process_table[pid_count - 1] || process_table[pid_count - 1]->status == ZOMBIE)
 		{
-			pid_t	pid = g_pid_count;
-            g_pid_count = (pid % (PT_SIZE - 1)) + 1;
+			pid_t	pid	= pid_count;
+            		pid_count	= (pid % (PT_SIZE - 1)) + 1;
+
+			spinlock_unlock(&sl_pid_count);
+
 			return pid;
 		}
 		
-		g_pid_count = (g_pid_count % (PT_SIZE - 1)) + 1;
-	} while (g_pid_count != start_pid);
+		pid_count = (pid_count % (PT_SIZE - 1)) + 1;
+	} while (pid_count != start_pid);
 	
+	spinlock_unlock(&sl_pid_count);
+
 	return 0;
 }
 
-uint32_t
+u32
 kgetuid(void)
 {
 	return current_process->uid;
@@ -63,7 +74,7 @@ get_process(pid_t p)
 }
 
 static void
-exit_process(uint32_t pid)
+exit_process(u32 pid)
 {
 	process_table[pid - 1]->status = ZOMBIE;
 	//kfree(current_process->k_stack_base);
@@ -74,8 +85,8 @@ exit_process(uint32_t pid)
 }
 
 
-int
-queue_signal(pid_t p, uint32_t sig)
+s32
+queue_signal(pid_t p, u32 sig)
 {
 	if (!p || p > PT_SIZE - 1)
 	{
@@ -86,7 +97,7 @@ queue_signal(pid_t p, uint32_t sig)
 	return 1;
 }
 
-int
+s32
 update_status(pid_t p, process_status s)
 {
 	if (!p || p > PT_SIZE - 1)
@@ -99,18 +110,19 @@ update_status(pid_t p, process_status s)
 }
 
 pid_t
-fork_process(uint32_t* esp)
+fork_process(u32* esp)
 {
 	// TODO: Handle user process
 	pid_t		fork_pid = new_pid();
 	if (!fork_pid) return 0;
 
-	uint8_t*	k_stack_base = (uint8_t*)kmalloc(STACK_SIZE);
+	u8*	k_stack_base = (u8*)kmalloc(STACK_SIZE);
 	if (!k_stack_base) return 0;
 
 	memset(k_stack_base, 0, STACK_SIZE);
 
 	process*	fork = (process*)k_stack_base;
+
 	process_table[fork_pid - 1] = fork;
 
 	if (!k_stack_base)
@@ -118,41 +130,45 @@ fork_process(uint32_t* esp)
 		return 0;
 	}
 
-	fork->pid 				= fork_pid;
-	fork->uid 				= current_process->uid;
-	fork->parent			= (uint32_t)current_process;
+	fork->pid 		= fork_pid;
+	fork->uid 		= current_process->uid;
+	fork->parent		= (u32)current_process;
 
-	fork->status			= READY;
+	fork->status		= READY;
 	fork->pending_signals	= 0;
-	fork->next				= (uint32_t)kernel_process;
-	fork->k_stack_base		= k_stack_base;
-	uint32_t used_k_stack	= (uint32_t)(current_process->k_stack_base + STACK_SIZE) - (uint32_t)esp;
-	fork->k_stack			= (uint32_t*)(fork->k_stack_base + STACK_SIZE - used_k_stack);
+	fork->next		= (u32)kernel_process;
+	fork->k_stack_base	= k_stack_base;
+	u32 used_k_stack	= (u32)(current_process->k_stack_base + STACK_SIZE) - (u32)esp;
+	fork->k_stack		= (u32*)(fork->k_stack_base + STACK_SIZE - used_k_stack);
 
 	memcpy(fork->k_stack, esp, used_k_stack);
 
 	if (!current_process->mm)
 	{
-		*(uint32_t*)(fork->k_stack_base + STACK_SIZE - 4) = fork_pid; // Set exit_process input
+		*(u32*)(fork->k_stack_base + STACK_SIZE - 4) = fork_pid; // Set exit_process input
 	}
 	else
 	{
 		// TODO: check how to handle page directory for parent/child
-		fork->mm = memcpy((void*)((uint32_t)(fork->k_stack_base + sizeof(process) + 7) & ~3), current_process->mm, sizeof(mm_t));
+		fork->mm = memcpy((void*)((u32)(fork->k_stack_base + sizeof(process) + 7) & ~3), current_process->mm, sizeof(mm_t));
 	}
 
 	*(fork->k_stack + 8)	= 0; // Set eax to 0
-	*(fork->k_stack + 3)	= (uint32_t)fork->k_stack_base + *(esp + 3) - (uint32_t)current_process->k_stack_base; // Set ebp
-	*(fork->k_stack + 4)	= (uint32_t)fork->k_stack; // Set esp
+	*(fork->k_stack + 3)	= (u32)fork->k_stack_base + *(esp + 3) - (u32)current_process->k_stack_base; // Set ebp
+	*(fork->k_stack + 4)	= (u32)fork->k_stack; // Set esp
 
-	tail_process->next		= (uint32_t)fork;
-	tail_process			= fork;
+	spinlock_lock(&sl_new_process);
+
+	new_process_tail->next	= (u32)fork;
+	new_process_tail	= fork;
+
+	spinlock_unlock(&sl_new_process);
 
 	return fork_pid;
 }
 
 void
-exit_user_process(uint32_t status, uint32_t* esp)
+exit_user_process(u32 status, u32* esp)
 {
 	current_process->status = ZOMBIE;
 	current_process->exit_code = status;
@@ -165,30 +181,29 @@ exit_user_process(uint32_t status, uint32_t* esp)
 pid_t
 create_process(proc_info_t* info)
 {
-	// Note: Disable interruption to avoid race condition when creating a process.
-	//asm volatile ("cli;");
+	// TODO: group R/W to static variable to surround them with spinlock
 	pid_t		pid = new_pid();
 	if (!pid) return 0;
 
-	uint8_t*	k_stack_base = (uint8_t*)kmalloc(STACK_SIZE);
+	u8*	k_stack_base = (u8*)kmalloc(STACK_SIZE);
 	if (!k_stack_base) return 0;
 
 	memset(k_stack_base, 0, STACK_SIZE);
 
 	/* PROCESS PID & STATUS */
-	process*	p = (process*)k_stack_base;
-	process_table[pid - 1] = p;
-	p->pid = pid;
-	p->status = READY;
+	process*	p	= (process*)k_stack_base;
+	process_table[pid - 1]	= p;
+	p->pid			= pid;
+	p->status		= READY;
 
 	/* PROCESS MEMORY MANAGEMENT */
 	if (info->type == UPROC)
 	{
-		p->mm = (mm_t*)((uint32_t)(p->k_stack_base + sizeof(process) + 7) & ~3);
+		p->mm = (mm_t*)((u32)(p->k_stack_base + sizeof(process) + 7) & ~3);
 
-		for (uint32_t i = 0; i < sizeof(mm_t); i++)
+		for (u32 i = 0; i < sizeof(mm_t); i++)
 		{
-			((uint8_t*)p->mm)[i] = 0;
+			((u8*)p->mm)[i] = 0;
 		}
 		
 		p->mm->dir = vmm_setup_process(info->code_size, info->data_size, info->code, info->data);
@@ -207,40 +222,40 @@ create_process(proc_info_t* info)
 	/* PROCESS KSTACK */
 	p->k_stack_base = k_stack_base;
 
-	uint32_t* stk = (uint32_t*)(p->k_stack_base + STACK_SIZE);
+	u32* stk = (u32*)(p->k_stack_base + STACK_SIZE);
 
 	if (info->type == KPROC)
 	{
 		*(--stk) = pid;
 		// Note: Dummy return address (we pretend that it is a simple ret call)
 		*(--stk) = 0;
-		*(--stk) = (uint32_t)exit_process;
+		*(--stk) = (u32)exit_process;
 	}
-	uint32_t* user_esp = stk;
+	u32* user_esp = stk;
 	
 	// Set up interrupt return frame (for iret)
 	if (info->type == UPROC)
 	{
-		*(--stk) = 0x23;							// SS
-		*(--stk) = p->mm->stack;					// user esp
+		*(--stk) = 0x23;			// SS
+		*(--stk) = p->mm->stack;		// user esp
 	}
-	*(--stk) = 0x202;								// eflags (Interrupt flag set)
+	*(--stk) = 0x202;				// eflags (Interrupt flag set)
 	*(--stk) = info->type == UPROC ? 0x1B : 0x08;	// CS (0x1B user code segment/ 0x08 for kernel)
-	*(--stk) = info->entry;							// eip
+	*(--stk) = info->entry;				// eip
 	
 	// Error code and interrupt number (skipped by add $8, %esp)
-	*(--stk) = 0;									// err_code
-	*(--stk) = 0;									// int_no
+	*(--stk) = 0;					// err_code
+	*(--stk) = 0;					// s32_no
 	
 	// General purpose registers (for popa)
-	*(--stk) = 0;									// EAX
-	*(--stk) = 0;									// ECX
-	*(--stk) = 0;									// EDX
-	*(--stk) = 0;									// EBX
-	*(--stk) = (uint32_t)user_esp;					// ESP (original - points to exit_process)
-	*(--stk) = 0;									// EBP
-	*(--stk) = 0;									// ESI
-	*(--stk) = 0;									// EDI
+	*(--stk) = 0;					// EAX
+	*(--stk) = 0;					// ECX
+	*(--stk) = 0;					// EDX
+	*(--stk) = 0;					// EBX
+	*(--stk) = (u32)user_esp;			// ESP (original - pos32s to exit_process)
+	*(--stk) = 0;					// EBP
+	*(--stk) = 0;					// ESI
+	*(--stk) = 0;					// EDI
 	
 	// Segment selector (for ds restore)
 	*(--stk) = info->type == UPROC ? 0x23 : 0x10;	// DS (0x23 user data segment, or 0x10 for kernel)
@@ -249,22 +264,24 @@ create_process(proc_info_t* info)
 
 	/* PROCESS RELATIONSHIPS */
 	// TODO: add children if any and sibilings
-	p->parent = (uint32_t)current_process;
+	p->parent = (u32)current_process;
 
 	/* PROCESS SCHEDULING */
-	p->next = (uint32_t)kernel_process;
-	if (!current_process)
+	p->next = (u32)kernel_process;
+	spinlock_lock(&sl_new_process);
+
+	if (!new_process_head)
 	{
-		current_process = p;
+		new_process_head = p;
+		new_process_head->next = (u32)p;
 	}
 	else
 	{
-		tail_process->next = (uint32_t)p;
+		new_process_tail->next = (u32)p;
 	}
-	tail_process = p;
 
-	// Note: Re-enable interrupion.
-	//asm volatile ("sti;");
+	new_process_tail = p;
+	spinlock_unlock(&sl_new_process);
 
 	return pid;
 }
@@ -272,7 +289,7 @@ create_process(proc_info_t* info)
 static void
 ft_kernel_process(void)
 {
-    //asm volatile("sti\n\t");
+	asm volatile("sti\n\t");
 	while (1)
 	{
 		asm volatile ("hlt\n\t");
@@ -286,49 +303,63 @@ init_multitasking(void)
 	proc_info_t	kernel_proc_info =
 	{
 		KPROC, 0, 0, 0, 0,
-		(uint32_t)ft_kernel_process
+		(u32)ft_kernel_process
 	};
+
 	create_process(&kernel_proc_info);
-	kernel_process = current_process;
-	// Note: need to do this else next is 0
-	kernel_process->next = (uint32_t)kernel_process;
-	kernel_process->status = RUNNING;
+	current_process		= new_process_head;
+	tail_process		= new_process_tail;
+	new_process_head	= 0;
+	new_process_tail	= 0;
+	kernel_process		= current_process;
+	kernel_process->status	= RUNNING;
 	
 	// Note: Init TSS
-	tss.esp0 = (uint32_t)kernel_process->k_stack;
-	tss.ss0 = 0x10;
-	tss.io_permission_bitmap = sizeof(tss);
+	tss.esp0		= (u32)kernel_process->k_stack;
+	tss.ss0			= 0x10;
+	tss.io_permission_bitmap= sizeof(tss);
 
-	set_gdt_gate(5, (uint32_t)&tss, sizeof(tss), 0x89, 0);
+	set_gdt_gate(5, (u32)&tss, sizeof(tss), 0x89, 0);
 	tss_flush();
 
 	start_process(kernel_process->k_stack);
 }
 
 void
-schedule(uint32_t* old_esp)
+schedule(u32* old_esp)
 {
-	if (!kernel_process || !current_process || (current_process == kernel_process && tail_process == kernel_process)) return;
+	if (new_process_head && spinlock_try_lock(&sl_new_process))
+	{
+		tail_process->next	= (u32)new_process_head;
+		tail_process		= new_process_tail;
+		new_process_head	= 0;
+		new_process_tail	= 0;
+		spinlock_unlock(&sl_new_process);
+	}
 
-	process* prev = current_process;
+	if (!kernel_process
+		|| !current_process
+		|| (current_process == kernel_process && tail_process == kernel_process)) return;
+
+	process* prev		= current_process;
 	
-	prev->k_stack = old_esp;
-	current_process = (process*)current_process->next;
+	prev->k_stack		= old_esp;
+	current_process 	= (process*)current_process->next;
 	current_process->status = RUNNING;
 	
 	if (prev->status == RUNNING)
 	{
-		prev->next = (uint32_t)kernel_process;
-		prev->status = READY;
-		tail_process->next = (uint32_t)prev;
-		tail_process = prev;
+		prev->next		= (u32)kernel_process;
+		prev->status		= READY;
+		tail_process->next	= (u32)prev;
+		tail_process		= prev;
 	}
 
-	tss.esp0 = (uint32_t)current_process->k_stack;
+	tss.esp0 = (u32)current_process->k_stack;
 	
 	if (current_process->mm)
 	{
-		switch_process_user(current_process->k_stack, (uint32_t)current_process->mm->dir);
+		switch_process_user(current_process->k_stack, (u32)current_process->mm->dir);
 	}
 	else
 	{

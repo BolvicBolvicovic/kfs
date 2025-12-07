@@ -1,10 +1,11 @@
 PRO	= processes.a
 
-SRCS = switch.s multitasking.c syscalls.c
-OBJS = switch.o multitasking.o syscalls.o
+SRCS	= switch.s multitasking.c syscalls.c
+OBJS	= switch.o multitasking.o syscalls.o
 
-AR		= ../gcc_kfs/bin/i386-elf-ar rcs
-CC		= ../gcc_kfs/bin/i386-elf-gcc -I. -I../lib
+AR	= ../gcc_kfs/bin/i386-elf-ar rcs
+CC	= ../gcc_kfs/bin/i386-elf-gcc -I. -I../lib
+INC	= -I../include -I..
 FLAGS	= -ffreestanding	\
 	  -g \
 	  -O0 \
@@ -17,10 +18,10 @@ $(PRO): $(OBJS)
 	$(AR) $@ $^
 
 %.o: %.c
-	$(CC) $(FLAGS) -c $^ -o $@
+	$(CC) $(FLAGS) $(INC) -c $^ -o $@
 
 %.o: %.s
-	$(CC) $(FLAGS) -c $^ -o $@
+	$(CC) $(FLAGS) $(INC) -c $^ -o $@
 
 clean:
 	rm -rf $(OBJS)

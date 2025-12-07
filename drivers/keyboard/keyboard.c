@@ -90,7 +90,6 @@ keyboard_callback(registers_t* regs)
 	extern void	exec_command(void);
 
     uint8_t scancode = port_byte_in(KEYBOARD_INPUT_BUFFER);
-    asm volatile("cli");
     if (scancode > SC_MAX) return;
     if (current_screen.type == SHELL)
 	{

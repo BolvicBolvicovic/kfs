@@ -1,14 +1,14 @@
 #ifndef PROCESSES_H
 # define PROCESSES_H
 
-#include <stdint.h>
-#include "../lib/stdio/stdio.h"
-#include "../drivers/descriptor/descriptor.h"
-#include "../memory/vmm/vmm.h"
+#include <c_types.h>
+#include <lib/stdio/stdio.h>
+#include <drivers/descriptor/descriptor.h>
+#include <memory/vmm/vmm.h>
 
-typedef uint32_t	pid_t;
-typedef uint32_t	uid_t;
-typedef void		(*sighandler_t)(int);
+typedef u32	pid_t;
+typedef u32	uid_t;
+typedef void	(*sighandler_t)(int);
 
 typedef enum
 {
@@ -65,111 +65,111 @@ typedef enum
 typedef struct
 {
 	proc_type	type;
-	uint32_t*	code;
-	uint32_t	code_size;
-	uint32_t*	data;
-	uint32_t	data_size;
-	uint32_t	entry;
+	u32*		code;
+	u32		code_size;
+	u32*		data;
+	u32		data_size;
+	u32		entry;
 } proc_info_t;
 
 typedef struct
 {
-	uint32_t	_link;
-	uint32_t	esp0;
-	uint32_t	ss0;
-	uint32_t	esp1;
-	uint32_t	ss1;
-	uint32_t	esp2;
-	uint32_t	ss2;
-	uint32_t	cr3;
-	uint32_t	eip;
-	uint32_t	eflags;
-	uint32_t	eax, ecx, edx, ebx;
-	uint32_t	esp, ebp, esi, edi;
-	uint32_t	es, cs, ss;
-	uint32_t	ds, fs, gs;
-	uint32_t	ldtr;
-	uint16_t	trap;
-	uint16_t	io_permission_bitmap;
-	uint32_t	ssp;
+	u32	_link;
+	u32	esp0;
+	u32	ss0;
+	u32	esp1;
+	u32	ss1;
+	u32	esp2;
+	u32	ss2;
+	u32	cr3;
+	u32	eip;
+	u32	eflags;
+	u32	eax, ecx, edx, ebx;
+	u32	esp, ebp, esi, edi;
+	u32	es, cs, ss;
+	u32	ds, fs, gs;
+	u32	ldtr;
+	u16	trap;
+	u16	io_permission_bitmap;
+	u32	ssp;
 } __attribute__((__packed__)) tss_t;
 
 typedef struct
 {
-	uint32_t	dir;
+	u32	dir;
 	
-	uint32_t	code_start;
-	uint32_t	code_end;
+	u32	code_start;
+	u32	code_end;
 
-	uint32_t	data_start;
-	uint32_t	data_end;
+	u32	data_start;
+	u32	data_end;
 
-	uint32_t	stack;
-	uint32_t	stack_base;
+	u32	stack;
+	u32	stack_base;
 	
-	// uint32_t	heap_start;
-	// uint32_t	heap_end;
+	// u32	heap_start;
+	// u32	heap_end;
 
 } mm_t;
 
 typedef struct
 {
 	// Note: ID and Status
-	pid_t			pid;
+	pid_t		pid;
 	process_status	status;
-	uint32_t		exit_code;
+	u32		exit_code;
 	// TODO: add exit code and exit signal
 
 	// Note: Scheduling
 	// TODO: check scheduling info
-	uint32_t		next;
+	u32		next;
 
 	// Note: Memory managment
 	// Note: if mm == 0 then kernel process else user process
-	mm_t*			mm;
-	uint32_t*		k_stack;
-	uint8_t*		k_stack_base;
+	mm_t*		mm;
+	u32*		k_stack;
+	u8*		k_stack_base;
 
 	// Note: Relationships
-	uint32_t		parent;
-	//pid_t			children[16];
-	//pid_t			fds[32];
+	u32		parent;
+	//pid_t		children[16];
+	//pid_t		fds[32];
 
 	// TODO: when fs exists, add it here
 
 	// Note: Signals
 	// TODO: add signal handlers
-	uint32_t		pending_signals;
+	u32		pending_signals;
 
 	// Note: Credentials & Security
 	// TODO: add credentials and group ids
-	uid_t			uid;
+	uid_t		uid;
 
 	//TODO: add ressource limit, CPU time and context switch count
 } process;
 
-void			init_multitasking(void);
+void		init_multitasking(void);
 
-int				queue_signal(pid_t, uint32_t s);
-int				update_status(pid_t, process_status);
+s32		queue_signal(pid_t, u32 s);
+s32		update_status(pid_t, process_status);
 // TODO: look up best way to implement sockets between processes
 // TODO: Function to work on the memory of the process (I guess with heap and stack)??
-pid_t			create_process(proc_info_t*);
-pid_t			fork_process(uint32_t* esp);
-void			exit_user_process(uint32_t status, uint32_t* esp);
+pid_t		create_process(proc_info_t*);
+pid_t		fork_process(u32* esp);
+void		exit_user_process(u32 status, u32* esp);
 
-void			schedule(uint32_t* old_esp);
+void		schedule(u32* old_esp);
 
 
 
 /* SYSCALLS  */
 
-pid_t			fork(void);
-pid_t			wait(int* wstatus);
-void			exit(int status);
-uid_t			getuid(void);
+pid_t		fork(void);
+pid_t		wait(int* wstatus);
+void		exit(int status);
+uid_t		getuid(void);
 sighandler_t	signal(int signum, sighandler_t);
-int				kill(pid_t, int signal);
+int		kill(pid_t, int signal);
 
 /* END SYSCALLS  */
 

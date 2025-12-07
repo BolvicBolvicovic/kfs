@@ -19,7 +19,7 @@ gdt_flush:
 	ret
 
 isr_common_stub:
-	#cli
+	cli
 
 	# push all general purpuse registers
 	pusha
@@ -36,7 +36,6 @@ isr_common_stub:
 	mov	%ax, %gs
 	push %esp
 
-	#sti
 	call	isr_handler
 
 	# restore original segment pointers segment and registers
@@ -52,32 +51,32 @@ isr_common_stub:
 	iret
 
 irq_common_stub:
-	#cli
-    # 1. Save CPU state
-    pusha
-    mov %ds, %ax
-    push %eax
-    mov $KERNEL_DATA_SEGMENT, %ax
-    mov %ax, %ds
-    mov %ax, %es
-    mov %ax, %fs
-    mov %ax, %gs
-    push %esp
+	cli
 
-	#sti
-    # 2. Call C handler
-    call irq_handler # Different than the ISR code
-
-    # 3. Restore state
-    add $4, %esp
-    pop %ebx
-    mov %bx, %ds
-    mov %bx, %es
-    mov %bx, %fs
-    mov %bx, %gs
-    popa
-    add $CLEAR_ERRNO_INTNO, %esp
-    iret
+	# 1. Save CPU state
+	pusha
+	mov %ds, %ax
+	push %eax
+	mov $KERNEL_DATA_SEGMENT, %ax
+	mov %ax, %ds
+	mov %ax, %es
+	mov %ax, %fs
+	mov %ax, %gs
+	push %esp
+	
+	# 2. Call C handler
+	call irq_handler # Different than the ISR code
+	
+	# 3. Restore state
+	add $4, %esp
+	pop %ebx
+	mov %bx, %ds
+	mov %bx, %es
+	mov %bx, %fs
+	mov %bx, %gs
+	popa
+	add $CLEAR_ERRNO_INTNO, %esp
+	iret
 
 .global isr0
 .global isr1

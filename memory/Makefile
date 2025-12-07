@@ -6,8 +6,9 @@ PMM_OBJ = pmm/pmm.o
 VMM_SRC = vmm/vmm.c vmm/paging.s vmm/kmalloc.c 
 VMM_OBJ = vmm/vmm.o vmm/paging.o vmm/kmalloc.o
 
-AR		= ../gcc_kfs/bin/i386-elf-ar rcs
-CC		= ../gcc_kfs/bin/i386-elf-gcc
+AR	= ../gcc_kfs/bin/i386-elf-ar rcs
+CC	= ../gcc_kfs/bin/i386-elf-gcc
+INC	= -I../include -I..
 FLAGS	= -ffreestanding	\
 	  -g \
 	  -O2 \
@@ -20,13 +21,13 @@ $(MEM): $(PMM_OBJ) $(VMM_OBJ)
 	$(AR) $@ $^
 
 pmm/%.o: pmm/%.c
-	$(CC) $(FLAGS) -c $^ -o $@
+	$(CC) $(FLAGS) $(INC) -c $^ -o $@
 
 vmm/%.o: vmm/%.c
-	$(CC) $(FLAGS) -c $^ -o $@
+	$(CC) $(FLAGS) $(INC) -c $^ -o $@
 
 vmm/%.o: vmm/%.s
-	$(CC) $(FLAGS) -c $^ -o $@
+	$(CC) $(FLAGS) $(INC) -c $^ -o $@
 
 clean:
 	rm -rf $(PMM_OBJ)

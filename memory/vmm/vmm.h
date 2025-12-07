@@ -1,7 +1,7 @@
 #ifndef VMM_H
 #define VMM_H
 
-#include "../pmm/pmm.h"
+#include <memory/pmm/pmm.h>
 
 #define PAGES_PER_TABLE 1024
 #define TABLES_PER_DIR	1024

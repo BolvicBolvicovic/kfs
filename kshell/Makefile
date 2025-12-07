@@ -3,8 +3,9 @@ KSHELL	= kshell.a
 SRC	= kshell.c tester.c 
 OBJ	= kshell.o tester.o 
 
-AR		= ../gcc_kfs/bin/i386-elf-ar rcs
-CC		= ../gcc_kfs/bin/i386-elf-gcc
+AR	= ../gcc_kfs/bin/i386-elf-ar rcs
+CC	= ../gcc_kfs/bin/i386-elf-gcc
+INC	= -I../include -I..
 FLAGS	= -ffreestanding	\
 	  -g \
 	  -O2 \
@@ -16,7 +17,7 @@ $(KSHELL): $(OBJ)
 	$(AR) $@ $(OBJ)
 	
 %.o: %.c
-	$(CC) $(FLAGS) -c $^ -o $@
+	$(CC) $(FLAGS) $(INC) -c $^ -o $@
 
 clean:
 	rm -rf $(OBJ)
