@@ -1,7 +1,8 @@
 #include "kshell.h"
+#include <processes/processes.h>
 
-static char				line[256];
-static size_t			index = 0;
+static char		line[256];
+static size_t		index = 0;
 extern current_screen_t	current_screen;
 
 const char*  color_list[16] =
@@ -26,15 +27,16 @@ const char*  color_list[16] =
 
 const char* keyboard_list[2] =
 {
-    "US",
-    "FR"
+	"US",
+	"FR"
 };
 
 void
 init_kshell(enum vga_color fg, enum vga_color bg)
 {
 	term_set_color(vga_entry_color(fg, bg));
-    enable_cursor();
+	enable_cursor();
+
 	current_screen.lists[0] = (list_option_t)
 	{
 		.list = 
@@ -67,37 +69,54 @@ init_kshell(enum vga_color fg, enum vga_color bg)
 static void
 set()
 {
-    term_clear();
-    list_option_t background = draw_list("BACKGROUND", color_list, current_screen.lists[0].list.current_item_index, (VGA_ROWS / 4) * 2, 10, 30);
-    list_option_t foreground = draw_list("FORGROUND", color_list, current_screen.lists[1].list.current_item_index, (VGA_ROWS / 2) * 2, 10, 32);
-    list_option_t keyboard   = draw_list("KEYBOARD", keyboard_list, current_screen.lists[2].list.current_item_index, ((VGA_ROWS * 3) / 4) * 2, 10, 34);
-    if (background.null == NULL || foreground.null == NULL || keyboard.null == NULL) return;
-    disable_cursor();
-    current_screen.type = SETTINGS;
-    current_screen.lists[0] = background;
-    current_screen.lists[1] = foreground;
-    current_screen.lists[2] = keyboard;
-    draw_selector(current_screen.lists[0].list.list_vga_index);
-    draw_line("Q Quit / J Up / K Down / H Left / L Right", 2 * (VGA_ROWS - 3), 10);
+	term_clear();
+
+	list_option_t	background	= draw_list("BACKGROUND",
+		color_list,
+		current_screen.lists[0].list.current_item_index,
+		(VGA_ROWS / 4) * 2, 10, 30);
+	list_option_t	foreground	= draw_list("FORGROUND",
+		color_list,
+		current_screen.lists[1].list.current_item_index,
+		(VGA_ROWS / 2) * 2, 10, 32);
+	list_option_t	keyboard	= draw_list("KEYBOARD",
+		keyboard_list,
+		current_screen.lists[2].list.current_item_index,
+		((VGA_ROWS * 3) / 4) * 2, 10, 34);
+
+	// TODO: maybe improve the error handling here
+	if (background.null == NULL || foreground.null == NULL || keyboard.null == NULL) return;
+
+	disable_cursor();
+
+	current_screen.type	= SETTINGS;
+	current_screen.lists[0] = background;
+	current_screen.lists[1] = foreground;
+	current_screen.lists[2] = keyboard;
+
+	draw_selector(current_screen.lists[0].list.list_vga_index);
+	draw_line("Q Quit / J Up / K Down / H Left / L Right", 2 * (VGA_ROWS - 3), 10);
 }
 
 inline void
 cmd_add_char(uint8_t c)
 {
-    if (c == 0x7F && index - 1 >= 0) index--;
-    else if (index < 256) line[index++] = c;
-    if (index >= VGA_COLS) index = 0;
+	if (c == 0x7F && index - 1 >= 0)
+		index--;
+	else if (index < 256)
+		line[index++] = c;
+
+	if (index >= VGA_COLS) index = 0;
 }
 
 void
 reboot()
 {
-    asm volatile(
-        "cli\n\t"
-        "mov $0xFE, %al\n\t"
-        "outb %al, $0x64\n\t"
-        "hlt"
-    );
+	asm volatile(
+		"mov $0xFE, %al\n\t"
+		"outb %al, $0x64\n\t"
+		"hlt"
+	);
 }
 
 extern uint32_t stack_bottom;
@@ -106,23 +125,28 @@ extern uint32_t stack_top;
 void
 print_stack()
 {
-    uint32_t count = 0;
-    uint32_t repeat = 0xFFFFFFFF;
-    printf(
-        "STACK TOP: %p\n"
-        "STACK BOT: %p\n",
-        &stack_top, &stack_bottom
-    );
-    for (uint32_t* i = &stack_top; i > &stack_bottom; i--)
-    {
-        if (repeat != *i) {
-            if (!count) printf("0x%x | ", *i);
-            else { printf("0x%x times %d | ", *i, count + 1); count = 0; }
-        }
-        else count++;
-        repeat = *i;
-    }
-    printf("\n");
+	uint32_t	count = 0;
+	uint32_t	repeat = 0xFFFFFFFF;
+
+	printf(
+		"STACK TOP: %p\n"
+		"STACK BOT: %p\n",
+		&stack_top, &stack_bottom
+	);
+
+	for (uint32_t* i = &stack_top; i > &stack_bottom; i--)
+	{
+		if (repeat != *i)
+		{
+			if (!count) printf("0x%x | ", *i);
+			else { printf("0x%x times %d | ", *i, count + 1); count = 0; }
+		}
+		else count++;
+
+		repeat = *i;
+	}
+
+	printf("\n");
 }
 
 void int_0x0() { asm volatile("int $0x0"); }
@@ -168,89 +192,75 @@ typedef void (*inter_func)(void);
 
 inter_func tab[] =
 {
-    int_0x0, int_0x1, int_0x2, int_0x3, 
-    int_0x4, int_0x5, int_0x6, int_0x7,
-    int_0x8, int_0x9, int_0xA, int_0xB,
-    int_0xC, int_0xD, int_0xE, int_0xF,
-    int_0x10, int_0x11, int_0x12, int_0x13,
-    int_0x14, int_0x15, int_0x16, int_0x17,
-    int_0x18, int_0x19, int_0x1A, int_0x1B,
-    int_0x1C, int_0x1D, int_0x1E, int_0x1F,
-    int_0x20, int_0x21, int_0x22, int_0x23,
-    int_0x24, int_0x25
+	int_0x0, int_0x1, int_0x2, int_0x3, 
+	int_0x4, int_0x5, int_0x6, int_0x7,
+	int_0x8, int_0x9, int_0xA, int_0xB,
+	int_0xC, int_0xD, int_0xE, int_0xF,
+	int_0x10, int_0x11, int_0x12, int_0x13,
+	int_0x14, int_0x15, int_0x16, int_0x17,
+	int_0x18, int_0x19, int_0x1A, int_0x1B,
+	int_0x1C, int_0x1D, int_0x1E, int_0x1F,
+	int_0x20, int_0x21, int_0x22, int_0x23,
+	int_0x24, int_0x25
 };
 
 void
 do_interrupt(char* nb)
 {
-    int n = atoi(nb);
-    if (n < 0 || n > 0x25) return;
-    tab[n]();
+	int	n = atoi(nb);
+
+	if (n < 0 || n > 0x25) return;
+
+	tab[n]();
 }
 
 void
 shut_down()
 {
-    asm volatile(
-        "movw $0x2000, %ax\n"
-        "movw $0x604, %dx\n"
-        "outw %ax, %dx\n"
-        "hlt"
-    );
+	asm volatile(
+		"movw $0x2000, %ax\n"
+		"movw $0x604, %dx\n"
+		"outw %ax, %dx\n"
+		"hlt"
+	);
 }
 
 void
 exec_command()
 {
-    char words[4][256];
-    size_t i = 0;
-    size_t j;
+	char	words[4][256];
+	size_t	i = 0;
+	size_t	j;
 
-    line[index] = 0;
-    index = 0;
+	line[index] = 0;
+	index = 0;
 
-    for (size_t k = 0; k < 4; k++)
+	for (size_t k = 0; k < 4; k++)
 	{
-        while (line[i] == ' ') i++;
-        for (j = 0; line[i] >= 0x21 && line[i] <= 0x7E; j++) words[k][j] = line[i++];
-        words[k][j] = 0;
-    }
+		while (line[i] == ' ') i++;
 
-    if (!strcmp(words[0], "SET"))
+		for (j = 0; line[i] >= 0x21 && line[i] <= 0x7E; j++) words[k][j] = line[i++];
+			words[k][j] = 0;
+	}
+	
+	if (!strcmp(words[0], "TEST"))
 	{
-        set();
-    }
-	else if (!strcmp(words[0], "CLEAR"))
-	{
-        term_clear();
-    }
-	else if (!strcmp(words[0], "TEST"))
-	{
-        run_all_tests();
-    }
-	else if (!strcmp(words[0], "REBOOT"))
-	{
-        reboot();
-    }
-	else if (!strcmp(words[0], "EXIT"))
-	{
-        shut_down();
-    }
-	else if (!strcmp(words[0], "HALT"))
-	{
-        asm volatile("hlt\n\t");
-    }
-	else if (!strcmp(words[0], "STACK"))
-	{
-        print_stack();
-    }
-	else if (!strcmp(words[0], "INT"))
-	{
-        do_interrupt(words[1]);
-    }
-	else if (!strcmp(words[0], "HELP"))
-	{
-        printf("WELCOME TO THE KERNEL\n\
+		proc_info_t	tests =
+		{
+			KPROC,0,0,0,0,
+			(u32)run_all_tests
+		};
+
+		create_process(&tests);
+	}
+	else if (!strcmp(words[0], "SET")) 	set();
+	else if (!strcmp(words[0], "CLEAR"))	term_clear();
+	else if (!strcmp(words[0], "REBOOT"))	reboot();
+	else if (!strcmp(words[0], "EXIT"))	shut_down();
+	else if (!strcmp(words[0], "HALT"))	asm volatile("hlt\n\t");
+	else if (!strcmp(words[0], "STACK"))	print_stack();
+	else if (!strcmp(words[0], "INT"))	do_interrupt(words[1]);
+	else if (!strcmp(words[0], "HELP"))	printf("WELCOME TO THE KERNEL\n\
 THE CLI IS STILL UNDER DEVELOPMENT.\n\
 \n\
 COMMANDS AVAILABLE:\n\
@@ -265,5 +275,4 @@ COMMANDS AVAILABLE:\n\
   INT   [NUM]  : DOES INTERRUPTION [NUM]\n\
   TEST         : EXECUTES A TEST SUITE FOR THE KERNEL\n\
   HELP         : PRINTS THIS MESSAGE\n");
-    }
 }
