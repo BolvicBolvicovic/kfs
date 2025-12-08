@@ -2,6 +2,7 @@
 # define PROCESSES_H
 
 #include <c_types.h>
+#include <compiler.h>
 #include <lib/stdio/stdio.h>
 #include <drivers/descriptor/descriptor.h>
 #include <memory/vmm/vmm.h>
@@ -18,7 +19,7 @@ typedef enum
 	THREADED
 } process_status;
 
-#define SIGHUP		1			// Hangup detected on controlling terminal or death of controlling process
+#define SIGHUP		1		// Hangup detected on controlling terminal or death of controlling process
 #define SIGINT		(1 << 2)	// Interrupt from keyboard
 #define SIGQUIT		(1 << 3)	// Quit from keyboard
 #define SIGILL		(1 << 4)	// Illegal Instruction
@@ -51,7 +52,7 @@ typedef enum
 #define SIGPOLL		SIGIO		// Pollable event (Sys V); synonym for SIGIO
 #define SIGPWR		(1 << 30)	// Power failure (System V)
 #define SIGSYS		(1 << 31)	// Bad system call (SVr4); see also seccomp(2)
-#define SIGUNUSED	SIGSYS	// Synonymous with SIGSYS
+#define SIGUNUSED	SIGSYS		// Synonymous with SIGSYS
 
 // TODO: make frame size dependant on if process is user or not
 #define FRAME_SIZE 36
@@ -92,24 +93,26 @@ typedef struct
 	u16	trap;
 	u16	io_permission_bitmap;
 	u32	ssp;
-} __attribute__((__packed__)) tss_t;
+} __packed tss_t;
 
 typedef struct
 {
-	u32	dir;
+	u32		dir;
 	
-	u32	code_start;
-	u32	code_end;
+	u32		code_start;
+	u32		code_end;
 
-	u32	data_start;
-	u32	data_end;
+	u32		data_start;
+	u32		data_end;
 
-	u32	stack;
-	u32	stack_base;
+	u32		stack;
+	u32		stack_base;
 	
 	// u32	heap_start;
 	// u32	heap_end;
-
+	// TODO: find a way to add a lock here and that avoids circular dependencies with locks.h
+	// One solution is to split locks.h into multiple locks/single_lock.h files
+	// spinlock_t	heap_lock;
 } mm_t;
 
 typedef struct
@@ -146,7 +149,7 @@ typedef struct
 	uid_t		uid;
 
 	//TODO: add ressource limit, CPU time and context switch count
-} process;
+} process_t;
 
 void		init_multitasking(void);
 
@@ -158,7 +161,32 @@ pid_t		create_process(proc_info_t*);
 pid_t		fork_process(u32* esp);
 void		exit_user_process(u32 status, u32* esp);
 
+/* Name: new_process_list_push
+ * Descrition: pushes a process in the new_process linked list which will be then added to the round-robin
+ * list of running processes by the scheduler.
+ * */
+void		new_process_list_push(process_t*);
+
+/* Name: current_process_pop 
+ * Descrition: turns the current_process into a ZOMBIE process and returns it.
+ * ZOMBIE processes are not pushed back to the READY queue when the scheduler swaps them out.
+ * Does not block the scheduler.
+ * It is wise to use it with scheduler_lock and scheduler_unlock.
+ * */
+process_t*	current_process_pop(void);
+
 void		schedule(u32* old_esp);
+
+/* Name: scheduler_lock
+ * Descrition: blocks the scheduler from rotating the RUNNING process with the next READY process.
+ * */
+void		scheduler_lock(void);
+
+/* Name: scheduler_unlock
+ * Descrition: unblocks the scheduler, allowing it to rotate the RUNNING process
+ * with the next READY process.
+ * */
+void		scheduler_unlock(void);
 
 
 

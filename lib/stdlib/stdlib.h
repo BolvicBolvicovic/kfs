@@ -1,13 +1,13 @@
 #ifndef STDLIB_H
 #define STDLIB_H
-#include <stddef.h>
-#include <stdbool.h>
 
-int     isnum(const char c);
-size_t  itoa(char* dest, int nb);
-size_t  utoa(char* dest, unsigned int nb);
-size_t  itox(char* dest, unsigned int nb);
-size_t  itoxx(char* dest, unsigned int nb);
-int     atoi(const char *nptr);
+#include <c_types.h>
+
+s32	isnum(const char c);
+u32	itoa(char* dest, s32 nb);
+u32	utoa(char* dest, u32 nb);
+u32	itox(char* dest, u32 nb);
+u32	itoxx(char* dest, u32 nb);
+s32	atoi(const char *nptr);
 
 #endif

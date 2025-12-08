@@ -1,4 +1,5 @@
 #include "processes.h"
+#include "atomic.h"
 #include "locks.h"
 
 #define PT_SIZE		1024
@@ -17,15 +18,18 @@ extern void	switch_process_user(u32* new_stack, u32 dir);
 extern void	start_process(u32* new);
 extern void	tss_flush(void);
 
-static tss_t	tss;
+static tss_t		tss;
 // TODO: Use hash table instead with pid as index
-static process*	process_table[PT_SIZE]	= {0};
-static process*	kernel_process		= 0;
-static process*	current_process		= 0;
-static process*	tail_process		= 0;
-static process* new_process_head	= 0;
-static process* new_process_tail	= 0;
-static u32 	pid_count		= 1;
+static process_t*	process_table[PT_SIZE]	= {0};
+static process_t*	kernel_process		= 0;
+static process_t*	current_process		= 0;
+static process_t*	tail_process		= 0;
+static process_t*	new_process_head	= 0;
+static process_t*	new_process_tail	= 0;
+static u32		pid_count		= 1;
+
+// Note: do not need to use a specific lock since it just tells the scheduler to do its work or not.
+static ATOMIC_DEFINE(scheduler_locked);
 
 static SPINLOCK_DEFINE(sl_new_process);
 static SPINLOCK_DEFINE(sl_pid_count);
@@ -56,13 +60,7 @@ new_pid(void)
 	return 0;
 }
 
-u32
-kgetuid(void)
-{
-	return current_process->uid;
-}
-
-static inline process*
+static inline process_t*
 get_process(pid_t p)
 {
 	if (p <= 1 || p > PT_SIZE - 1)
@@ -84,6 +82,54 @@ exit_process(u32 pid)
 	}
 }
 
+void
+scheduler_lock(void)
+{
+	atomic_write(&scheduler_locked, 1);
+}
+
+void
+scheduler_unlock(void)
+{
+	atomic_write(&scheduler_locked, 0);
+}
+
+void
+new_process_list_push(process_t* p)
+{
+	spinlock_lock(&sl_new_process);
+
+	if (!new_process_head)
+	{
+		new_process_head = p;
+		new_process_head->next = (u32)p;
+	}
+	else
+	{
+		new_process_tail->next = (u32)p;
+	}
+
+	new_process_tail = p;
+
+	spinlock_unlock(&sl_new_process);
+}
+
+u32
+kgetuid(void)
+{
+	return current_process->uid;
+}
+
+process_t*
+current_process_pop(void)
+{
+	process_t*	ret = current_process;
+
+	ret->status	= ZOMBIE;
+	ret->next	= 0;
+	
+	return ret;
+}
 
 s32
 queue_signal(pid_t p, u32 sig)
@@ -121,7 +167,7 @@ fork_process(u32* esp)
 
 	memset(k_stack_base, 0, STACK_SIZE);
 
-	process*	fork = (process*)k_stack_base;
+	process_t*	fork = (process_t*)k_stack_base;
 
 	process_table[fork_pid - 1] = fork;
 
@@ -150,19 +196,16 @@ fork_process(u32* esp)
 	else
 	{
 		// TODO: check how to handle page directory for parent/child
-		fork->mm = memcpy((void*)((u32)(fork->k_stack_base + sizeof(process) + 7) & ~3), current_process->mm, sizeof(mm_t));
+		fork->mm = memcpy((void*)((u32)(fork->k_stack_base + sizeof(process_t) + 7) & ~3),
+			current_process->mm,
+			sizeof(mm_t));
 	}
 
 	*(fork->k_stack + 8)	= 0; // Set eax to 0
 	*(fork->k_stack + 3)	= (u32)fork->k_stack_base + *(esp + 3) - (u32)current_process->k_stack_base; // Set ebp
 	*(fork->k_stack + 4)	= (u32)fork->k_stack; // Set esp
 
-	spinlock_lock(&sl_new_process);
-
-	new_process_tail->next	= (u32)fork;
-	new_process_tail	= fork;
-
-	spinlock_unlock(&sl_new_process);
+	new_process_list_push(fork);
 
 	return fork_pid;
 }
@@ -174,6 +217,9 @@ exit_user_process(u32 status, u32* esp)
 	current_process->exit_code = status;
 	// TODO: clear mm content
 	//kfree(current_process->k_stack_base);
+	
+	// Note: we schedule here since user process exits with syscall exit
+	// which runs this routine. Schedule triggers restores eflags when switching context.
 	schedule(esp);
 }
 
@@ -191,7 +237,7 @@ create_process(proc_info_t* info)
 	memset(k_stack_base, 0, STACK_SIZE);
 
 	/* PROCESS PID & STATUS */
-	process*	p	= (process*)k_stack_base;
+	process_t*	p	= (process_t*)k_stack_base;
 	process_table[pid - 1]	= p;
 	p->pid			= pid;
 	p->status		= READY;
@@ -199,7 +245,7 @@ create_process(proc_info_t* info)
 	/* PROCESS MEMORY MANAGEMENT */
 	if (info->type == UPROC)
 	{
-		p->mm = (mm_t*)((u32)(p->k_stack_base + sizeof(process) + 7) & ~3);
+		p->mm = (mm_t*)((u32)(p->k_stack_base + sizeof(process_t) + 7) & ~3);
 
 		for (u32 i = 0; i < sizeof(mm_t); i++)
 		{
@@ -252,7 +298,8 @@ create_process(proc_info_t* info)
 	*(--stk) = 0;					// ECX
 	*(--stk) = 0;					// EDX
 	*(--stk) = 0;					// EBX
-	*(--stk) = (u32)user_esp;			// ESP (original - pos32s to exit_process)
+	*(--stk) = (u32)user_esp;			// ESP (original - points to exit_process for KPROC)
+							// User process exits with syscall exit
 	*(--stk) = 0;					// EBP
 	*(--stk) = 0;					// ESI
 	*(--stk) = 0;					// EDI
@@ -268,20 +315,8 @@ create_process(proc_info_t* info)
 
 	/* PROCESS SCHEDULING */
 	p->next = (u32)kernel_process;
-	spinlock_lock(&sl_new_process);
 
-	if (!new_process_head)
-	{
-		new_process_head = p;
-		new_process_head->next = (u32)p;
-	}
-	else
-	{
-		new_process_tail->next = (u32)p;
-	}
-
-	new_process_tail = p;
-	spinlock_unlock(&sl_new_process);
+	new_process_list_push(p);
 
 	return pid;
 }
@@ -328,6 +363,8 @@ init_multitasking(void)
 void
 schedule(u32* old_esp)
 {
+	if (atomic_read(&scheduler_locked)) return;
+
 	if (new_process_head && spinlock_try_lock(&sl_new_process))
 	{
 		tail_process->next	= (u32)new_process_head;
@@ -341,10 +378,10 @@ schedule(u32* old_esp)
 		|| !current_process
 		|| (current_process == kernel_process && tail_process == kernel_process)) return;
 
-	process* prev		= current_process;
+	process_t*	prev	= current_process;
 	
 	prev->k_stack		= old_esp;
-	current_process 	= (process*)current_process->next;
+	current_process 	= (process_t*)current_process->next;
 	current_process->status = RUNNING;
 	
 	if (prev->status == RUNNING)

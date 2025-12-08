@@ -1,8 +1,8 @@
 #ifndef ATOMIC_H
 #define ATOMIC_H
 
-#include "c_types.h"
-#include "compiler.h"
+#include <c_types.h>
+#include <compiler.h>
 
 typedef struct
 {
@@ -50,11 +50,11 @@ atomic_inc(atomic_t* x)
 	asm volatile ("lock incl %0" : "+m"(x->counter));
 }
 
-/* Name: atomic_dec_and_test
+/* Name: atomic_dec_and_test_zero
  * Descrition: atomic decrementation of x->counter and return 1 if x->counter == 0 else 0.
  * */
 static __always_inline bool
-atomic_dec_and_test(atomic_t* x)
+atomic_dec_and_test_zero(atomic_t* x)
 {
 	bool	is_zero;
 
@@ -66,6 +66,42 @@ atomic_dec_and_test(atomic_t* x)
 	);
 
 	return is_zero;
+}
+
+/* Name: atomic_dec_and_test_neg
+ * Descrition: atomic decrementation of x->counter and return 1 if x->counter < 0 else 0.
+ * */
+static __always_inline bool
+atomic_dec_and_test_neg(atomic_t* x)
+{
+	bool	is_neg;
+
+	asm volatile
+	(
+		"lock decl %0\n\t"
+		"sets %1"
+		: "+m"(x->counter), "=qm"(is_neg)
+	);
+
+	return is_neg;
+}
+
+/* Name: atomic_add_and_test_neg
+ * Descrition: atomic incrementation of x->counter and return 1 if x->counter < 0 else 0.
+ * */
+static __always_inline bool
+atomic_inc_and_test_neg(atomic_t* x)
+{
+	bool	is_neg;
+
+	asm volatile
+	(
+		"lock incl %0\n\t"
+		"sets %1"
+		: "+m"(x->counter), "=qm"(is_neg)
+	);
+
+	return is_neg;
 }
 
 /* Name: atomic_cmpxchg
@@ -89,5 +125,15 @@ atomic_cmpxchg(atomic_t* x, u32 old, u32 new)
 
 	return ret;
 }
+
+/* Name: ATOMIC_DEFINE
+ * Descrition: defines an atomic value and sets its counter to 0.
+ * */
+#define ATOMIC_DEFINE(name)			atomic_t	name = {0}
+
+/* Name: ATOMIC_DEFINE
+ * Descrition: defines an atomic value and sets its counter to value.
+ * */
+#define ATOMIC_DEFINE_WITH_VALUE(name, value)	atomic_t	name = {(value)}
 
 #endif
