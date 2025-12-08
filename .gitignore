@@ -2,3 +2,4 @@ boot/kfs.*
 obj
 gcc_kfs
 *.map
+notes.md
