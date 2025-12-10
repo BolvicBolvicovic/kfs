@@ -5,6 +5,7 @@
 #include <compiler.h>
 #include <linked_list.h>
 #include <stdio.h>
+#include <processes/locks/spinlock.h>
 #include <drivers/descriptor/descriptor.h>
 #include <memory/vmm/vmm.h>
 
@@ -111,9 +112,7 @@ typedef struct
 	
 	// u32	heap_start;
 	// u32	heap_end;
-	// TODO: find a way to add a lock here and that avoids circular dependencies with locks.h
-	// One solution is to split locks.h into multiple locks/single_lock.h files
-	// spinlock_t	heap_lock;
+	spinlock_t	heap_lock;
 } mm_t;
 
 typedef struct process_s
@@ -135,10 +134,10 @@ typedef struct process_s
 
 	// Note: Relationships
 	struct process_s*	parent;		// Parent process address
-	// TODO: maybe add a lock here when adding parent.
 	// Note: Store self here so that we don't need to allocate memory for it elsewhere.
 	single_ll_t		self;
 	single_ll_t*		children;
+	spinlock_t		children_lock;
 	// Note: sibilings are parent's children meaning the process contains itself in the sibilings.
 	single_ll_t**		sibilings;
 	//pid_t		fds[32];

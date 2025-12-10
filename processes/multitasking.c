@@ -1,6 +1,6 @@
 #include "processes.h"
-#include "atomic.h"
-#include "locks.h"
+#include <atomic.h>
+#include <processes/locks/spinlock.h>
 
 #define PT_SIZE		1024
 #define STACK_SIZE	0x2000
@@ -171,16 +171,18 @@ fork_process(u32* esp)
 
 	process_table[fork_pid - 1] = fork;
 
-	fork->pid 		= fork_pid;
-	fork->uid 		= current_process->uid;
-	fork->parent		= current_process;
-	fork->self.data		= &fork;
+	fork->pid 			= fork_pid;
+	fork->uid 			= current_process->uid;
+	fork->parent			= current_process;
+	fork->self.data			= &fork;
 	// TODO: check if fork parent and children are the same
-	fork->sibilings		= &current_process->children;
-	fork->children		= 0;
-	// TODO: use parent lock here
+	fork->sibilings			= &current_process->children;
+	fork->children			= 0;
+	fork->children_lock.counter	= 0;
+
+	spinlock_lock(&current_process->children_lock);
 	single_ll_push(&current_process->children, &fork->self);
-	// TODO: use parent unlock here
+	spinlock_unlock(&current_process->children_lock);
 
 	fork->status		= READY;
 	fork->pending_signals	= 0;
@@ -312,13 +314,18 @@ create_process(proc_info_t* info)
 	p->k_stack = stk;
 
 	/* PROCESS RELATIONSHIPS */
-	p->parent	= current_process;
-	p->self.data	= &p;
-	p->sibilings	= &current_process->children;
-	p->children	= 0;
-	// TODO: use parent lock here
-	single_ll_push(&current_process->children, &p->self);
-	// TODO: use parent unlock here
+	p->parent			= current_process;
+	p->self.data			= &p;
+	p->children			= 0;
+	p->children_lock.counter	= 0;
+
+	if (current_process)
+	{
+		p->sibilings = &current_process->children;
+		spinlock_lock(&current_process->children_lock);
+		single_ll_push(&current_process->children, &p->self);
+		spinlock_unlock(&current_process->children_lock);
+	}
 
 	/* PROCESS SCHEDULING */
 	p->next = kernel_process;

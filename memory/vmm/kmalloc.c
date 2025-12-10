@@ -1,5 +1,5 @@
 #include "vmm.h"
-#include <processes/locks.h>
+#include <processes/locks/spinlock.h>
 #include <compiler.h>
 
 #define MAX_ALLOC_C_SAME_TIME		PAGE_SIZE

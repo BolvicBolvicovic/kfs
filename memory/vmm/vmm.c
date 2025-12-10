@@ -1,6 +1,6 @@
 #include "vmm.h"
 #include <stdio.h>
-#include <processes/locks.h>
+#include <processes/locks/spinlock.h>
 
 extern void	switch_dir(u32 dir);
 extern void	flush_tlb_entry(u32 addr);

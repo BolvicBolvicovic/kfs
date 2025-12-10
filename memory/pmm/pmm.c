@@ -1,5 +1,5 @@
 #include "pmm.h"
-#include <processes/locks.h>
+#include <processes/locks/spinlock.h>
 
 static u32	_memory_size		= 0;
 static u32	_memory_used_blocks	= 0;
