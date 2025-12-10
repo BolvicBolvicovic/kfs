@@ -3,6 +3,7 @@
 
 #include <c_types.h>
 #include <compiler.h>
+#include <linked_list.h>
 #include <lib/stdio/stdio.h>
 #include <drivers/descriptor/descriptor.h>
 #include <memory/vmm/vmm.h>
@@ -115,38 +116,43 @@ typedef struct
 	// spinlock_t	heap_lock;
 } mm_t;
 
-typedef struct
+typedef struct process_s
 {
 	// Note: ID and Status
-	pid_t		pid;
-	process_status	status;
-	u32		exit_code;
-	// TODO: add exit code and exit signal
+	pid_t			pid;
+	process_status		status;
+	u32			exit_code;
 
 	// Note: Scheduling
-	// TODO: check scheduling info
-	u32		next;
+	// TODO: add && check scheduling info
+	struct process_s*	next;		// Next process address
 
 	// Note: Memory managment
 	// Note: if mm == 0 then kernel process else user process
-	mm_t*		mm;
-	u32*		k_stack;
-	u8*		k_stack_base;
+	mm_t*			mm;
+	u32*			k_stack;
+	u8*			k_stack_base;
 
 	// Note: Relationships
-	u32		parent;
-	//pid_t		children[16];
+	struct process_s*	parent;		// Parent process address
+	// TODO: maybe add a lock here when adding parent.
+	// Note: Store self here so that we don't need to allocate memory for it elsewhere.
+	single_ll_t		self;
+	single_ll_t*		children;
+	// Note: sibilings are parent's children meaning the process contains itself in the sibilings.
+	single_ll_t**		sibilings;
 	//pid_t		fds[32];
 
 	// TODO: when fs exists, add it here
 
 	// Note: Signals
 	// TODO: add signal handlers
-	u32		pending_signals;
+	u32			pending_signals;
+	u32			exit_signal;
 
 	// Note: Credentials & Security
 	// TODO: add credentials and group ids
-	uid_t		uid;
+	uid_t			uid;
 
 	//TODO: add ressource limit, CPU time and context switch count
 } process_t;

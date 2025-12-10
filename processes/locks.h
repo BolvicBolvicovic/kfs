@@ -85,7 +85,7 @@ semaphore_wait(semaphore_t* sem)
 		}
 		else
 		{
-			sem->tail->next = (u32)current_process;
+			sem->tail->next = current_process;
 		}
 
 		sem->tail = current_process;
@@ -139,7 +139,7 @@ typedef struct
 static inline void
 mutex_lock(mutex_t* mu)
 {
-	if (atomic_cmpxchg((atomic_t*)sl, 0, 1))
+	if (atomic_cmpxchg((atomic_t*)mu, 0, 1))
 	{
 		spinlock_lock(&mu->sl_list);
 		scheduler_lock();
@@ -149,7 +149,7 @@ mutex_lock(mutex_t* mu)
 		if (!mu->head)
 			mu->head = current_process;
 		else
-			mu->tail->next = (u32)current_process;
+			mu->tail->next = current_process;
 
 		mu->tail = current_process;
 
@@ -177,7 +177,7 @@ mutex_unlock(mutex_t* mu)
 	}
 	else
 	{
-		atomic_dec_and_test_neg(&mu->counter);
+		atomic_dec_and_test_neg(&mu->lock);
 	}
 
 	spinlock_unlock(&mu->sl_list);

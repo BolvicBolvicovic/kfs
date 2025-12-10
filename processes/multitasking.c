@@ -102,11 +102,11 @@ new_process_list_push(process_t* p)
 	if (!new_process_head)
 	{
 		new_process_head = p;
-		new_process_head->next = (u32)p;
+		new_process_head->next = p;
 	}
 	else
 	{
-		new_process_tail->next = (u32)p;
+		new_process_tail->next = p;
 	}
 
 	new_process_tail = p;
@@ -171,18 +171,20 @@ fork_process(u32* esp)
 
 	process_table[fork_pid - 1] = fork;
 
-	if (!k_stack_base)
-	{
-		return 0;
-	}
-
 	fork->pid 		= fork_pid;
 	fork->uid 		= current_process->uid;
-	fork->parent		= (u32)current_process;
+	fork->parent		= current_process;
+	fork->self		= {&fork, 0};
+	// TODO: check if fork parent and children are the same
+	fork->sibilings		= &current_process->children;
+	fork->children		= 0;
+	// TODO: use parent lock here
+	single_ll_push(current_process->children, &fork->self);
+	// TODO: use parent unlock here
 
 	fork->status		= READY;
 	fork->pending_signals	= 0;
-	fork->next		= (u32)kernel_process;
+	fork->next		= kernel_process;
 	fork->k_stack_base	= k_stack_base;
 	u32 used_k_stack	= (u32)(current_process->k_stack_base + STACK_SIZE) - (u32)esp;
 	fork->k_stack		= (u32*)(fork->k_stack_base + STACK_SIZE - used_k_stack);
@@ -310,11 +312,16 @@ create_process(proc_info_t* info)
 	p->k_stack = stk;
 
 	/* PROCESS RELATIONSHIPS */
-	// TODO: add children if any and sibilings
-	p->parent = (u32)current_process;
+	p->parent	= current_process;
+	p->self		= {&p, 0};
+	p->sibilings	= &current_process->children;
+	p->children	= 0;
+	// TODO: use parent lock here
+	single_ll_push(current_process->children, &p->self);
+	// TODO: use parent unlock here
 
 	/* PROCESS SCHEDULING */
-	p->next = (u32)kernel_process;
+	p->next = kernel_process;
 
 	new_process_list_push(p);
 
@@ -367,7 +374,7 @@ schedule(u32* old_esp)
 
 	if (new_process_head && spinlock_try_lock(&sl_new_process))
 	{
-		tail_process->next	= (u32)new_process_head;
+		tail_process->next	= new_process_head;
 		tail_process		= new_process_tail;
 		new_process_head	= 0;
 		new_process_tail	= 0;
@@ -381,14 +388,14 @@ schedule(u32* old_esp)
 	process_t*	prev	= current_process;
 	
 	prev->k_stack		= old_esp;
-	current_process 	= (process_t*)current_process->next;
+	current_process 	= current_process->next;
 	current_process->status = RUNNING;
 	
 	if (prev->status == RUNNING)
 	{
-		prev->next		= (u32)kernel_process;
+		prev->next		= kernel_process;
 		prev->status		= READY;
-		tail_process->next	= (u32)prev;
+		tail_process->next	= prev;
 		tail_process		= prev;
 	}
 
