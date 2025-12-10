@@ -14,9 +14,9 @@ typedef struct single_ll_s
  * Description: push a node on top of a list.
  * */
 static inline void
-single_ll_push(single_ll_t* list, const single_ll_t* node)
+single_ll_push(single_ll_t** list, single_ll_t* node)
 {
-	node->next = list;
+	node->next = *list;
 	*list = node;
 }
 
@@ -24,11 +24,11 @@ single_ll_push(single_ll_t* list, const single_ll_t* node)
  * Description: pops head node from a list and returns it.
  * */
 static inline single_ll_t*
-single_ll_pop(single_ll_t* list)
+single_ll_pop(single_ll_t** list)
 {
-	single_ll_t*	head = list;
+	single_ll_t*	head = *list;
 
-	*list = list->next;
+	*list = head->next;
 
 	return head;
 }

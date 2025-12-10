@@ -174,12 +174,12 @@ fork_process(u32* esp)
 	fork->pid 		= fork_pid;
 	fork->uid 		= current_process->uid;
 	fork->parent		= current_process;
-	fork->self		= {&fork, 0};
+	fork->self.data		= &fork;
 	// TODO: check if fork parent and children are the same
 	fork->sibilings		= &current_process->children;
 	fork->children		= 0;
 	// TODO: use parent lock here
-	single_ll_push(current_process->children, &fork->self);
+	single_ll_push(&current_process->children, &fork->self);
 	// TODO: use parent unlock here
 
 	fork->status		= READY;
@@ -313,11 +313,11 @@ create_process(proc_info_t* info)
 
 	/* PROCESS RELATIONSHIPS */
 	p->parent	= current_process;
-	p->self		= {&p, 0};
+	p->self.data	= &p;
 	p->sibilings	= &current_process->children;
 	p->children	= 0;
 	// TODO: use parent lock here
-	single_ll_push(current_process->children, &p->self);
+	single_ll_push(&current_process->children, &p->self);
 	// TODO: use parent unlock here
 
 	/* PROCESS SCHEDULING */
