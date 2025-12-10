@@ -1,9 +1,9 @@
 #ifndef PMM_H
 #define PMM_H
 
-#include <lib/stdlib/stdlib.h>
-#include <lib/string/string.h>
-#include <lib/stdio/stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
 #include <c_types.h>
 
 #define PMM_BLOCKS_PER_BYTE 8

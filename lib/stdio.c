@@ -1,4 +1,4 @@
-#include "stdio.h"
+#include <stdio.h>
 
 static int
 print(const char* data, size_t len)

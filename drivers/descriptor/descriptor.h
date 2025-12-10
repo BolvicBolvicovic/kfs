@@ -1,11 +1,12 @@
 #ifndef CPU_H
 #define CPU_H
-#include <stdint.h>
+
+#include <c_types.h>
 #include "../utils.h"
-#include "../../lib/stdlib/stdlib.h"
-#include "../../lib/stdio/stdio.h"
-#include "../../lib/string/string.h"
-#include "../../memory/vmm/vmm.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <memory/vmm/vmm.h>
 
 extern void isr0();
 extern void isr1();

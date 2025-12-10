@@ -7,13 +7,12 @@ CFLAGS		= -ffreestanding	\
 		  	-g		\
 		  	-O2 		\
 		  	-std=gnu99				
-LFLAGS		= -T linker/linker.ld --whole-archive
+LFLAGS		= -T linker.ld --whole-archive
 INC		= -I. -Iinclude
 SRCS_DIR	= kernel/
 CSRCS_NAMES	= start kernel
 CSRCS		= $(addprefix $(SRCS_DIR), $(addsuffix .c, $(CSRCS_NAMES)))
 OBJS		= $(addprefix obj/, $(addsuffix .o, $(CSRCS_NAMES)))
-
 
 all		:	 $(ISO)
 

@@ -1,8 +1,8 @@
 #ifndef VGA_H
 #define VGA_H
-#include <stddef.h>
-#include <stdint.h>
-#include "../../lib/stdio/stdio.h"
+
+#include <c_types.h>
+#include <stdio.h>
 #include "../utils.h"
 enum vga_color {
 	BLACK = 0,
@@ -41,7 +41,7 @@ uint8_t vga_entry_color(enum vga_color fg, enum vga_color bg);
 void	term_set_color(uint8_t color);
 uint8_t term_get_color();
 void	term_clear();
-void	term_print(const char* str, size_t n);
+void	term_print(const char* str, u32 n);
 void    term_backspace();
 int     start_of_line(int offset);
 void    disable_cursor();

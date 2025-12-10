@@ -4,7 +4,7 @@
 #include <c_types.h>
 #include <compiler.h>
 #include <linked_list.h>
-#include <lib/stdio/stdio.h>
+#include <stdio.h>
 #include <drivers/descriptor/descriptor.h>
 #include <memory/vmm/vmm.h>
 

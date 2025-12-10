@@ -1,5 +1,5 @@
 #include "vmm.h"
-#include <lib/stdio/stdio.h>
+#include <stdio.h>
 #include <processes/locks.h>
 
 extern void	switch_dir(u32 dir);
