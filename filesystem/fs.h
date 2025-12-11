@@ -5,6 +5,9 @@
 #include <linked_list.h>
 #include <filesystem/vfs/vfs.h>
 
-
+typedef struct
+{
+	
+} file_t;
 
 #endif

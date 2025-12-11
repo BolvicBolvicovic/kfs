@@ -1,90 +1,91 @@
 #include "pmm.h"
 #include <processes/locks/spinlock.h>
+#include <bitmap.h>
 
-static u32	_memory_size		= 0;
 static u32	_memory_used_blocks	= 0;
 static u32	_memory_max_blocks	= 0;
-static u32*	_memory_map		= 0;
+static bitmap_t	_memory_map		= { 0, 0 };
 
 // TODO: look if mutex would be better than spinlock here
 static SPINLOCK_DEFINE(sl_pmm);
 
-static void
-mmap_set(s32 bit)
-{
-	_memory_map[bit / 32] |= (1 << (bit % 32));
-}
-
-static void
-mmap_unset(s32 bit)
-{
-	_memory_map[bit / 32] &= ~(1 << (bit % 32));
-}
-
-static s32
-mmap_test(s32 bit)
-{
-	return _memory_map[bit / 32] & (1 << (bit % 32));
-} 
-
-static s32
+static u32
 mmap_find_first_free()
 {
-	for (u32 i = 0; i < _memory_size; i++)
+	for (u32 i = 0; i < _memory_map.size; i++)
 	{
-		if (_memory_map[i] != 0xFFFFFFFF)
+		if (_memory_map.map[i] == BITMAP_CHUNK_FULL) continue;
+
+		for (u32 j = 0; j < BITMAP_CHUNK_SIZE; j++)
 		{
-			for (u32 j = 0; j < 32; j++)
-	    		{
-				u32 bit = 1 << j;
-				if (!(_memory_map[i] & bit)) return i * 32 + j;
-			}
+			u32	bit = 1 << j;
+			
+			if (_memory_map.map[i] & bit) continue;
+			
+			return i * BITMAP_CHUNK_SIZE + j;
 		}
 	}
 
-	return (-1);
+	return (u32)-1;
 }
 
-static s32
-mmap_find_first_free_s (u32 size)
+static u32
+mmap_find_first_free_chunk(void)
 {
-	if (size==0) return -1;
-	if (size==1) return mmap_find_first_free();
-
-	for (u32 i = 0; i < _memory_size; i++)
+	for (u32 i = 0; i < _memory_map.size; i++)
 	{
-		if (_memory_map[i] != 0xffffffff)
-		{
-			for (u32 j=0; j<32; j++)
-			{
-				// Note test each bit in the dword
-				u32 bit = 1<<j;
-				if (!(_memory_map[i] & bit))
-				{
-					u32 startingBit = i*32 + j;
-					u32 free=0; // Note: loop through each bit to see if its enough space
+		if (_memory_map.map[i] == 0)
+			return i * BITMAP_CHUNK_SIZE;
+	}
 
-					for (u32 count=0; count<size;count++)
-					{
-						if (! mmap_test(startingBit+count)) free++;	// Note: this bit is clear (free frame)
-						if (free==size) return startingBit; 			// Note: free count==size needed; return index
-					}
-				}
+	return (u32)-1;
+}
+
+static u32
+mmap_find_first_free_s(u32 size)
+{
+	if (size == 0) return (u32)-1;
+	if (size == 1) return mmap_find_first_free();
+	if (size <= BITMAP_CHUNK_SIZE && size > BITMAP_CHUNK_SIZE / 2)
+		return mmap_find_first_free_chunk();
+
+	for (u32 i = 0; i < _memory_map.size; i++)
+	{
+		if (_memory_map.map[i] == BITMAP_CHUNK_FULL) continue;
+
+		for (u32 j = 0; j < BITMAP_CHUNK_SIZE; j++)
+		{
+			// Note test each bit in the dword
+			u32	bit = 1<<j;
+
+			if (_memory_map.map[i] & bit) continue;
+
+			u32	starting_bit = i * BITMAP_CHUNK_SIZE + j;
+ 			// Note: loop through each bit to see if its enough space
+			u32	free = 0;
+
+			for (u32 count = 0; count < size; count++)
+			{
+				// Note: this bit is clear (free frame)
+				if (!bitmap_test_bit(&_memory_map, starting_bit + count))
+					free++;
+				// Note: free count==size needed; return index
+				if (free==size) return starting_bit;
 			}
 		}
 	}
 
-	return -1;
+	return (u32)-1;
 }
 
 void
 pmm_init(u32 mem_size, u32 bitmap)
 {
-	_memory_map		= (u32*)bitmap;
 	_memory_max_blocks	= mem_size * 1024 / PMM_BLOCK_SIZE;
-	_memory_size		= _memory_max_blocks / PMM_BLOCKS_PER_BYTE / 4;
+	_memory_map.size	= _memory_max_blocks / PMM_BLOCKS_PER_BYTE / 4;
+	_memory_map.map		= (u32*)bitmap;
 	
-	memset(_memory_map, 0, _memory_size * 4);
+	memset(_memory_map.map, 0, _memory_map.size * 4);
 }
 
 void
@@ -97,13 +98,11 @@ pmm_init_region(u32 base, u32 size)
 
 	for (; blocks > 0; blocks--)
 	{
-		mmap_unset(align++);
+		bitmap_unset_bit(&_memory_map, align++);
 		_memory_used_blocks--;
 	}
 
 	spinlock_unlock(&sl_pmm);
-
-	mmap_set(0);
 }
 
 void
@@ -116,7 +115,7 @@ pmm_deinit_region(u32 base, u32 size)
 
 	for (; blocks > 0; blocks--)
 	{
-		mmap_set(align++);
+		bitmap_set_bit(&_memory_map, align++);
 		_memory_used_blocks++;
 	}
 
@@ -142,7 +141,7 @@ pmm_alloc_block()
 		return 0;
 	}
 	
-	mmap_set(frame);
+	bitmap_set_bit(&_memory_map, frame);
 	_memory_used_blocks++;
 
 	spinlock_unlock(&sl_pmm);
@@ -171,7 +170,7 @@ pmm_alloc_blocks(u32 nb_blocks)
 	
 	for (u32 i = 0; i < nb_blocks; i++)
 	{
-		mmap_set(frame + i);
+		bitmap_set_bit(&_memory_map, frame + i);
 	}
 
 	_memory_used_blocks += nb_blocks;
@@ -188,7 +187,7 @@ pmm_free_block(u32 p)
 
 	spinlock_lock(&sl_pmm);
 
-	mmap_unset(frame);
+	bitmap_unset_bit(&_memory_map, frame);
 	_memory_used_blocks--;
 
 	spinlock_unlock(&sl_pmm);
@@ -203,7 +202,7 @@ pmm_free_blocks(u32 p, u32 size)
 
 	for (u32 i = 0; i < size; i++)
 	{
-		mmap_unset(frame + i);
+		bitmap_unset_bit(&_memory_map, frame + i);
 	}
 
 	_memory_used_blocks -= size;
