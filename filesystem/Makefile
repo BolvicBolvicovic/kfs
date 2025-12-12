@@ -1,10 +1,7 @@
 MEM	= filesystem.a
 
-VFS_SRC = vfs/vfs.c 
-VFS_OBJ = vfs/vfs.o
-
-IDE_SRC = ide/ide.c 
-IDE_OBJ = ide/ide.o
+SRCS = fs.c 
+OBJS = fs.o
 
 AR	= ../gcc_kfs/bin/i386-elf-ar rcs
 CC	= ../gcc_kfs/bin/i386-elf-gcc -I ../drivers
@@ -17,13 +14,10 @@ FLAGS	= -ffreestanding	\
 
 all: $(MEM)
 
-$(MEM): $(VFS_OBJ) $(IDE_OBJ)
+$(MEM): $(OBJS)
 	$(AR) $@ $^
 
-vfs/%.o: vfs/%.c
-	$(CC) $(FLAGS) $(INC) -c $^ -o $@
-
-ide/%.o: ide/%.c
+%.o: %.c
 	$(CC) $(FLAGS) $(INC) -c $^ -o $@
 
 clean:

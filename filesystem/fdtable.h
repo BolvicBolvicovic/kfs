@@ -11,6 +11,7 @@ typedef struct
 	u32		max_fds;
 	file_t**	fds;
 	bitmap_t	close_on_exec;	// maps fds that should be closed when using execve
+	bitmap_t	open_fds;	// maps open fds
 	bitmap_t	full_fds;	// maps chuck of fds that are full
 	// TODO: look up __rcu and if it should be applied here instead of a lock
 	// TODO: maybe use an arena to allocate and grow fds
