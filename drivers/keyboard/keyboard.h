@@ -18,7 +18,7 @@ typedef struct
 {
     char**  list;
     uint8_t current_item_index;
-    size_t list_vga_index;
+    u32 list_vga_index;
 } list_t;
 
 typedef union
@@ -36,8 +36,8 @@ typedef struct
 
 list_option_t   draw_list(char* name, const char** list, uint8_t list_index, uint8_t row, uint8_t col, uint8_t span);
 void            draw_line(char* line, uint8_t row, uint8_t col);
-void            draw_selector(size_t index);
-void            draw_name(char** list, size_t item_index, size_t vga_index);
-void            clear_selector(size_t index);
+void            draw_selector(u32 index);
+void            draw_name(char** list, u32 item_index, u32 vga_index);
+void            clear_selector(u32 index);
 
 #endif

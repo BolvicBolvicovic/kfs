@@ -97,7 +97,7 @@ typedef struct
 	u32	ssp;
 } __packed tss_t;
 
-typedef struct
+typedef struct mm_s
 {
 	u32		dir;
 	

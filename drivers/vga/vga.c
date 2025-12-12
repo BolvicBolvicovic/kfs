@@ -55,7 +55,7 @@ term_set_color(uint8_t color)
 }
 
 static void
-term_put_entry_at(unsigned char c, uint8_t color, size_t offset)
+term_put_entry_at(unsigned char c, uint8_t color, u32 offset)
 {
 	unsigned char* vga_memory = (unsigned char*)VGA_MEMORY;
 	vga_memory[offset] = c;
@@ -63,7 +63,7 @@ term_put_entry_at(unsigned char c, uint8_t color, size_t offset)
 }
 
 static uint8_t
-term_get_entry_at(size_t offset)
+term_get_entry_at(u32 offset)
 {
 	unsigned char* vga_memory = (unsigned char*)VGA_MEMORY;
     return vga_memory[offset];
@@ -135,11 +135,11 @@ term_backspace(void)
 }
 
 inline void
-term_print(const char* str, size_t n)
+term_print(const char* str, u32 n)
 {
 	int	offset = get_cursor();
 
-	for (size_t i = 0; str[i] && i < n; i++)
+	for (u32 i = 0; str[i] && i < n; i++)
 	{
 		if (offset >= VGA_ROWS * VGA_COLS * 2) offset = term_scroll(offset);
 

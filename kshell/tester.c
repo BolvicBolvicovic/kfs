@@ -12,8 +12,8 @@
 typedef struct
 {
     void* ptr;
-    size_t req_size;
-    size_t size_type;
+    u32 req_size;
+    u32 u32ype;
     uint32_t pattern;
 } alloc_rec_t;
 
@@ -34,7 +34,7 @@ typedef struct
 	uint32_t	entry;
 } p_info_t;
 
-extern void*	kmalloc(size_t s);
+extern void*	kmalloc(u32 s);
 extern pid_t	create_process(p_info_t*);
 extern pid_t	fork(void);
 
@@ -42,7 +42,7 @@ static void
 process_a(void)
 {
 	printf("Process A starting\n");
-	for (size_t i = 0; i < 5; i++)
+	for (u32 i = 0; i < 5; i++)
 	{
 		printf("a");
 	}
@@ -53,7 +53,7 @@ static void
 process_b(void)
 {
 	printf("Process B starting\n");
-	for (size_t i = 0; i < 5; i++)
+	for (u32 i = 0; i < 5; i++)
 	{
 		printf("b");
 	}
@@ -173,24 +173,24 @@ pattern_for_idx(int idx)
 }
 
 static void
-fill_pattern(void* p, size_t size, uint32_t pattern)
+fill_pattern(void* p, u32 size, uint32_t pattern)
 {
     uint32_t *w = (uint32_t*)p;
-    size_t n = size / 4;
-    for (size_t i = 0; i < n; ++i) w[i] = pattern ^ (uint32_t)i;
+    u32 n = size / 4;
+    for (u32 i = 0; i < n; ++i) w[i] = pattern ^ (uint32_t)i;
     /* tail bytes */
     uint8_t *b = (uint8_t*)p + n*4;
-    for (size_t i = (n*4); i < size; ++i) b[i - n*4] = (uint8_t)pattern;
+    for (u32 i = (n*4); i < size; ++i) b[i - n*4] = (uint8_t)pattern;
 }
 
 static int
-check_pattern(void* p, size_t size, uint32_t pattern)
+check_pattern(void* p, u32 size, uint32_t pattern)
 {
     uint32_t *w = (uint32_t*)p;
-    size_t n = size / 4;
-    for (size_t i = 0; i < n; ++i) if (w[i] != (pattern ^ (uint32_t)i)) return 0;
+    u32 n = size / 4;
+    for (u32 i = 0; i < n; ++i) if (w[i] != (pattern ^ (uint32_t)i)) return 0;
     uint8_t *b = (uint8_t*)p + n*4;
-    for (size_t i = (n*4); i < size; ++i) if (b[i - n*4] != (uint8_t)pattern) return 0;
+    for (u32 i = (n*4); i < size; ++i) if (b[i - n*4] != (uint8_t)pattern) return 0;
     return 1;
 }
 
@@ -199,19 +199,19 @@ static int
 test_binning_basic(void)
 {
     int used = 0;
-    size_t sizes[] = {8, 16, 32, 64, 128, 256, 512, 1024, 2048};
+    u32 sizes[] = {8, 16, 32, 64, 128, 256, 512, 1024, 2048};
     int num_sizes = sizeof(sizes)/sizeof(sizes[0]);
     
-    for (size_t si = 0; si < num_sizes; ++si)
+    for (u32 si = 0; si < num_sizes; ++si)
 	{
         void* p = kmalloc(sizes[si]);
-        if (p != NULL)
-		ASSERT("binning allocation failed (returned NULL)\n", p);
+        if (p != 0)
+		ASSERT("binning allocation failed (returned 0)\n", p);
         uint32_t ks = kget_size(p);
 		ASSERT("binning allocation failed (kget_size too small)\n", ks >= sizes[si]);
         recs[used].ptr = p;
         recs[used].req_size = sizes[si];
-        recs[used].size_type = ks;
+        recs[used].u32ype = ks;
         recs[used].pattern = pattern_for_idx(used);
         fill_pattern(p, sizes[si], recs[used].pattern);
         used++;
@@ -242,7 +242,7 @@ test_continuous_basic(void)
 	// Note: 2 pages
 	void* p1 = kmalloc(8192);
     
-	ASSERT("continuous allocation failed (returned NULL)\n", p1);
+	ASSERT("continuous allocation failed (returned 0)\n", p1);
     ASSERT("continuous page alignment: failure\n", ((uintptr_t)p1 & 0xFFF) == 0);
     
     uint32_t ks = kget_size(p1);
@@ -303,7 +303,7 @@ tests_string(void)
 	ASSERT("strcmp different length strings: failure\n", strcmp(tester, "TESterrrr") != 0);
 
     // Test strchr
-	ASSERT("strchr not found: failure\n", strchr(tester, 'a') == NULL);
+	ASSERT("strchr not found: failure\n", strchr(tester, 'a') == 0);
 	ASSERT("strchr found: failure\n", strchr(tester, 'e') == tester + 4);
 
     // Test memcpy

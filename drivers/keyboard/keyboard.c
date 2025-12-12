@@ -25,9 +25,9 @@ sc_ascii[2][58] =
         }
 };
 
-static size_t keyboard_index = 0;
-static size_t settings_index = 0;
-current_screen_t current_screen = { .type = SHELL, .lists = { {.null = NULL}, {.null = NULL}, {.null = NULL} } };
+static u32 keyboard_index = 0;
+static u32 settings_index = 0;
+current_screen_t current_screen = { .type = SHELL, .lists = { {.null = 0}, {.null = 0}, {.null = 0} } };
 
 static void
 handle_settings(uint8_t scancode)

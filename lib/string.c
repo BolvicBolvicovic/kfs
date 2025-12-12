@@ -1,38 +1,45 @@
-#include "string.h"
+#include <string.h>
 
-inline size_t
+__always_inline u32
 strlen(const char* s)
 {
-    size_t  i;
-    for (i = 0x0;s[i];i++);
-    return i;
+	u32	i = 0;
+	
+	for (;s[i];i++);
+
+	return i;
 }
 
-inline int
+__always_inline	s32
 strcmp(const char* s1, const char* s2)
 {
-    while (*s1 && *s2 && *s1 == *s2) { s1++; s2++; }
-    return *s1 - *s2;
+	for (;*s1 && *s2 && *s1 == *s2; s1++, s2++);
+
+	return *s1 - *s2;
 }
 
-inline char*
+__always_inline char*
 strchr(const char* s, int c)
 {
     for (;*s; s++) if (*s == c) return (char*)s;
-    return NULL;
+
+    return 0;
 }
 
-inline char*
+__always_inline char*
 strcpy(char* restrict dest, const char* restrict src)
 {
-    size_t   i;
-    for (i = 0x0;src[i];i++) dest[i] = src[i];
-    dest[i] = 0x0;
-    return dest;
+	u32   i = 0;
+
+	for (;src[i];i++) dest[i] = src[i];
+
+	dest[i] = 0;
+
+	return dest;
 }
 
 inline void*
-memcpy(void* dst, const void* src, size_t n)
+memcpy(void* dst, const void* src, u32 n)
 {
 	unsigned char		*d = dst;
 	const unsigned char	*s = src;
@@ -165,7 +172,7 @@ memcpy(void* dst, const void* src, size_t n)
 }
 
 void*
-memset(void* s, uint8_t c, size_t n)
+memset(void* s, uint8_t c, u32 n)
 {
 	uint8_t*	ptr = (uint8_t*)s;
 	word		wc = REPEAT_BYTE_IN_WORD(c);

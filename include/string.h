@@ -1,23 +1,19 @@
 #ifndef STRING_H
 #define STRING_H
 
-#include <stddef.h>
-#include <stdint.h>
+#include <c_types.h>
+#include <compiler.h>
 
-typedef	uint32_t __attribute__((may_alias)) word;
+typedef	uint32_t __may_alias word;
 
-#ifndef UCHAR_MAX
-#define UCHAR_MAX				255
-#endif
-#define LSB 					((uint32_t)-1 / UCHAR_MAX)
-#define REPEAT_BYTE_IN_WORD(a)	((word)((uint8_t)(a) * LSB))
+#define LSB 			((u32)-1 / UCHAR_MAX)
+#define REPEAT_BYTE_IN_WORD(a)	((word)((u8)(a) * LSB))
 
-
-size_t  strlen(const char* s);
-int     strcmp(const char* s1, const char* s2);
-char*   strchr(const char* s, int c);
-void*	memcpy(void* dest, const void* src, size_t n);
-char*   strcpy(char* dest, const char* src);
-void*   memset(void* s, uint8_t c, size_t n);
+u32	strlen(const char* s);
+s32	strcmp(const char* s1, const char* s2);
+char*	strchr(const char* s, int c);
+void*	memcpy(void* dest, const void* src, u32 n);
+char*	strcpy(char* dest, const char* src);
+void*	memset(void* s, u8 c, u32 n);
 
 #endif

@@ -48,7 +48,7 @@ kernel_main(uint32_t magic, uint32_t addr)
 	init_timer(250);
 	init_syscall();
 	pmm_init(MAX_MEMORY_SIZE, (uint32_t)&bitmap);
-	for (size_t i = 0; i < region_count; i++)
+	for (u32 i = 0; i < region_count; i++)
 	{
 		if (region[i].type > 5) region[i].type = MULTIBOOT_MEMORY_AVAILABLE;
 		if (region[i].type != MULTIBOOT_MEMORY_AVAILABLE) pmm_deinit_region(region[i].addr_low, region[i].len_low);

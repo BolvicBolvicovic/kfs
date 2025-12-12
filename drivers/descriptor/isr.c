@@ -50,7 +50,7 @@ panic(registers_t* r)
     if (r->int_no != PAGE_FAULT) printf("Number: %d | Message: %s\n", r->int_no, exception_msg[r->int_no]);
 
     uint32_t* cp_stack = (uint32_t*)kmalloc(0x1000);
-    if (cp_stack == NULL) goto gt_xor;
+    if (cp_stack == 0) goto gt_xor;
 
     for (uint32_t* ptr = (uint32_t*)stack; *ptr && ptr < (uint32_t*)stack + 0x1000; ptr++)
 	{
@@ -103,7 +103,7 @@ page_fault_handler(registers_t* r)
     else if (r->err_code & PAGE_PRESENT_PROT_VIOLATION && faulting_addr && faulting_addr < PAGE_SIZE) return;
     else printf("Page fault: kernelmode error ");
 
-    if (!faulting_addr)	printf("dereferencing NULL pointer ");
+    if (!faulting_addr)	printf("dereferencing 0 pointer ");
     else if (r->err_code & PAGE_PRESENT_PROT_VIOLATION) printf("protection violation ");
     else printf("page not present ");
 

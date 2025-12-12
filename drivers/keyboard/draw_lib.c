@@ -4,11 +4,11 @@ extern current_screen_t	current_screen;
 extern const char*		color_list[16];
 
 void
-draw_name(char** list, size_t item_index, size_t vga_index)
+draw_name(char** list, u32 item_index, u32 vga_index)
 {
    uint8_t* vga_memory = (uint8_t*)VGA_MEMORY;    
 
-   for (size_t i = 0; list[item_index][i]; i++)
+   for (u32 i = 0; list[item_index][i]; i++)
    {
         vga_memory[vga_index] = list[item_index][i];
         vga_index += 2;
@@ -21,26 +21,26 @@ draw_name(char** list, size_t item_index, size_t vga_index)
 }
 
 void
-clear_selector(size_t index)
+clear_selector(u32 index)
 {
    uint8_t new_color = term_get_color();
    uint8_t* vga_memory = (uint8_t*)VGA_MEMORY;    
 
-   for (size_t i = index; vga_memory[i] != ' '; i+= 2)
+   for (u32 i = index; vga_memory[i] != ' '; i+= 2)
    {
         vga_memory[i + 1] = new_color;
    }
 }
 
 void
-draw_selector(size_t index)
+draw_selector(u32 index)
 {
    enum vga_color bg = current_screen.lists[1].list.current_item_index;
    enum vga_color fg = current_screen.lists[0].list.current_item_index;
    uint8_t new_color = vga_entry_color(fg, bg);
    uint8_t* vga_memory = (uint8_t*)VGA_MEMORY;    
 
-   for (size_t i = index; vga_memory[i] != ' '; i+= 2)
+   for (u32 i = index; vga_memory[i] != ' '; i+= 2)
    {
         vga_memory[i + 1] = new_color;
    }
@@ -50,11 +50,11 @@ void
 draw_line(char* line, uint8_t row, uint8_t col)
 {
     uint8_t* vga_memory = (uint8_t*)VGA_MEMORY;    
-    size_t index = row * VGA_COLS + col;
-    size_t line_len = strlen(line);
+    u32 index = row * VGA_COLS + col;
+    u32 line_len = strlen(line);
 
     if (line_len > VGA_COLS) { printf("Error: line too long\n");  return; }
-    for (size_t i = 0; i < line_len; i++)
+    for (u32 i = 0; i < line_len; i++)
 	{
         vga_memory[index + (i * 2)] = line[i];
     }
@@ -70,22 +70,22 @@ draw_list(
 	uint8_t span)
 {
     uint8_t* vga_memory = (uint8_t*)VGA_MEMORY;    
-    size_t index = row * VGA_COLS + col;
-    size_t name_len = strlen(name);
+    u32 index = row * VGA_COLS + col;
+    u32 name_len = strlen(name);
 
     if (name_len > VGA_COLS / 2)
 	{
 		printf("Error: name of the list too long\n");
-		return (list_option_t) {.null = NULL};
+		return (list_option_t) {.null = 0};
 	}
 
     if (index > VGA_COLS * VGA_ROWS * 2)
 	{
 		printf("Error: index of list out of bound\n");
-		return (list_option_t) {.null = NULL};
+		return (list_option_t) {.null = 0};
 	}
 
-    size_t i;
+    u32 i;
 
     for (i = 0; i < name_len; i++)
 	{
@@ -93,7 +93,7 @@ draw_list(
     }
 
     index += (i * 2) + span;
-    size_t vga_index = index;
+    u32 vga_index = index;
 
     for (i = 0; list[list_index][i]; i++)
 	{

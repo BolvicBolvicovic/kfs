@@ -5,11 +5,12 @@
 #include <linked_list.h>
 #include <compiler.h>
 #include <bits.h>
+#include <atomic.h>
 #include <filesystem/vfs/vfs.h>
 #include <processes/locks/spinlock.h>
-#include <processes/processes.h>
 
 struct file_s;
+struct mm_s;
 
 #define FILE_TYPE_REGULAR	0100000
 #define FILE_TYPE_DIRECTORY	0040000

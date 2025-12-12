@@ -3,8 +3,8 @@
 
 /* IDE (Integrated Drive Electronics) */
 
-#include "../../lib/stdio/stdio.h"
-#include "../../drivers/pit/pit.h"
+#include <stdio.h>
+#include <drivers/pit/pit.h>
 
 /* Status */
 #define ATA_SR_BSY     0x80    // Busy

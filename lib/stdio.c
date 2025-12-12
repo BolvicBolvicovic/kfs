@@ -1,7 +1,7 @@
 #include <stdio.h>
 
 static int
-print(const char* data, size_t len)
+print(const char* data, u32 len)
 {
 	unsigned char* bytes = (unsigned char*)data;
 	term_print(bytes, len);
@@ -13,14 +13,14 @@ printf(const char* restrict format, ...)
 {
     va_list parameters;
     va_start(parameters, format);
-    size_t  written = 0;
+    u32  written = 0;
     while (*format)
 	{
-        size_t  max_size = INT_MAX - written;
+        u32  max_size = INT_MAX - written;
         if (format[0] != '%' || format[1] == '%')
 		{
             if (format[0] == '%') format++;
-            size_t  to_be_written = 1;
+            u32  to_be_written = 1;
             while (format[to_be_written] && format[to_be_written] != '%') ++to_be_written;
             if (to_be_written > max_size) return 1;
             if (!print(format, to_be_written)) return 1;
@@ -29,7 +29,7 @@ printf(const char* restrict format, ...)
             continue;
         }
         const char* head = format++;
-        size_t  len;
+        u32  len;
         switch (*format)
 		{
             case 'c':

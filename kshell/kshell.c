@@ -2,7 +2,7 @@
 #include <processes/processes.h>
 
 static char		line[256];
-static size_t		index = 0;
+static u32		index = 0;
 extern current_screen_t	current_screen;
 
 const char*  color_list[16] =
@@ -85,7 +85,7 @@ set()
 		((VGA_ROWS * 3) / 4) * 2, 10, 34);
 
 	// TODO: maybe improve the error handling here
-	if (background.null == NULL || foreground.null == NULL || keyboard.null == NULL) return;
+	if (background.null == 0 || foreground.null == 0 || keyboard.null == 0) return;
 
 	disable_cursor();
 
@@ -229,13 +229,13 @@ void
 exec_command()
 {
 	char	words[4][256];
-	size_t	i = 0;
-	size_t	j;
+	u32	i = 0;
+	u32	j;
 
 	line[index] = 0;
 	index = 0;
 
-	for (size_t k = 0; k < 4; k++)
+	for (u32 k = 0; k < 4; k++)
 	{
 		while (line[i] == ' ') i++;
 

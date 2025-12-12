@@ -15,4 +15,8 @@ typedef int32_t		s32;
 
 typedef _Bool		bool;
 
+#ifndef UCHAR_MAX
+#define UCHAR_MAX	255
+#endif
+
 #endif
