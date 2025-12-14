@@ -24,7 +24,8 @@ struct mm_s;
 #define FILE_PERMISSION_RWXG	0000070
 #define FILE_PERMISSION_RWXO	0000007
 
-typedef struct
+typedef struct inode_t inode_t;
+struct inode_t
 {
 	// Note: File type & permissions
 	u32	mode;
@@ -37,25 +38,28 @@ typedef struct
 	u32	nb_blocks_on_disk_allocated;
 	u32	nb_hardlinks;
 	u32*	blocks_on_disk;
-	void*	data;
-} inode_t;
+};
 
-typedef struct directory_entry_s
+typedef struct directory_entry_t directory_entry_t;
+struct directory_entry_s
 {
 	char				name[32];
 	// TODO: create the hashmap that maps a dir to a inode
-	struct directory_entry_s*	parent;
-	struct directory_entry_s*	children;
-	struct directory_entry_s*	sibilings;
-} directory_entry_t;
+	directory_entry_t*	parent;
+	directory_entry_t*	children;
+	directory_entry_t*	sibilings;
+};
 
-typedef struct
+typedef struct path_t path_t;
+struct path_t
 {
 	directory_entry_t*	directory_entry;
 	directory_entry_t*	mounted_root;
-} path_t;
+};
 
-typedef struct
+
+typedef struct file_owner_t file_owner_t;
+struct file_owner_t
 {
 	struct file_s*	file;
 	spinlock_t	lock;
@@ -63,7 +67,8 @@ typedef struct
 	s32		signum;
 } file_owner_t;
 
-typedef struct
+typedef struct file_credentials_t file_credentials_t;
+struct file_credentials_t
 {
 	atomic_t	usage;
 	u32		uid;
@@ -74,7 +79,7 @@ typedef struct
 	u32		egid;
 	u32		fsuid;
 	u32		fsgid;
-} file_credentials_t;
+};
 
 /* Supports async buffered reads */
 #define FILE_OPERATION_BUFFER_RASYNC	BIT0
@@ -93,7 +98,8 @@ typedef struct
 /* File system supports uncached read/write buffered IO */
 #define FILE_OPERATION_DONT_CACHE	BIT7
 
-typedef struct
+typedef struct file_operations_i file_operations_i;
+struct file_operations_i
 {
 	u32	flags;
 	s32	(*llseek)	(struct file_s*, s32, s32);
@@ -103,7 +109,7 @@ typedef struct
 	s32	(*open)		(struct file_s*);
 	s32	(*close)	(struct file_s*);
 	s32	(*lock)		(struct file_s*);
-} file_operations_i;
+};
 
 /* file is open for reading */
 #define	FILE_MODE_READ			BIT0
@@ -175,7 +181,8 @@ typedef struct
 /* File does not contribute to nr_files count */
 #define FILE_MODE_NO_ACCOUNT		BIT29
 
-typedef struct file_s
+typedef struct file_t file_t;
+struct file_t
 {
 	spinlock_t		lock;
 	u32			mode;
@@ -192,13 +199,14 @@ typedef struct file_s
 	// https://github.com/torvalds/linux/blob/master/include/linux/fs.h#L1258
 	u32			position;
 	// file_ref
-} __aligned(4) file_t;
+} __aligned(4);
 
-typedef struct
+typedef struct file_handle_t file_handle_t;
+struct file_handle_t
 {
 	u32	handle_bytes_count;
 	s32	handle_type;
 	u8	handle[] __counted_by(handle_bytes_count);
-} file_handle_t;
+};
 
 #endif

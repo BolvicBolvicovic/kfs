@@ -2,6 +2,7 @@
 #include <atomic.h>
 #include <processes/locks/spinlock.h>
 #include <memory/allocators/allocators.h>
+#include <linked_list.h>
 
 #define PT_SIZE		1024
 #define STACK_SIZE	0x2000
@@ -19,26 +20,28 @@ extern void	switch_process_user(u32* new_stack, u32 dir);
 extern void	start_process(u32* new);
 extern void	tss_flush(void);
 
+LINKED_LIST_STRUCT(list_processes_t, process_t);
+
+static list_processes_t ready_processes		= { 0, 0 };
+static list_processes_t	awaken_processes	= { 0, 0 };
+
 static tss_t		tss;
 // TODO: Use hash table instead with pid as index
 static process_t*	process_table[PT_SIZE]	= {0};
 static process_t*	kernel_process		= 0;
-static process_t*	current_process		= 0;
-static process_t*	tail_process		= 0;
-static process_t*	new_process_head	= 0;
-static process_t*	new_process_tail	= 0;
 static u32		pid_count		= 1;
+
 
 // Note: do not need to use a specific lock since it just tells the scheduler to do its work or not.
 static ATOMIC_DEFINE(scheduler_locked);
 
-static SPINLOCK_DEFINE(sl_new_process);
-static SPINLOCK_DEFINE(sl_pid_count);
+static SPINLOCK_DEFINE(awaken_processes_lock);
+static SPINLOCK_DEFINE(pid_count_lock);
 
 static inline pid_t
 new_pid(void)
 {
-	spinlock_lock(&sl_pid_count);
+	spinlock_lock(&pid_count_lock);
 	u32	start_pid = pid_count;
 
 	do
@@ -48,7 +51,7 @@ new_pid(void)
 			pid_t	pid	= pid_count;
             		pid_count	= (pid % (PT_SIZE - 1)) + 1;
 
-			spinlock_unlock(&sl_pid_count);
+			spinlock_unlock(&pid_count_lock);
 
 			return pid;
 		}
@@ -56,7 +59,7 @@ new_pid(void)
 		pid_count = (pid_count % (PT_SIZE - 1)) + 1;
 	} while (pid_count != start_pid);
 	
-	spinlock_unlock(&sl_pid_count);
+	spinlock_unlock(&pid_count_lock);
 
 	return 0;
 }
@@ -76,7 +79,7 @@ static void
 exit_process(u32 pid)
 {
 	process_table[pid - 1]->status = ZOMBIE;
-	//kfree(current_process->k_stack_base);
+	//kfree(ready_processes.head->k_stack_base);
 	for (;;)
 	{
 		asm volatile ("hlt\n\t");
@@ -96,37 +99,39 @@ scheduler_unlock(void)
 }
 
 void
-new_process_list_push(process_t* p)
+awaken_processes_push(process_t* p)
 {
-	spinlock_lock(&sl_new_process);
+	p->status = READY;
 
-	if (!new_process_head)
+	spinlock_lock(&awaken_processes_lock);
+
+	if (!awaken_processes.head)
 	{
-		new_process_head = p;
-		new_process_head->next = p;
+		awaken_processes.head = p;
+		awaken_processes.head->next = p;
 	}
 	else
 	{
-		new_process_tail->next = p;
+		awaken_processes.tail->next = p;
 	}
 
-	new_process_tail = p;
+	awaken_processes.tail = p;
 
-	spinlock_unlock(&sl_new_process);
+	spinlock_unlock(&awaken_processes_lock);
 }
 
 u32
 kgetuid(void)
 {
-	return current_process->uid;
+	return ready_processes.head->uid;
 }
 
 process_t*
-current_process_pop(void)
+running_process_pop(void)
 {
-	process_t*	ret = current_process;
+	process_t*	ret = ready_processes.head;
 
-	ret->status	= ZOMBIE;
+	ret->status	= SLEEPING;
 	
 	return ret;
 }
@@ -158,6 +163,7 @@ update_status(pid_t p, process_status s)
 pid_t
 fork_process(u32* esp)
 {
+	process_t*	running = ready_processes.head;
 	// TODO: Handle user process
 	pid_t		fork_pid = new_pid();
 	if (!fork_pid) return 0;
@@ -172,44 +178,44 @@ fork_process(u32* esp)
 	process_table[fork_pid - 1] = fork;
 
 	fork->pid 			= fork_pid;
-	fork->uid 			= current_process->uid;
-	fork->parent			= current_process;
+	fork->uid 			= running->uid;
+	fork->parent			= running;
 	fork->self.data			= &fork;
 	// TODO: check if fork parent and children are the same
-	fork->sibilings			= &current_process->children;
+	fork->sibilings			= &running->children;
 	fork->children			= 0;
 	fork->children_lock.counter	= 0;
 
-	spinlock_lock(&current_process->children_lock);
-	single_ll_push(&current_process->children, &fork->self);
-	spinlock_unlock(&current_process->children_lock);
+	spinlock_lock(&running->children_lock);
+	single_ll_push(&running->children, &fork->self);
+	spinlock_unlock(&running->children_lock);
 
 	fork->status		= READY;
 	fork->pending_signals	= 0;
 	fork->next		= kernel_process;
 	fork->k_stack_base	= k_stack_base;
-	u32 used_k_stack	= (u32)(current_process->k_stack_base + STACK_SIZE) - (u32)esp;
+	u32 used_k_stack	= (u32)(running->k_stack_base + STACK_SIZE) - (u32)esp;
 	fork->k_stack		= (u32*)(fork->k_stack_base + STACK_SIZE - used_k_stack);
 
 	memcpy(fork->k_stack, esp, used_k_stack);
 
-	if (!current_process->mm)
-	{
-		*(u32*)(fork->k_stack_base + STACK_SIZE - 4) = fork_pid; // Set exit_process input
-	}
-	else
+	if (running->mm)
 	{
 		// TODO: check how to handle page directory for parent/child
 		fork->mm = memcpy((void*)((u32)(fork->k_stack_base + sizeof(process_t) + 7) & ~3),
-			current_process->mm,
-			sizeof(mm_t));
+				running->mm,
+				sizeof(mm_t));
+	}
+	else
+	{
+		*(u32*)(fork->k_stack_base + STACK_SIZE - 4) = fork_pid; // Set exit_process input
 	}
 
-	*(fork->k_stack + 8)	= 0; // Set eax to 0
-	*(fork->k_stack + 3)	= (u32)fork->k_stack_base + *(esp + 3) - (u32)current_process->k_stack_base; // Set ebp
-	*(fork->k_stack + 4)	= (u32)fork->k_stack; // Set esp
+	*(fork->k_stack + 8)	= 0;
+	*(fork->k_stack + 3)	= (u32)fork->k_stack_base + *(esp + 3) - (u32)running->k_stack_base;
+	*(fork->k_stack + 4)	= (u32)fork->k_stack;
 
-	new_process_list_push(fork);
+	awaken_processes_push(fork);
 
 	return fork_pid;
 }
@@ -217,10 +223,10 @@ fork_process(u32* esp)
 void
 exit_user_process(u32 status, u32* esp)
 {
-	current_process->status = ZOMBIE;
-	current_process->exit_code = status;
+	ready_processes.head->status = ZOMBIE;
+	ready_processes.head->exit_code = status;
 	// TODO: clear mm content
-	//kfree(current_process->k_stack_base);
+	//kfree(ready_processes.head->k_stack_base);
 	
 	// Note: we schedule here since user process exits with syscall exit
 	// which runs this routine. Schedule triggers restores eflags when switching context.
@@ -231,6 +237,7 @@ exit_user_process(u32 status, u32* esp)
 pid_t
 create_process(proc_info_t* info)
 {
+	process_t*	running = ready_processes.head;
 	// TODO: group R/W to static variable to surround them with spinlock
 	pid_t		pid = new_pid();
 	if (!pid) return 0;
@@ -244,7 +251,6 @@ create_process(proc_info_t* info)
 	process_t*	p	= (process_t*)k_stack_base;
 	process_table[pid - 1]	= p;
 	p->pid			= pid;
-	p->status		= READY;
 
 	/* PROCESS MEMORY MANAGEMENT */
 	if (info->type == UPROC)
@@ -314,23 +320,23 @@ create_process(proc_info_t* info)
 	p->k_stack = stk;
 
 	/* PROCESS RELATIONSHIPS */
-	p->parent			= current_process;
+	p->parent			= running;
 	p->self.data			= &p;
 	p->children			= 0;
 	p->children_lock.counter	= 0;
 
-	if (current_process)
+	if (running)
 	{
-		p->sibilings = &current_process->children;
-		spinlock_lock(&current_process->children_lock);
-		single_ll_push(&current_process->children, &p->self);
-		spinlock_unlock(&current_process->children_lock);
+		p->sibilings = &running->children;
+		spinlock_lock(&running->children_lock);
+		single_ll_push(&running->children, &p->self);
+		spinlock_unlock(&running->children_lock);
 	}
 
 	/* PROCESS SCHEDULING */
 	p->next = kernel_process;
 
-	new_process_list_push(p);
+	awaken_processes_push(p);
 
 	return pid;
 }
@@ -349,24 +355,24 @@ void
 init_multitasking(void)
 {
 	// Note: Init kernel process
-	proc_info_t	kernel_proc_info =
+	proc_info_t	kernel_proc_info=
 	{
 		KPROC, 0, 0, 0, 0,
 		(u32)ft_kernel_process
 	};
 
 	create_process(&kernel_proc_info);
-	current_process		= new_process_head;
-	tail_process		= new_process_tail;
-	new_process_head	= 0;
-	new_process_tail	= 0;
-	kernel_process		= current_process;
-	kernel_process->status	= RUNNING;
+	ready_processes.head		= awaken_processes.head;
+	ready_processes.tail		= awaken_processes.tail;
+	awaken_processes.head		= 0;
+	awaken_processes.tail		= 0;
+	kernel_process			= ready_processes.head;
+	kernel_process->status		= RUNNING;
 	
 	// Note: Init TSS
-	tss.esp0		= (u32)kernel_process->k_stack;
-	tss.ss0			= 0x10;
-	tss.io_permission_bitmap= sizeof(tss);
+	tss.esp0			= (u32)kernel_process->k_stack;
+	tss.ss0				= 0x10;
+	tss.io_permission_bitmap	= sizeof(tss);
 
 	set_gdt_gate(5, (u32)&tss, sizeof(tss), 0x89, 0);
 	tss_flush();
@@ -378,46 +384,46 @@ void
 schedule(u32* old_esp)
 {
 	if (atomic_read(&scheduler_locked)) return;
-
-	if (new_process_head && spinlock_try_lock(&sl_new_process))
+	
+	if (awaken_processes.head && spinlock_try_lock(&awaken_processes_lock))
 	{
-		tail_process->next	= new_process_head;
-		tail_process		= new_process_tail;
-		new_process_head	= 0;
-		new_process_tail	= 0;
-		spinlock_unlock(&sl_new_process);
+		awaken_processes.tail->next	= kernel_process;
+		ready_processes.tail->next	= awaken_processes.head;
+		ready_processes.tail		= awaken_processes.tail;
+		awaken_processes.head		= 0;
+		awaken_processes.tail		= 0;
+		spinlock_unlock(&awaken_processes_lock);
 	}
+	
+	process_t*	old	= ready_processes.head;
 
 	if (!kernel_process
-		|| !current_process
-		|| (current_process == kernel_process && tail_process == kernel_process)) return;
+		|| !old
+		|| (old == kernel_process && ready_processes.tail == kernel_process))
+		return;
 
-	process_t*	prev	= current_process;
+	old->k_stack			= old_esp;
+	ready_processes.head		= old->next;
+	ready_processes.head->status	= RUNNING;
+	old->next			= kernel_process;
 	
-	prev->k_stack		= old_esp;
-	current_process 	= prev->next;
-	current_process->status = RUNNING;
-	
-	if (prev->status == RUNNING)
+	if (old->status == RUNNING)
 	{
-		prev->next		= kernel_process;
-		prev->status		= READY;
-		tail_process->next	= prev;
-		tail_process		= prev;
-	}
-	else if (prev->status == ZOMBIE)
-	{
-		prev->next = 0;
+		old->status			= READY;
+		ready_processes.tail->next	= old;
+		ready_processes.tail		= old;
 	}
 
-	tss.esp0 = (u32)current_process->k_stack;
+	process_t*	running = ready_processes.head;
+
+	tss.esp0 = (u32)running->k_stack;
 	
-	if (current_process->mm)
+	if (running->mm)
 	{
-		switch_process_user(current_process->k_stack, (u32)current_process->mm->dir);
+		switch_process_user(running->k_stack, (u32)running->mm->dir);
 	}
 	else
 	{
-		switch_process(current_process->k_stack);
+		switch_process(running->k_stack);
 	}
 }

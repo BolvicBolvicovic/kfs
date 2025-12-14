@@ -18,6 +18,7 @@ typedef enum
 	ZOMBIE,
 	READY,
 	RUNNING,
+	SLEEPING,
 	THREADED
 } process_status;
 
@@ -115,7 +116,8 @@ typedef struct mm_s
 	spinlock_t	heap_lock;
 } mm_t;
 
-typedef struct process_s
+typedef struct process_t process_t;
+struct process_t
 {
 	// Note: ID and Status
 	pid_t			pid;
@@ -124,7 +126,7 @@ typedef struct process_s
 
 	// Note: Scheduling
 	// TODO: add && check scheduling info
-	struct process_s*	next;		// Next process address
+	process_t*		next;		// Next process address
 
 	// Note: Memory managment
 	// Note: if mm == 0 then kernel process else user process
@@ -133,13 +135,13 @@ typedef struct process_s
 	u8*			k_stack_base;
 
 	// Note: Relationships
-	struct process_s*	parent;		// Parent process address
+	process_t*		parent;		// Parent process address
 	// Note: Store self here so that we don't need to allocate memory for it elsewhere.
-	single_ll_t		self;
-	single_ll_t*		children;
+	single_ll_node_t	self;
+	single_ll_node_t*	children;
 	spinlock_t		children_lock;
 	// Note: sibilings are parent's children meaning the process contains itself in the sibilings.
-	single_ll_t**		sibilings;
+	single_ll_node_t**	sibilings;
 	//pid_t		fds[32];
 
 	// TODO: when fs exists, add it here
@@ -154,7 +156,7 @@ typedef struct process_s
 	uid_t			uid;
 
 	//TODO: add ressource limit, CPU time and context switch count
-} process_t;
+};
 
 void		init_multitasking(void);
 
@@ -166,19 +168,19 @@ pid_t		create_process(proc_info_t*);
 pid_t		fork_process(u32* esp);
 void		exit_user_process(u32 status, u32* esp);
 
-/* Name: new_process_list_push
- * Descrition: pushes a process in the new_process linked list which will be then added to the round-robin
- * list of running processes by the scheduler.
+/* Name: awaken_processes_push
+ * Descrition: pushes a process in the awaken_processe linked list
+ * which will be then added to the round-robin list of running processes by the scheduler.
  * */
-void		new_process_list_push(process_t*);
+void		awaken_processes_push(process_t*);
 
-/* Name: current_process_pop 
- * Descrition: turns the current_process into a ZOMBIE process and returns it.
- * ZOMBIE processes are not pushed back to the READY queue when the scheduler swaps them out.
+/* Name: running_process_pop 
+ * Descrition: turns the running_process into a SLEEPING process and returns it.
+ * SLEEPING processes are not pushed back to the READY queue when the scheduler swaps them out.
  * Does not block the scheduler.
  * It is wise to use it with scheduler_lock and scheduler_unlock.
  * */
-process_t*	current_process_pop(void);
+process_t*	running_process_pop(void);
 
 void		schedule(u32* old_esp);
 
@@ -192,8 +194,6 @@ void		scheduler_lock(void);
  * with the next READY process.
  * */
 void		scheduler_unlock(void);
-
-
 
 /* SYSCALLS  */
 

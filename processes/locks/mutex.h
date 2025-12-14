@@ -27,14 +27,14 @@ mutex_lock(mutex_t* mu)
 		spinlock_lock(&mu->sl_list);
 		scheduler_lock();
 
-		process_t*	current_process = current_process_pop();
+		process_t*	running_process = running_process_pop();
 
 		if (!mu->head)
-			mu->head = current_process;
+			mu->head = running_process;
 		else
-			mu->tail->next = current_process;
+			mu->tail->next = running_process;
 
-		mu->tail = current_process;
+		mu->tail = running_process;
 
 		spinlock_unlock(&mu->sl_list);
 		scheduler_unlock();
@@ -55,7 +55,7 @@ mutex_unlock(mutex_t* mu)
 
 	if (mu->head)
 	{
-		new_process_list_push(mu->head);
+		awaken_processes_push(mu->head);
 		mu->head = (process_t*)mu->head->next;
 	}
 	else
