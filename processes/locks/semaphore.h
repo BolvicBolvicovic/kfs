@@ -44,7 +44,7 @@ semaphore_wait(semaphore_t* sem)
 		scheduler_unlock();
 
 		// Note: trigger the scheduler
-		asm volatile ("int $1F");
+		asm volatile ("int $0x20");
 	}
 }
 

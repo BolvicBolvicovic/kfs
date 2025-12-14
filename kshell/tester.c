@@ -1,4 +1,5 @@
 #include "kshell.h"
+#include <memory/allocators/allocators.h>
 
 #define ASSERT(msg, cond) do { \
     if (!(cond)) { \

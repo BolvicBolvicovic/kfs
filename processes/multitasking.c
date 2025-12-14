@@ -1,6 +1,7 @@
 #include "processes.h"
 #include <atomic.h>
 #include <processes/locks/spinlock.h>
+#include <memory/allocators/allocators.h>
 
 #define PT_SIZE		1024
 #define STACK_SIZE	0x2000
@@ -126,7 +127,6 @@ current_process_pop(void)
 	process_t*	ret = current_process;
 
 	ret->status	= ZOMBIE;
-	ret->next	= 0;
 	
 	return ret;
 }
@@ -395,7 +395,7 @@ schedule(u32* old_esp)
 	process_t*	prev	= current_process;
 	
 	prev->k_stack		= old_esp;
-	current_process 	= current_process->next;
+	current_process 	= prev->next;
 	current_process->status = RUNNING;
 	
 	if (prev->status == RUNNING)
@@ -404,6 +404,10 @@ schedule(u32* old_esp)
 		prev->status		= READY;
 		tail_process->next	= prev;
 		tail_process		= prev;
+	}
+	else if (prev->status == ZOMBIE)
+	{
+		prev->next = 0;
 	}
 
 	tss.esp0 = (u32)current_process->k_stack;

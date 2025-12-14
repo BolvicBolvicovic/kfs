@@ -1,6 +1,6 @@
-#include "vmm.h"
-#include <processes/locks/spinlock.h>
 #include <compiler.h>
+#include <memory/vmm/vmm.h>
+#include <processes/locks/spinlock.h>
 
 #define MAX_ALLOC_C_SAME_TIME		PAGE_SIZE
 #define MAX_ALLOC_B_SAME_TIME		PAGE_SIZE / 8
@@ -19,6 +19,8 @@
 
 #define PAGE_ADDR_MASK			0xFFFFF000
 #define OFFSET_ADDR_MASK		~PAGE_ADDR_MASK
+
+void*	kmalloc(u32 size);
 
 typedef struct
 {
@@ -43,7 +45,7 @@ static bini_map_t	bining_allocator_map[MAX_ALLOC_B_SAME_TIME]	= {0};
 static SPINLOCK_DEFINE(sl_continuous_allocator);
 static SPINLOCK_DEFINE(sl_bining_allocator);
 
-void*
+static void*
 bining_allocator(u32 size)
 {
 	u32	i;

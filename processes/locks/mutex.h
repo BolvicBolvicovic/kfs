@@ -22,7 +22,7 @@ typedef struct
 static inline void
 mutex_lock(mutex_t* mu)
 {
-	if (atomic_cmpxchg((atomic_t*)mu, 0, 1))
+	if (atomic_cmpxchg(&mu->lock, 0, 1))
 	{
 		spinlock_lock(&mu->sl_list);
 		scheduler_lock();
@@ -40,7 +40,7 @@ mutex_lock(mutex_t* mu)
 		scheduler_unlock();
 
 		// Note: trigger the scheduler
-		asm volatile ("int $1F");
+		asm volatile ("int $0x20\n\t");
 	}
 }
 
@@ -53,7 +53,7 @@ mutex_unlock(mutex_t* mu)
 {
 	spinlock_lock(&mu->sl_list);
 
-	if (!mu->head)
+	if (mu->head)
 	{
 		new_process_list_push(mu->head);
 		mu->head = (process_t*)mu->head->next;

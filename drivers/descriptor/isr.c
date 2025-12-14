@@ -1,46 +1,49 @@
 #include "descriptor.h"
-#define PAGE_FAULT		14
+#include <memory/allocators/allocators.h>
+#include <bits.h>
+
+#define PAGE_FAULT	14
 #define INVALID_OPCODE	6
 
 //INTERUPTION SERVICE ROUTINE
 
 static char*		exception_msg[] =
 {
-    "Division by zero",
-    "Debug",
-    "Non Maskable Interrupt",
-    "Breakpoint",
-    "Into Detected Overflow",
-    "Out of Bounds",
-    "Invalid Opcode",
-    "No Coprocessor",
-    
-    "Double Fault",
-    "Coprocessor Segment Overrun",
-    "Bad TSS",
-    "Segment Not Present",
-    "Stack Fault",
-    "General Protection Fault",
-    "Page Fault",
-    "Unknown Interrupt",
-    
-    "Coprocessor Fault",
-    "Alignment Check",
-    "Machine Check",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved",
-    "Reserved"
+	"Division by zero",
+	"Debug",
+	"Non Maskable Interrupt",
+	"Breakpoint",
+	"Into Detected Overflow",
+	"Out of Bounds",
+	"Invalid Opcode",
+	"No Coprocessor",
+	
+	"Double Fault",
+	"Coprocessor Segment Overrun",
+	"Bad TSS",
+	"Segment Not Present",
+	"Stack Fault",
+	"General Protection Fault",
+	"Page Fault",
+	"Unknown Interrupt",
+	
+	"Coprocessor Fault",
+	"Alignment Check",
+	"Machine Check",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved",
+	"Reserved"
 };
 
 void
@@ -73,20 +76,24 @@ gt_xor:
 
 }
 
-#define PAGE_PRESENT_PROT_VIOLATION 1
-#define PAGE_WRITE_ERROR 2
-#define PAGE_USERMODE_ERROR 4
+enum
+{
+	PAGE_PRESENT_PROT_VIOLATION 	= BIT0,
+	PAGE_WRITE_ERROR		= BIT1,
+	PAGE_USERMODE_ERROR		= BIT2,
+};
+
 #define KVIRT ((uint32_t)&start_kernel_virt)
 
 extern uint32_t		start_kernel_virt;
-extern void			flush_tlb_entry(uint32_t);
+extern void		flush_tlb_entry(uint32_t);
 static pt_entry		(*page_tables)[1024] = (uint32_t(*)[1024])RECURSIVE_PAGETABLES_ADDR;
 
 void
 page_fault_handler(registers_t* r)
 {
-    uint32_t faulting_addr;
-    asm volatile("mov %%cr2, %0" : "=r" (faulting_addr));
+	uint32_t faulting_addr;
+	asm volatile("mov %%cr2, %0" : "=r" (faulting_addr));
 
 	if (faulting_addr &&
 		(r->err_code & PAGE_USERMODE_ERROR) &&
@@ -95,22 +102,46 @@ page_fault_handler(registers_t* r)
 	{
 		uint32_t	pd_index	= PAGE_DIR_INDEX(faulting_addr);
 		uint32_t	pt_index	= PAGE_TAB_INDEX(faulting_addr);
+
 		page_tables[pd_index][pt_index] |= pmm_alloc_block() | PE_USER;
 		flush_tlb_entry((uint32_t)faulting_addr);
+
+		return;
 	}
 
-    if (r->err_code & PAGE_USERMODE_ERROR) printf("Page fault: usermode error ");
-    else if (r->err_code & PAGE_PRESENT_PROT_VIOLATION && faulting_addr && faulting_addr < PAGE_SIZE) return;
-    else printf("Page fault: kernelmode error ");
+	if (faulting_addr &&
+		!(r->err_code & PAGE_USERMODE_ERROR) &&
+		(r->err_code & PAGE_PRESENT_PROT_VIOLATION))
+	{
+		uint32_t	pd_index	= PAGE_DIR_INDEX(faulting_addr);
+		uint32_t	pt_index	= PAGE_TAB_INDEX(faulting_addr);
 
-    if (!faulting_addr)	printf("dereferencing 0 pointer ");
-    else if (r->err_code & PAGE_PRESENT_PROT_VIOLATION) printf("protection violation ");
-    else printf("page not present ");
+		page_tables[pd_index][pt_index] |= pmm_alloc_block();
+		flush_tlb_entry((uint32_t)faulting_addr);
 
-    if (r->err_code & PAGE_WRITE_ERROR) printf("write error\n");
-    else printf("read error\n");
+		return;
+	}
 
-    panic(r);
+	if (r->err_code & PAGE_USERMODE_ERROR)
+		printf("Page fault: usermode error ");
+	else if (r->err_code & PAGE_PRESENT_PROT_VIOLATION && faulting_addr && faulting_addr < PAGE_SIZE)
+		return;
+	else 
+		printf("Page fault: kernelmode error ");
+	
+	if (!faulting_addr)
+		printf("dereferencing 0 pointer ");
+	else if (r->err_code & PAGE_PRESENT_PROT_VIOLATION)
+		printf("protection violation ");
+	else
+		printf("page not present ");
+	
+	if (r->err_code & PAGE_WRITE_ERROR)
+		printf("write error\n");
+	else
+		printf("read error\n");
+	
+	panic(r);
 }
 
 void

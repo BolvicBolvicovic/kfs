@@ -1,6 +1,6 @@
 #include "vmm.h"
 #include <stdio.h>
-#include <processes/locks/spinlock.h>
+#include <processes/locks/mutex.h>
 
 extern void	switch_dir(u32 dir);
 extern void	flush_tlb_entry(u32 addr);
@@ -9,7 +9,7 @@ extern void	flush_tlb_entry(u32 addr);
 #define PAGE_TABLES	((u32(*)[1024])RECURSIVE_PAGETABLES_ADDR)
 
 // TODO: check if a mutex would be better here
-static SPINLOCK_DEFINE(sl_kernel);
+static MUTEX_DEFINE(kernel_lock);
 
 void
 init_vmm(void)
@@ -260,35 +260,66 @@ vmm_find_next_frees_kernel(u32 nb_blocks)
 	return 0;
 }
 
+void*
+vmm_reserve_kblocks(u32 nb_blocks)
+{
+	mutex_lock(&kernel_lock);
+	
+	u32	base = (u32)vmm_find_next_frees_kernel(nb_blocks);
+
+	if (base == 0)
+	{
+		mutex_unlock(&kernel_lock);
+		return 0;
+	}
+
+	u32	pd_index = PAGE_DIR_INDEX(base);
+	u32	pt_index = PAGE_TAB_INDEX(base);
+
+	for (u32 i = 0; i < nb_blocks; i++)
+	{
+		u32	current_pd_index = pd_index + i / PAGES_PER_TABLE;
+		u32	current_pt_index = pt_index + i % PAGES_PER_TABLE;
+
+		PAGE_TABLES[current_pd_index][current_pt_index] = PE_PRESENT | PE_WRITABLE;
+	}
+
+	mutex_unlock(&kernel_lock);
+
+	return (void*)base;
+}
+
+u32
+vmm_commit_kblocks(u32 virtual_addr, u32 nb_blocks)
+{
+	u32	physical_addr = pmm_alloc_blocks(nb_blocks);
+
+	if (!physical_addr) return 0;
+
+	for (u32 i = 0; i < nb_blocks; i++)
+		vmm_map_kpage(physical_addr + (i * PAGE_SIZE), virtual_addr + (i * PAGE_SIZE));
+
+	return virtual_addr;
+}
+
 // Note: Lazy alloc for user. No need for a alloc user block functions.
 // Just call vmm_find_next_frees_user.
 void*
 vmm_alloc_kblocks(u32 nb_blocks)
 {
-	spinlock_lock(&sl_kernel);
+	mutex_lock(&kernel_lock);
 
 	u32	virtual_addr = (u32)vmm_find_next_frees_kernel(nb_blocks);
 
 	if (virtual_addr == 0)
 	{
-		spinlock_unlock(&sl_kernel);
+		mutex_unlock(&kernel_lock);
 		return 0;
 	}
 
-	u32	physical_addr = pmm_alloc_blocks(nb_blocks);
+	virtual_addr = vmm_commit_kblocks(virtual_addr, nb_blocks);
 
-	if (!physical_addr)
-	{
-		spinlock_unlock(&sl_kernel);
-		return 0;
-	}
-
-	for (u32 i = 0; i < nb_blocks; i++)
-	{
-		vmm_map_kpage(physical_addr + (i * PAGE_SIZE), virtual_addr + (i * PAGE_SIZE));
-	}
-	
-	spinlock_unlock(&sl_kernel);
+	mutex_unlock(&kernel_lock);
 
 	return (void*)virtual_addr;
 }
@@ -300,13 +331,24 @@ vmm_free_blocks(u32 virtual_addr, u32 nb_blocks)
 	u32	pt_index = PAGE_TAB_INDEX(virtual_addr);
 
 	if (virtual_addr < 0x100000 || virtual_addr + nb_blocks*PAGE_SIZE > 0xC0000000)
-		spinlock_lock(&sl_kernel);
+		mutex_lock(&kernel_lock);
 
-	pmm_free_blocks(PAGE_TABLES[pd_index][pt_index] & ~0xFFF, nb_blocks);
-	vmm_unmap_pages(virtual_addr, nb_blocks);
+	for (u32 i = 0; i < nb_blocks; i++)
+	{
+		u32	current_pd_index = pd_index + i / PAGES_PER_TABLE;
+		u32	current_pt_index = pt_index + i % PAGES_PER_TABLE;
+		u32	current_phys_addr= PAGE_PHYS_ADDR(
+			PAGE_TABLES[current_pd_index][current_pt_index]);
+
+		if (current_phys_addr)
+			pmm_free_block(current_phys_addr);
+
+		PAGE_TABLES[pd_index + i / PAGES_PER_TABLE][pt_index + i % PAGES_PER_TABLE] = 0;
+		flush_tlb_entry(virtual_addr + i * PAGE_SIZE);
+	}
 
 	if (virtual_addr < 0x100000 || virtual_addr + nb_blocks*PAGE_SIZE > 0xC0000000)
-		spinlock_unlock(&sl_kernel);
+		mutex_unlock(&kernel_lock);
 }
 
 void
@@ -317,19 +359,11 @@ vmm_set_flags_pages(u32 virt_addr, u32 nb_blocks, u32 flags, u8 set)
 	pt_entry*	table		= &PAGE_TABLES[pd_index][pt_index];
 
 	if (set)
-	{
 		for (u32 i = 0; i < nb_blocks; i++)
-		{
 			table[i] |= flags;
-		}
-	}
 	else
-	{
 		for (u32 i = 0; i < nb_blocks; i++)
-		{
 			table[i] &= ~flags;
-		}
-	}
 }
 
 u32
@@ -356,7 +390,7 @@ vmm_setup_process(u32 code_size, u32 data_size, u32* code, u32* data)
 
 	if (!phys_page_dir) return 0;
 
-	spinlock_lock(&sl_kernel);
+	mutex_lock(&kernel_lock);
 
 	// INIT TABLES
 	pd_entry*	dir		= (pd_entry*)vmm_find_next_frees_kernel(total_blocks);
@@ -368,7 +402,7 @@ vmm_setup_process(u32 code_size, u32 data_size, u32* code, u32* data)
 
 	if (!dir)
 	{
-		spinlock_unlock(&sl_kernel);
+		mutex_unlock(&kernel_lock);
 		pmm_free_blocks(phys_page_dir, total_blocks);
 		return 0;
 	}
@@ -447,7 +481,7 @@ vmm_setup_process(u32 code_size, u32 data_size, u32* code, u32* data)
 
 	vmm_unmap_pages((u32)dir, total_blocks);
 
-	spinlock_unlock(&sl_kernel);
+	mutex_unlock(&kernel_lock);
 
 	return phys_page_dir;
 }

@@ -1,10 +1,13 @@
 MEM	= memory.a
 
-PMM_SRC = pmm/pmm.c 
-PMM_OBJ = pmm/pmm.o
+PMM_SRC = $(addprefix pmm/, pmm.c) 
+PMM_OBJ = $(PMM_SRC:.c=.o)
 
-VMM_SRC = vmm/vmm.c vmm/paging.s vmm/kmalloc.c 
-VMM_OBJ = vmm/vmm.o vmm/paging.o vmm/kmalloc.o
+VMM_SRC = $(addprefix vmm/, vmm.c paging.s)
+VMM_OBJ = $(addprefix vmm/, vmm.o paging.o)
+
+ALL_SRC = $(addprefix allocators/, kmalloc.c)
+ALL_OBJ = $(ALL_SRC:.c=.o)
 
 AR	= ../gcc_kfs/bin/i386-elf-ar rcs
 CC	= ../gcc_kfs/bin/i386-elf-gcc
@@ -17,7 +20,7 @@ FLAGS	= -ffreestanding	\
 
 all: $(MEM)
 
-$(MEM): $(PMM_OBJ) $(VMM_OBJ)
+$(MEM): $(PMM_OBJ) $(VMM_OBJ) $(ALL_OBJ)
 	$(AR) $@ $^
 
 pmm/%.o: pmm/%.c
@@ -29,9 +32,13 @@ vmm/%.o: vmm/%.c
 vmm/%.o: vmm/%.s
 	$(CC) $(FLAGS) $(INC) -c $^ -o $@
 
+allocators/%.o: allocators/%.c
+	$(CC) $(FLAGS) $(INC) -c $^ -o $@
+
 clean:
 	rm -rf $(PMM_OBJ)
 	rm -rf $(VMM_OBJ)
+	rm -rf $(ALL_OBJ)
 
 fclean: clean
 	rm -rf $(MEM)

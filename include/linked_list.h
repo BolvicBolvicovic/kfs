@@ -10,14 +10,16 @@ typedef struct single_ll_s
 	struct single_ll_s*	next;
 } single_ll_t;
 
+#define SLL_STACK_PUSH_N(f, n, next)	((n)->next=(f), (f)=(n))
+#define SLL_STACK_POP_N(f, next)	((f)=(f)->next)
+
 /* Name: single_ll_push
  * Description: push a node on top of a list.
  * */
 static inline void
 single_ll_push(single_ll_t** list, single_ll_t* node)
 {
-	node->next = *list;
-	*list = node;
+	SLL_STACK_PUSH_N(*list, node, next);
 }
 
 /* Name: single_ll_pop
@@ -28,7 +30,7 @@ single_ll_pop(single_ll_t** list)
 {
 	single_ll_t*	head = *list;
 
-	*list = head->next;
+	SLL_STACK_POP_N(*list, next);
 
 	return head;
 }
