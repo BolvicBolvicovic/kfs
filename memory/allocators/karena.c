@@ -9,7 +9,7 @@ karena_alloc(karena_parameters_t* params)
 	u32	reserve_size	= params->reserve_size;
 	u32	commit_size	= params->commit_size;
 
-	if (param->flags & KARENA_FLAG_LARGE_PAGES)
+	if (params->flags & KARENA_FLAG_LARGE_PAGES)
 	{
 		reserve_size	= ALIGN(reserve_size, PAGE_LARGE_SIZE);
 		commit_size	= ALIGN(commit_size, PAGE_LARGE_SIZE);
@@ -32,7 +32,7 @@ karena_alloc(karena_parameters_t* params)
 		else
 		{
 			base = vmm_reserve_kblocks(reserve_size / PAGE_SIZE);
-			vmm_commit_kblocks(base, commit_size / PAGE_SIZE);
+			vmm_commit_kblocks((u32)base, commit_size / PAGE_SIZE);
 		}
 	}
 
@@ -83,14 +83,14 @@ karena_push(karena_t* arena, u32 size, u32 align, bool zero)
 			cmt_size = ALIGN(size + KARENA_HEADER_SIZE, align);
 		}
 
-		karena_t*	new_block = karena_alloc(
+		karena_t*	new_block = KARENA_ALLOC(
 				.reserve_size		= res_size,
 				.commit_size		= cmt_size,
 				.flags			= current->flags,
 				.allocation_site_file	= current->allocation_site_file,
 				.allocation_site_line	= current->allocation_site_line);
 
-		new_block->base_position = current->base_position + current->res;
+		new_block->base_position = current->base_position + current->reserve;
 		SLL_STACK_PUSH_N(arena->current, new_block, prev);
 
 		current = new_block;
@@ -153,7 +153,7 @@ karena_pop_to(karena_t* arena, u32 pos)
 	for (karena_t* prev = 0; current->base_position >= big_pos; current = prev)
 	{
 		prev = current->prev;
-		vmm_free_blocks(current, current->reserve / PAGE_SIZE);
+		vmm_free_blocks((u32)current, current->reserve / PAGE_SIZE);
 	}
 
 	u32	new_pos = big_pos - current->base_position;
@@ -161,8 +161,8 @@ karena_pop_to(karena_t* arena, u32 pos)
 	if (new_pos > current->position)
 		return;
 	
-	arena->current	= current;
-	current->pos	= new_pos;
+	arena->current		= current;
+	current->position	= new_pos;
 }
 
 inline void

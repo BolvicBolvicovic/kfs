@@ -6,7 +6,7 @@ PMM_OBJ = $(PMM_SRC:.c=.o)
 VMM_SRC = $(addprefix vmm/, vmm.c paging.s)
 VMM_OBJ = $(addprefix vmm/, vmm.o paging.o)
 
-ALL_SRC = $(addprefix allocators/, kmalloc.c)
+ALL_SRC = $(addprefix allocators/, kmalloc.c karena.c)
 ALL_OBJ = $(ALL_SRC:.c=.o)
 
 AR	= ../gcc_kfs/bin/i386-elf-ar rcs

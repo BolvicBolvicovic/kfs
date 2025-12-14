@@ -79,7 +79,7 @@ struct karena_temp_t
 
 /* karena_t creation/destruction */
 karena_t*	karena_alloc(karena_parameters_t*);
-#define karena_alloc(...) karena_alloc(&(karena_parameters_t){	\
+#define KARENA_ALLOC(...) karena_alloc(&(karena_parameters_t){	\
 		.flags 			= KARENA_FLAGS_DEFAULT,	\
 		.reserve_size 		= KARENA_FLAGS_DEFAULT,	\
 		.commit_size 		= KARENA_FLAGS_DEFAULT,	\
