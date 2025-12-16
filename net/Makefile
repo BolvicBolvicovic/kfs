@@ -1,7 +1,7 @@
-FS	= filesystem.a
+NET	= net.a
 
-SRCS	= fs.c 
-OBJS	= fs.o
+SRCS	= protocol_unix.c
+OBJS	= $(SRCS:.c=.o)
 
 AR	= ../gcc_kfs/bin/i386-elf-ar rcs
 CC	= ../gcc_kfs/bin/i386-elf-gcc -I ../drivers
@@ -12,9 +12,9 @@ FLAGS	= -ffreestanding	\
 	  -Wall \
 	  -nostdlib		
 
-all: $(FS)
+all: $(NET)
 
-$(FS): $(OBJS)
+$(NET): $(OBJS)
 	$(AR) $@ $^
 
 %.o: %.c
@@ -24,7 +24,7 @@ clean:
 	rm -rf $(OBJS)
 
 fclean: clean
-	rm -rf $(FS)
+	rm -rf $(NET)
 
 re: fclean all
 

@@ -1,5 +1,6 @@
 #ifndef KERNEL_H
 #define KERNEL_H
+
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -14,6 +15,5 @@
 #include <memory/vmm/vmm.h>
 #include <processes/processes.h>
 #include <kshell/kshell.h>
-//#include "../filesystem/ext2/fs.h"
-//#include "../filesystem/ide/ide.h"
+
 #endif

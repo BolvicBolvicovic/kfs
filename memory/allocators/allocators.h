@@ -110,5 +110,7 @@ void		karena_temp_end(karena_temp_t);
 	KARENA_PUSH_ARRAY_NO_ZERO_ALIGNED(a, T, c, 4)
 #define KARENA_PUSH_ARRAY(a, T, c)				\
 	KARENA_PUSH_ARRAY_ALIGNED(a, T, c, 4)
+#define KARENA_PUSH_STRUCT(a, T)				\
+	KARENA_PUSH_ARRAY(a, T, 1)
 
 #endif

@@ -9,20 +9,20 @@
 #include <filesystem/vfs/vfs.h>
 #include <processes/locks/spinlock.h>
 
-struct file_s;
-struct mm_s;
+struct file_t;
+struct mm_t;
 
-#define FILE_TYPE_REGULAR	0100000
-#define FILE_TYPE_DIRECTORY	0040000
-#define FILE_TYPE_SYMLINK	0120000
-#define FILE_TYPE_SOCKET	0140000
-#define FILE_TYPE_BLOCK_DEVICE	0060000
-#define FILE_TYPE_CHAR_DEVICE	0020000
-#define FILE_TYPE_FIFO		0010000
+#define FILE_TYPE_REGULAR		0100000
+#define FILE_TYPE_DIRECTORY		0040000
+#define FILE_TYPE_SYMLINK		0120000
+#define FILE_TYPE_SOCKET		0140000
+#define FILE_TYPE_BLOCK_DEVICE		0060000
+#define FILE_TYPE_CHAR_DEVICE		0020000
+#define FILE_TYPE_FIFO			0010000
 
-#define FILE_PERMISSION_RWXU	0000700
-#define FILE_PERMISSION_RWXG	0000070
-#define FILE_PERMISSION_RWXO	0000007
+#define FILE_PERMISSION_RWXU		0000700
+#define FILE_PERMISSION_RWXG		0000070
+#define FILE_PERMISSION_RWXO		0000007
 
 typedef struct inode_t inode_t;
 struct inode_t
@@ -43,7 +43,7 @@ struct inode_t
 typedef struct directory_entry_t directory_entry_t;
 struct directory_entry_s
 {
-	char				name[32];
+	char			name[32];
 	// TODO: create the hashmap that maps a dir to a inode
 	directory_entry_t*	parent;
 	directory_entry_t*	children;
@@ -61,7 +61,7 @@ struct path_t
 typedef struct file_owner_t file_owner_t;
 struct file_owner_t
 {
-	struct file_s*	file;
+	struct file_t*	file;
 	spinlock_t	lock;
 	u32		pid, uid, euid;
 	s32		signum;
@@ -102,13 +102,13 @@ typedef struct file_operations_i file_operations_i;
 struct file_operations_i
 {
 	u32	flags;
-	s32	(*llseek)	(struct file_s*, s32, s32);
-	s32	(*read)		(struct file_s*, char*, u32, s32*);
-	s32	(*write)	(struct file_s*, char*, u32, s32*);
-	s32	(*mmap)		(struct file_s*, mm_t*);
-	s32	(*open)		(struct file_s*);
-	s32	(*close)	(struct file_s*);
-	s32	(*lock)		(struct file_s*);
+	s32	(*llseek)	(struct file_t*, s32, s32);
+	s32	(*read)		(struct file_t*, char*, u32, s32*);
+	s32	(*write)	(struct file_t*, char*, u32, s32*);
+	s32	(*mmap)		(struct file_t*, mm_t*);
+	s32	(*open)		(struct file_t*);
+	s32	(*close)	(struct file_t*);
+	s32	(*lock)		(struct file_t*);
 };
 
 /* file is open for reading */

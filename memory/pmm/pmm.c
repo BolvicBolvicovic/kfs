@@ -4,50 +4,18 @@
 
 static u32	_memory_used_blocks	= 0;
 static u32	_memory_max_blocks	= 0;
-static bitmap_t	_memory_map		= { 0, 0 };
+static bitmap_t	_memory_map		= { 0, 0, 0 };
 
 // TODO: look if mutex would be better than spinlock here
 static SPINLOCK_DEFINE(sl_pmm);
 
 static u32
-mmap_find_first_free()
-{
-	for (u32 i = 0; i < _memory_map.size; i++)
-	{
-		if (_memory_map.map[i] == BITMAP_CHUNK_FULL) continue;
-
-		for (u32 j = 0; j < BITMAP_CHUNK_SIZE; j++)
-		{
-			u32	bit = 1 << j;
-			
-			if (_memory_map.map[i] & bit) continue;
-			
-			return i * BITMAP_CHUNK_SIZE + j;
-		}
-	}
-
-	return (u32)-1;
-}
-
-static u32
-mmap_find_first_free_chunk(void)
-{
-	for (u32 i = 0; i < _memory_map.size; i++)
-	{
-		if (_memory_map.map[i] == 0)
-			return i * BITMAP_CHUNK_SIZE;
-	}
-
-	return (u32)-1;
-}
-
-static u32
 mmap_find_first_free_s(u32 size)
 {
 	if (size == 0) return (u32)-1;
-	if (size == 1) return mmap_find_first_free();
+	if (size == 1) return bitmap_find_next_free_bit(&_memory_map);
 	if (size <= BITMAP_CHUNK_SIZE && size > BITMAP_CHUNK_SIZE / 2)
-		return mmap_find_first_free_chunk();
+		return bitmap_find_next_free_chunk(&_memory_map);
 
 	for (u32 i = 0; i < _memory_map.size; i++)
 	{
@@ -70,7 +38,11 @@ mmap_find_first_free_s(u32 size)
 				if (!bitmap_test_bit(&_memory_map, starting_bit + count))
 					free++;
 				// Note: free count==size needed; return index
-				if (free==size) return starting_bit;
+				if (free==size)
+				{
+					_memory_map.position = starting_bit + size + 1;
+					return starting_bit;
+				}
 			}
 		}
 	}
@@ -133,7 +105,7 @@ pmm_alloc_block()
 		return 0;
 	}
 	
-	s32	frame = mmap_find_first_free();
+	s32	frame = bitmap_find_next_free_bit(&_memory_map);
 
 	if (frame == -1)
 	{
