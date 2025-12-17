@@ -3,6 +3,15 @@
 
 #include <filesystem/socket.h>
 
+typedef struct unix_sock_data_t unix_sock_data_t;
+struct unix_sock_data_t
+{
+	char*		unix_addr;
+	u32		unix_addr_len;
+	socket_t*	pair;
+	// TODO: think about adding a refcount to handle cases where other program try to access it
+};
+
 s32	unix_release(socket_t*);
 s32	unix_bind(socket_t*, char* addr, u32 addr_len);
 s32	unix_connect(socket_t*, char* addr, u32 addr_len, u32 flags);

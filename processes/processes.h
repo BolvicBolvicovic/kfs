@@ -165,6 +165,19 @@ s32		update_status(pid_t, process_status);
 // TODO: look up best way to implement sockets between processes
 // TODO: Function to work on the memory of the process (I guess with heap and stack)??
 pid_t		create_process(proc_info_t*);
+#define KPROC_CREATE(func) create_process(&(proc_info_t){	\
+		.type		= KPROC,			\
+		.code		= 0,				\
+		.code_size	= 0,				\
+		.data		= 0,				\
+		.data_size	= 0,				\
+		.entry		= (func)})
+	proc_type	type;
+	u32*		code;
+	u32		code_size;
+	u32*		data;
+	u32		data_size;
+	u32		entry;
 pid_t		fork_process(u32* esp);
 void		exit_user_process(u32 status, u32* esp);
 

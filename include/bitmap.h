@@ -6,6 +6,7 @@
 
 #define BITMAP_CHUNK_FULL	0xffffffff
 #define BITMAP_CHUNK_SIZE	sizeof(u32)
+#define BITMAP_CHUNK_LENGHT	32
 
 /* Name: bitmap_t
  * Description: bitmap struct with BITMAP_CHUNK_SIZE of 32 bits.

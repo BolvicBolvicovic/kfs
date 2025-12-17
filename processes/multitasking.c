@@ -1,7 +1,7 @@
 #include "processes.h"
 #include <atomic.h>
 #include <processes/locks/spinlock.h>
-#include <memory/allocators/allocators.h>
+#include <memory/allocators/kmalloc.h>
 #include <linked_list.h>
 
 #define PT_SIZE		1024

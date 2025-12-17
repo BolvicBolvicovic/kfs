@@ -1,5 +1,5 @@
 #include "socket.h"
-#include <memory/allocators/allocators.h>
+#include <memory/allocators/karena.h>
 #include <net/protocol_unix.h>
 
 static s32	sock_read(file_t*, char*, u32, s32*);
@@ -77,7 +77,7 @@ sock_close(file_t* file)
 	socket_t*	socket	= file->private_data;
 	s32		res	= socket->operations->release(socket);
 
-	karena_release(socket->arena);
+	karena_release(file->arena);
 
 	return res;
 }
@@ -85,11 +85,8 @@ sock_close(file_t* file)
 s32
 socket_new(s32 family, u16 type, u32 protocol)
 {
-	u32		commit_size	= sizeof(socket_t)
-					+ sizeof(socket_message_t) * SOCKET_RS_LIST_SIZE_DEFAULT * 2
-					+ sizeof(file_t);
-	karena_t*	arena		= KARENA_ALLOC(	.commit_size	= commit_size,
-							.reserve_size	= commit_size * 2);
+	karena_t*	arena	= KARENA_ALLOC();
+
 	if (!arena)
 		return -1;
 
@@ -101,11 +98,11 @@ socket_new(s32 family, u16 type, u32 protocol)
 		return -1;
 	}
 
-	net_protocol_operations_i*	protocol_operations	= protocols[family];
+	net_protocol_operations_i*	protocol_operations	= &protocols[family];
 	socket_t*			socket			= KARENA_PUSH_STRUCT(arena, socket_t);
 	file_t*				file			= KARENA_PUSH_STRUCT(arena, file_t);
 
-	socket->arena				= arena;
+	file->arena				= arena;
 	socket->file				= file;
 	socket->state				= SOCK_IDLE;
 	socket->type				= type;

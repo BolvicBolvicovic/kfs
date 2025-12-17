@@ -1,4 +1,4 @@
-#include "protocol_raw.h"
+#include "protocol_unix.h"
 
 s32
 unix_release(socket_t* socket)
@@ -10,9 +10,17 @@ unix_release(socket_t* socket)
 s32
 unix_bind(socket_t* socket, char* addr, u32 addr_len)
 {
-	file_t*	file = socket->file;
+	file_t*			file = socket->file;
+	arena_t*		arena= file->arena;
+	unix_sock_data_t*	data = socket->protocol_data;
+	u32			err  = path_bind(arena, &file->path, addr, addr_len);
 
-	// TODO: create a path.h and path.c in filesystem folder in which the path_t is handled;
+	if (err)
+		return err;
+
+	data->unix_addr = KARENA_PUSH_ARRAY(arena, char, addr_len);
+	memcpy(data->unix_addr, addr, addr_len);
+	data->unix_addr_len = addr_len;
 	
 	return 0;
 }
@@ -20,7 +28,30 @@ unix_bind(socket_t* socket, char* addr, u32 addr_len)
 s32
 unix_connect(socket_t* socket, char* addr, u32 addr_len, u32 flags)
 {
-	// TODO: socket_get(addr, addr_len) && try to connect
+	unix_sock_data_t*	data		= socket->protocol_data;
+	file_t*			pair_file	= path_get_file(addr, addr_len);
+
+	if (!pair_file)
+		return SOCK_CONNECT_ERROR_NOT_FOUND;
+
+	if (pair_file->inode.mode != FILE_TYPE_SOCKET)
+		return SOCK_CONNECT_ERROR_NOT_A_SOCKET;
+
+	socket_t*	pair = (socket_t*)pair_file->private_data;
+
+	// TODO: check flags to define nature of connection
+	(void)flags;
+	
+	if (pair->type != AF_SOCK)
+		return SOCK_CONNECT_ERROR_WRONG_TYPE;
+
+	if (pair->state != SOCK_LISTENING)
+		return SOCK_CONNECT_ERROR_NOT_LISTENING;
+	
+	data->pair	= pair;
+	pair->state	= SOCK_CONNECTED;
+	socket->state	= SOCK_CONNECTED;
+
 	return 0;
 }
 

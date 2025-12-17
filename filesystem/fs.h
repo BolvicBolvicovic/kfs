@@ -8,6 +8,8 @@
 #include <atomic.h>
 #include <filesystem/vfs/vfs.h>
 #include <processes/locks/spinlock.h>
+#include <memory/allocators/karena.h>
+#include "path.h"
 
 struct file_t;
 struct mm_t;
@@ -39,24 +41,6 @@ struct inode_t
 	u32	nb_hardlinks;
 	u32*	blocks_on_disk;
 };
-
-typedef struct directory_entry_t directory_entry_t;
-struct directory_entry_s
-{
-	char			name[32];
-	// TODO: create the hashmap that maps a dir to a inode
-	directory_entry_t*	parent;
-	directory_entry_t*	children;
-	directory_entry_t*	sibilings;
-};
-
-typedef struct path_t path_t;
-struct path_t
-{
-	directory_entry_t*	directory_entry;
-	directory_entry_t*	mounted_root;
-};
-
 
 typedef struct file_owner_t file_owner_t;
 struct file_owner_t
@@ -198,6 +182,7 @@ struct file_t
 	// TODO: look into f_pos_lock and FMODE_ATOMIC_POS and their relations with f_pipe
 	// https://github.com/torvalds/linux/blob/master/include/linux/fs.h#L1258
 	u32			position;
+	arena_t*		arena;
 	// file_ref
 } __aligned(4);
 
@@ -208,5 +193,8 @@ struct file_handle_t
 	s32	handle_type;
 	u8	handle[] __counted_by(handle_bytes_count);
 };
+
+void	fs_init(void);
+file_t*	fs_get_root(void);
 
 #endif

@@ -1,5 +1,5 @@
 #include "descriptor.h"
-#include <memory/allocators/allocators.h>
+#include <memory/allocators/kmalloc.h>
 #include <bits.h>
 
 #define PAGE_FAULT	14

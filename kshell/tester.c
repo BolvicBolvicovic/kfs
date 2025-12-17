@@ -1,5 +1,6 @@
 #include "kshell.h"
-#include <memory/allocators/allocators.h>
+#include <kernel/kernel.h>
+#include <memory/allocators/kmalloc.h>
 
 #define ASSERT(msg, cond) do { \
     if (!(cond)) { \
@@ -17,27 +18,6 @@ typedef struct
     u32 u32ype;
     uint32_t pattern;
 } alloc_rec_t;
-
-typedef uint32_t pid_t;
-enum p_type
-{
-	KPROC,
-	UPROC
-};
-
-typedef struct
-{
-	enum p_type	type;
-	uint32_t*	code;
-	uint32_t	code_size;
-	uint32_t*	data;
-	uint32_t	data_size;
-	uint32_t	entry;
-} p_info_t;
-
-extern void*	kmalloc(u32 s);
-extern pid_t	create_process(p_info_t*);
-extern pid_t	fork(void);
 
 static void
 process_a(void)
@@ -81,24 +61,6 @@ process_forked(void)
 int
 tests_processes(void)
 {
-	p_info_t pa =
-	{
-		KPROC, 0, 0, 0, 0,
-		(uint32_t)process_a
-	};
-
-	p_info_t pb =
-	{
-		KPROC, 0, 0, 0, 0,
-		(uint32_t)process_b
-	};
-
-	p_info_t pf =
-	{
-		KPROC, 0, 0, 0, 0,
-		(uint32_t)process_forked
-	};
-
 	uint8_t	u_data[14] =
 	{
 		// Note: "Hello World!\n"
@@ -136,7 +98,7 @@ tests_processes(void)
 		0xCD, 0x80
 	};
 
-	p_info_t pu =
+	proc_info_t pu =
 	{
 		UPROC,
 		(uint32_t*)u_code,
@@ -147,11 +109,11 @@ tests_processes(void)
 	};
 
 	pid_t	u  = create_process(&pu);
-	pid_t	a  = create_process(&pa);
+	pid_t	a  = KPROC_CREATE((u32)process_a);
 	pid_t	u1 = create_process(&pu);
-	pid_t	b  = create_process(&pb);
+	pid_t	b  = KPROC_CREATE((u32)process_b);
 	pid_t	u2 = create_process(&pu);
-	pid_t	f  = create_process(&pf);
+	pid_t	f  = KPROC_CREATE((u32)process_forked);
 	pid_t	u3 = create_process(&pu);
 	ASSERT("Error creating a", a > 0);
 	ASSERT("Error creating b", b > 0);

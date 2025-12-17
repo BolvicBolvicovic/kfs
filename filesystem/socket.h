@@ -24,6 +24,14 @@ enum
 	SOCK_LISTENING,
 };
 
+enum
+{
+	SOCK_CONNECT_ERROR_NOT_FOUND,
+	SOCK_CONNECT_ERROR_NOT_A_SOCKET,
+	SOCK_CONNECT_ERROR_NOT_LISTENING,
+	SOCK_CONNECT_ERROR_WRONG_TYPE,	
+};
+
 typedef struct socket_message_t socket_message_t;
 struct socket_message_t
 {
@@ -52,7 +60,6 @@ struct socket_t
 	void*					protocol_data;
 	u32					receive_list_buffer_size;
 	u32					send_list_buffer_size;
-	arena*					arena;
 };
 
 enum
