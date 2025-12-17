@@ -6,6 +6,7 @@
 #include <compiler.h>
 #include <bits.h>
 #include <atomic.h>
+#include <soa.h>
 #include <filesystem/vfs/vfs.h>
 #include <processes/locks/spinlock.h>
 #include <memory/allocators/karena.h>
@@ -168,23 +169,29 @@ struct file_operations_i
 typedef struct file_t file_t;
 struct file_t
 {
-	spinlock_t		lock;
-	u32			mode;
-	u32			flags;
-	inode_t			inode;
-	// Note: socket_t data or directory_t data?
-	void*			private_data;
-	file_operations_i*	operations;
-	mm_t*			mapping;
-	path_t			path;
-	file_owner_t*		owner;
-	file_credentials_t	credentials;
-	// TODO: look into f_pos_lock and FMODE_ATOMIC_POS and their relations with f_pipe
-	// https://github.com/torvalds/linux/blob/master/include/linux/fs.h#L1258
-	u32			position;
-	arena_t*		arena;
+// Note for private_data: socket_t data or directory_t data?
+// TODO: look into f_pos_lock and FMODE_ATOMIC_POS and their relations with f_pipe
+// https://github.com/torvalds/linux/blob/master/include/linux/fs.h#L1258
+#define FILE_FIELDS(X)				\
+	X(spinlock_t,		lock);		\
+	X(u32, 			mode);		\
+	X(u32, 			flags);		\
+	X(inode_t, 		inode);		\
+	X(void*,		private_data);	\
+	X(file_operations_i*,	operations);	\
+	X(mm_t*,		mapping);	\
+	X(path_t,		path);		\
+	X(file_owner_t*,	owner);		\
+	X(file_credentials_t,	credentials);	\
+	X(u32,			position);	\
+	X(arena_t*,		arena)
 	// file_ref
-} __aligned(4);
+	FILE_FIELDS(SOA_DEFINE_FIELD);
+};
+
+SOA_DEFINE_STRUCT_OF_ARRAYS(file_t, FILE_FIELDS);
+
+typedef struct
 
 typedef struct file_handle_t file_handle_t;
 struct file_handle_t

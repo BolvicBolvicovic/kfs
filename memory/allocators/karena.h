@@ -88,7 +88,7 @@ void		karena_temp_end(karena_temp_t);
 #define KARENA_PUSH_ARRAY_NO_ZERO_ALIGNED(a, T, c, align)	\
 	(T *)karena_push((a), sizeof(T)*(c), (align), 0)
 #define KARENA_PUSH_ARRAY_ALIGNED(a, T, c, align)		\
-	(T *)karena_push((a), sizeof(T)*(c), (align), 0)
+	(T *)karena_push((a), sizeof(T)*(c), (align), 1)
 #define KARENA_PUSH_ARRAY_NO_ZERO(a, T, c)			\
 	KARENA_PUSH_ARRAY_NO_ZERO_ALIGNED(a, T, c, 4)
 #define KARENA_PUSH_ARRAY(a, T, c)				\
