@@ -6,15 +6,7 @@
 	#error "This code must be compiled with an x86-elf compiler"
 #endif
 
-typedef struct
-{
-	uint32_t	startLo;	// base address
-	uint32_t	startHi;
-	uint32_t	sizeLo;		// length (in bytes)
-	uint32_t	sizeHi;
-	uint32_t	type;
-	uint32_t	acpi_3_0;
-} memory_region;
+typedef struct multiboot_mmap_entry multiboot_mmap_entry;
 
 char* strMemoryTypes[] =
 {
@@ -25,21 +17,21 @@ char* strMemoryTypes[] =
 	"Bad RAM"       	// memory_region.type==5
 };
 
-extern uint32_t start_kernel;
-extern uint32_t endkernel;
-extern uint32_t start_kernel_virt;
-extern uint32_t end_kernel_virt;
-extern uint32_t bitmap;
+extern u32 start_kernel;
+extern u32 endkernel;
+extern u32 start_kernel_virt;
+extern u32 end_kernel_virt;
+extern u32 bitmap;
 
 #define MAX_MEMORY_SIZE (0xFFFFFFFF / 0x1000)
 
 void
-kernel_main(uint32_t magic, uint32_t addr)
+kernel_main(u32 magic, u32 addr)
 {
-	multiboot_info_t*		mbi = (multiboot_info_t*)addr;
-	struct multiboot_mmap_entry*	region = (struct multiboot_mmap_entry*) mbi->mmap_addr;
-	uint32_t			region_count = mbi->mmap_length / sizeof(struct multiboot_mmap_entry);
-	uint32_t			end_kernel_aligned = ((uint32_t)&endkernel + 0xFFF) & ~0xFFF;
+	multiboot_info_t*	mbi = (multiboot_info_t*)addr;
+	multiboot_mmap_entry*	region = (multiboot_mmap_entry*) mbi->mmap_addr;
+	u32			region_count = mbi->mmap_length / sizeof(multiboot_mmap_entry);
+	u32			end_kernel_aligned = ((u32)&endkernel + 0xFFF) & ~0xFFF;
 	
 	init_kshell(BLUE, WHITE);
 	term_clear();
@@ -47,7 +39,7 @@ kernel_main(uint32_t magic, uint32_t addr)
 	init_keyboard();
 	init_timer(250);
 	init_syscall();
-	pmm_init(MAX_MEMORY_SIZE, (uint32_t)&bitmap);
+	pmm_init(MAX_MEMORY_SIZE, (u32)&bitmap);
 	for (u32 i = 0; i < region_count; i++)
 	{
 		if (region[i].type > 5) region[i].type = MULTIBOOT_MEMORY_AVAILABLE;
@@ -59,6 +51,11 @@ kernel_main(uint32_t magic, uint32_t addr)
 	init_vmm();
 	//init_gpu();
 	//ide_init(0x1F0, 0x3F6, 0x170, 0x376, 0x000);
+
+	karena_t*	kernel_arena = KARENA_ALLOC();
+
+	fd_init(kernel_arena);
+	fs_init();
 
 	init_multitasking();
 }

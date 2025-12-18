@@ -1,5 +1,5 @@
-#ifndef FDTABLES_H
-#define FDTABLES_H
+#ifndef FDTABLE_H
+#define FDTABLE_H
 
 #include <c_types.h>
 #include <atomic.h>
@@ -9,17 +9,18 @@
 
 #define FILE_DESCRIPTORS_ARRAY_SIZE	(5 * BITMAP_CHUNK_SIZE)
 
-typedef struct
+typedef struct fdtable_t fdtable_t;
+struct fdtable_t
 {
 	u32		max_fds;
-	file_t*		fds[FILE_DESCRIPTORS_ARRAY_SIZE];
+	soa_file_t*	fds;
 	bitmap_t	close_on_exec;	// maps fds that should be closed when using execve
 	bitmap_t	open_fds;	// maps open fds
 	//bitmap_t	full_fds;	// maps chunck of fds that are full
 	// TODO: look up __rcu and if it should be applied here instead of a lock
 	// TODO: maybe use an arena to allocate and grow fds
 	spinlock_t	fds_lock;
-} fdtable_t;
+};
 
 /* Name: fd_get
  * Description: gets the next free file descriptor available.
@@ -36,6 +37,11 @@ s32	fd_install(s32 fd, file_t* file);
 /* Name: fd_free
  * Description: marks file descriptor as available.
  * */
-void	free_fd(s32 fd);
+void	fd_free(s32 fd);
+
+/* Name: fd_init
+ * Description: initialize the kernel fd_table.
+ * */
+void	fd_init(karena_t* arena);
 
 #endif

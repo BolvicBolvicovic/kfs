@@ -1,16 +1,16 @@
 FS	= filesystem.a
 
-SRCS	= fs.c 
-OBJS	= fs.o
+SRCS	= fs.c fdtable.c path.c socket.c
+OBJS	= $(SRCS:.c=.o)
 
 AR	= ../gcc_kfs/bin/i386-elf-ar rcs
-CC	= ../gcc_kfs/bin/i386-elf-gcc -I ../drivers
+CC	= ../gcc_kfs/bin/i386-elf-gcc
 INC	= -I.. -I../include
-FLAGS	= -ffreestanding	\
-	  -g \
-	  -O0 \
-	  -Wall \
-	  -nostdlib		
+FLAGS	= -ffreestanding\
+	  -g		\
+	  -O0		\
+	  -Wall		\
+	  -nostdlib
 
 all: $(FS)
 

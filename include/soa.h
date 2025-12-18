@@ -38,17 +38,17 @@
 #define SOA_H
 
 #include <memory/allocators/karena.h>
-#include <memory/allocators/kalloc.h>
+#include <memory/allocators/kmalloc.h>
 
 /* Name: SOA_DEFINE_FIELD
  * Description: X helper that defines name of type.
  * */
-#define SOA_DEFINE_FIELD(type, name)		type name
+#define SOA_DEFINE_FIELD(type, name)		type name;
 
 /* Name: SOA_DEFINE_FIELD_ARRAY
  * Description: X helper that defines an array name of type.
  * */
-#define SOA_DEFINE_FIELD_ARRAY(type, name)	type * name
+#define SOA_DEFINE_FIELD_ARRAY(type, name)	type * name;
 
 /* Name: SOA_DEFINE_STRUCT_OF_ARRAYS
  * Description: X-macro that defines a structure of arrays for a structure.
@@ -93,7 +93,7 @@
 typedef struct soa_##type soa_##type;			\
 struct soa_##type					\
 {							\
-	FIELDS(SOA_DEFINE_FIELD_ARRAY);			\
+	FIELDS(SOA_DEFINE_FIELD_ARRAY)			\
 }
 
 /* Name: SOA_ALLOC_KARENA_FIELD_ARRAY
@@ -101,7 +101,7 @@ struct soa_##type					\
  * Do not use it in your code.
  * */
 #define SOA_ALLOC_KARENA_FIELD_ARRAY(type, name)	\
-	(SOA)->(name) = ((type)*)KARENA_PUSH_ARRAY((SOA_ARENA), (type), (SOA_SIZE))
+	(SOA)->name = KARENA_PUSH_ARRAY((SOA_ARENA), type, (SOA_SIZE));
 
 /* Name: SOA_ALLOC_KARENA_STRUCT_OF_ARRAYS
  * Description: pushes SOA onto SOA_ARENA and all its field arrays.
@@ -142,10 +142,10 @@ struct soa_##type					\
  *	return my_soa;
  * }
  * */
-#define SOA_ALLOC_KARENA_STRUCT_OF_ARRAYS(soa_type, FIELDS)		\
-do {									\
-	(SOA) = (soa_type*)KARENA_PUSH_STRUCT((SOA_ARENA), (soa_type));	\
-	FIELDS(SOA_ALLOC_KARENA_FIELD_ARRAY);				\
+#define SOA_ALLOC_KARENA_STRUCT_OF_ARRAYS(soa_type, FIELDS)	\
+do {								\
+	(SOA) = KARENA_PUSH_STRUCT(SOA_ARENA, soa_type);	\
+	FIELDS(SOA_ALLOC_KARENA_FIELD_ARRAY)			\
 } while (0)
 
 /* Name: SOA_ALLOC_KMALLOC_FIELD_ARRAY
@@ -153,7 +153,7 @@ do {									\
  * Do not use it in your code.
  * */
 #define SOA_ALLOC_KMALLOC_FIELD_ARRAY(type, name)	\
-	(SOA)->(name) = ((type)*)kmalloc(sizeof(type) * (SOA_SIZE))
+	(SOA)->name = (type*)kmalloc(sizeof(type) * (SOA_SIZE));
 
 /* Name: SOA_ALLOC_KMALLOC_STRUCT_OF_ARRAYS
  * Description: allocates and attributes memory for SOA and all its field arrays.
@@ -194,7 +194,7 @@ do {									\
 #define SOA_ALLOC_KMALLOC_STRUCT_OF_ARRAYS(soa_type, FIELDS)	\
 do {								\
 	(SOA) = (soa_type*)kmalloc(sizeof(soa_type));		\
-	FIELDS(SOA_ALLOC_KMALLOC_FIELD_ARRAY);			\
+	FIELDS(SOA_ALLOC_KMALLOC_FIELD_ARRAY)			\
 } while (0)
 
 #endif

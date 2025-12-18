@@ -2,7 +2,14 @@ BINARY		= isoroot/boot/kfs.elf
 ISO		= kfs.iso
 CC		= ./gcc_kfs/bin/i386-elf-gcc
 LD		= ./gcc_kfs/bin/i386-elf-ld
-LIBS		= lib/libc.a memory/memory.a drivers/drivers.a kshell/kshell.a processes/processes.a #filesystem/filesystem.a net/net.a
+LIBS		= lib/libc.a 		\
+		  memory/memory.a	\
+		  drivers/drivers.a 	\
+		  kshell/kshell.a	\
+		  processes/processes.a	\
+		  filesystem/filesystem.a\
+		  net/net.a
+
 CFLAGS		= -ffreestanding	\
 		  	-g		\
 		  	-O2 		\
@@ -23,8 +30,8 @@ required	:
 	make -C drivers
 	make -C kshell
 	make -C processes
-	#make -C filesystem
-	#make -C net
+	make -C filesystem
+	make -C net
 
 $(ISO)		: $(BINARY)
 	grub-mkrescue -o $@ isoroot
@@ -69,15 +76,15 @@ clean		:
 	make -C drivers clean
 	make -C kshell clean
 	make -C processes clean
-	#make -C filesystem clean
-	#make -C net clean
+	make -C filesystem clean
+	make -C net clean
 
 fclean		: clean
 	make -C lib fclean
 	make -C drivers fclean
 	make -C memory fclean
-	#make -C filesystem fclean
-	#make -C net fclean
+	make -C filesystem fclean
+	make -C net fclean
 	make -C kshell fclean
 	make -C processes fclean
 	rm -rf obj

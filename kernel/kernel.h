@@ -15,5 +15,7 @@
 #include <memory/vmm/vmm.h>
 #include <processes/processes.h>
 #include <kshell/kshell.h>
+#include <memory/allocators/karena.h>
+#include <filesystem/fdtable.h>
 
 #endif

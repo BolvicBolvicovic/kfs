@@ -34,6 +34,6 @@ struct path_t
 	directory_entry_t*	mounted_root;
 };
 
-s32	path_bind(karena_t* arena, path_t* path, char* addr, u32 addr_len);
+s32		path_bind(karena_t* arena, path_t* path, char* addr, u32 addr_len);
 
 #endif

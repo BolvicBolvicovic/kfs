@@ -1,4 +1,6 @@
 #include "protocol_unix.h"
+#include <filesystem/socket.h>
+#include <string.h>
 
 s32
 unix_release(socket_t* socket)
@@ -11,7 +13,7 @@ s32
 unix_bind(socket_t* socket, char* addr, u32 addr_len)
 {
 	file_t*			file = socket->file;
-	arena_t*		arena= file->arena;
+	karena_t*		arena= file->arena;
 	unix_sock_data_t*	data = socket->protocol_data;
 	u32			err  = path_bind(arena, &file->path, addr, addr_len);
 
@@ -29,7 +31,7 @@ s32
 unix_connect(socket_t* socket, char* addr, u32 addr_len, u32 flags)
 {
 	unix_sock_data_t*	data		= socket->protocol_data;
-	file_t*			pair_file	= path_get_file(addr, addr_len);
+	file_t*			pair_file	= fs_get_file(addr, addr_len);
 
 	if (!pair_file)
 		return SOCK_CONNECT_ERROR_NOT_FOUND;
@@ -42,7 +44,7 @@ unix_connect(socket_t* socket, char* addr, u32 addr_len, u32 flags)
 	// TODO: check flags to define nature of connection
 	(void)flags;
 	
-	if (pair->type != AF_SOCK)
+	if (pair->type != AF_UNIX)
 		return SOCK_CONNECT_ERROR_WRONG_TYPE;
 
 	if (pair->state != SOCK_LISTENING)
@@ -59,6 +61,9 @@ s32
 unix_accept(socket_t* socket, socket_t* new, net_protocol_accept_args* args)
 {
 	// TODO: find out how we know that a certain socket tries to connect
+	// TODO: do something with args:
+	// https://github.com/torvalds/linux/blob/master/include/net/sock.h#L1268
+	(void)args;
 	return 0;
 }
 
@@ -84,7 +89,7 @@ unix_recvmsg(socket_t* socket, char* msg, u32 msg_len, u32 flags)
 }
 
 s32
-unix_mmap(socket_t* socket, mm_t* mm)
+unix_mmap(socket_t* socket, struct mm_t* mm)
 {
 	// TODO: might need to do something here
 	return 0;

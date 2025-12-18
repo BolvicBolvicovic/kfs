@@ -11,15 +11,16 @@ path_bind(karena_t* arena, path_t* path, char* addr, u32 addr_len)
 	if (addr[0] != '/')
 		return PATH_ERROR_NO_ROOT;
 
-	slice_t			slice = { 0, 0 };
+	slice_t			slice	= { 0, 0 };
 	directory_entry_t*	cwd	= path->mounted_root;
 	u32			i	= 0;
+	u32			counting= 0;
 
-	for (u32 counting = 0; i < addr_len; i++)
+	for (; i < addr_len; i++)
 	{
 		if (counting && addr[i] == '/')
 		{
-			slices.end	= i;
+			slice.end	= i;
 			counting	= 0;
 			
 			u32	j	= 0;
@@ -34,14 +35,14 @@ path_bind(karena_t* arena, path_t* path, char* addr, u32 addr_len)
 				if (memcmp(name, cwd->children[i]->name, name_len) != 0)
 					continue;
 
-				cwd = cwd[i];
+				cwd = &cwd[i];
 				break;
 			}
 			
 			if (j == DIRECTORY_ENTRY_MAX_CHILDREN)
 				return PATH_ERROR_NO_FILE;
 		}
-		else if (!counting && !addr[i] == '/')
+		else if (!counting && !(addr[i] == '/'))
 		{
 			counting	= 1;
 			slice.start	= i;
@@ -73,15 +74,5 @@ path_bind(karena_t* arena, path_t* path, char* addr, u32 addr_len)
 	new_entry->parent	= cwd;
 	new_entry->sibilings	= cwd->children;
 
-	return 0;
-}
-
-file_t*
-path_get_file(char* addr, u32 addr_len)
-{
-	// TODO: explore the idea of using index node to connect an address to an index
-	// TODO: maybe return an ID instead of a pointer
-	(void)addr;
-	(void)addr_len;
 	return 0;
 }

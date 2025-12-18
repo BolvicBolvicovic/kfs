@@ -10,7 +10,7 @@ struct slice_t
 	u32	end;
 };
 
-typedef struct sub_array_t sub_array_t
+typedef struct sub_array_t sub_array_t;
 struct sub_array_t
 {
 	void*	data;

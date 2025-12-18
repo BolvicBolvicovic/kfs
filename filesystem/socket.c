@@ -1,10 +1,11 @@
 #include "socket.h"
+#include "fdtable.h"
 #include <memory/allocators/karena.h>
 #include <net/protocol_unix.h>
 
 static s32	sock_read(file_t*, char*, u32, s32*);
 static s32	sock_write(file_t*, char*, u32, s32*);
-static s32	sock_mmap(file_t*, mm_t*);
+static s32	sock_mmap(file_t*, struct mm_t*);
 static s32	sock_close(file_t*);
 
 static net_protocol_operations_i	protocols[] =
@@ -64,7 +65,7 @@ sock_write(file_t* file, char* buffer, u32 count, s32* offset)
 }
 
 static s32
-sock_mmap(file_t* file, mm_t* mm)
+sock_mmap(file_t* file, struct mm_t* mm)
 {
 	socket_t*	socket = file->private_data;
 	
@@ -131,7 +132,7 @@ socket_new(s32 family, u16 type, u32 protocol)
 	file->private_data	= &socket;
 	file->operations	= &socket_operations;
 	// TODO: handle file mapping
-	file->mappings		= 0;
+	file->mapping		= 0;
 	// Note: file->path is initilized when binding socket to a path.
 	// TODO: look up how to use/set up file->owner & file->credentials
 	file->position		= 0;

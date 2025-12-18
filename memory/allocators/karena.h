@@ -13,8 +13,8 @@ enum
 };
 
 #define KARENA_FLAGS_DEFAULT		0
+#define KARENA_COMMIT_SIZE_DEFAULT	KB(1)
 #define KARENA_RESERVE_SIZE_DEFAULT	KB(32)
-#define KARENA_COMMIT_SIZE_DEFAULT	MB(32)
 #define KARENA_HEADER_SIZE		128
 
 /* Name: karena_parameters_t
@@ -62,12 +62,12 @@ struct karena_temp_t
 
 /* karena_t creation/destruction */
 karena_t*	karena_alloc(karena_parameters_t*);
-#define KARENA_ALLOC(...) karena_alloc(&(karena_parameters_t){	\
-		.flags 			= KARENA_FLAGS_DEFAULT,	\
-		.reserve_size 		= KARENA_FLAGS_DEFAULT,	\
-		.commit_size 		= KARENA_FLAGS_DEFAULT,	\
-		.allocation_site_file 	= __FILE__,		\
-		.allocation_site_line 	= __LINE__,		\
+#define KARENA_ALLOC(...) karena_alloc(&(karena_parameters_t){		\
+		.flags 			= KARENA_FLAGS_DEFAULT,		\
+		.reserve_size 		= KARENA_RESERVE_SIZE_DEFAULT,	\
+		.commit_size 		= KARENA_COMMIT_SIZE_DEFAULT,	\
+		.allocation_site_file 	= __FILE__,			\
+		.allocation_site_line 	= __LINE__,			\
 	       	__VA_ARGS__})
 void		karena_release(karena_t*);
 

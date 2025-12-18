@@ -38,6 +38,29 @@ strcpy(char* restrict dest, const char* restrict src)
 	return dest;
 }
 
+__always_inline s32
+memcmp(const void* b1, const void* b2, u32 n)
+{
+	u8*	b1_8	= (u8*)b1;
+	u8*	b2_8	= (u8*)b2;
+	u32	i	= 0;
+
+	while (*b1_8 == *b2_8 && n && n % 4)
+		b1_8++, b2_8++, n--;
+	
+
+	if (*b1_8 != *b2_8)
+		return *b1_8 - *b2_8;
+	
+	u32*	b1_32	= (u32*)b1_8;
+	u32*	b2_32	= (u32*)b2_8;
+
+	while (*b1_32 == *b2_32 && n)
+		b1_32++, b2_32++, n-=4;
+	
+	return *b1_8 - *b2_8;
+}
+
 inline void*
 memcpy(void* dst, const void* src, u32 n)
 {
@@ -239,6 +262,12 @@ memset(void* s, uint8_t c, u32 n)
 	*(word*)(ptr + n - 20) = wc;
 	*(word*)(ptr + n - 24) = wc;
 	*(word*)(ptr + n - 28) = wc;
+
+	// TODO: check if this fix the overflow that occured with n-=32 
+	if (n <= 48)
+	{
+		return s;
+	}
 
 	k = 24 + ((uintptr_t)ptr & 4);
 	ptr += k;

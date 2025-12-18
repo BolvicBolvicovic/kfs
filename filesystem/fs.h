@@ -7,7 +7,6 @@
 #include <bits.h>
 #include <atomic.h>
 #include <soa.h>
-#include <filesystem/vfs/vfs.h>
 #include <processes/locks/spinlock.h>
 #include <memory/allocators/karena.h>
 #include "path.h"
@@ -50,7 +49,7 @@ struct file_owner_t
 	spinlock_t	lock;
 	u32		pid, uid, euid;
 	s32		signum;
-} file_owner_t;
+};
 
 typedef struct file_credentials_t file_credentials_t;
 struct file_credentials_t
@@ -90,7 +89,7 @@ struct file_operations_i
 	s32	(*llseek)	(struct file_t*, s32, s32);
 	s32	(*read)		(struct file_t*, char*, u32, s32*);
 	s32	(*write)	(struct file_t*, char*, u32, s32*);
-	s32	(*mmap)		(struct file_t*, mm_t*);
+	s32	(*mmap)		(struct file_t*, struct mm_t*);
 	s32	(*open)		(struct file_t*);
 	s32	(*close)	(struct file_t*);
 	s32	(*lock)		(struct file_t*);
@@ -173,35 +172,36 @@ struct file_t
 // TODO: look into f_pos_lock and FMODE_ATOMIC_POS and their relations with f_pipe
 // https://github.com/torvalds/linux/blob/master/include/linux/fs.h#L1258
 #define FILE_FIELDS(X)				\
-	X(spinlock_t,		lock);		\
-	X(u32, 			mode);		\
-	X(u32, 			flags);		\
-	X(inode_t, 		inode);		\
-	X(void*,		private_data);	\
-	X(file_operations_i*,	operations);	\
-	X(mm_t*,		mapping);	\
-	X(path_t,		path);		\
-	X(file_owner_t*,	owner);		\
-	X(file_credentials_t,	credentials);	\
-	X(u32,			position);	\
-	X(arena_t*,		arena)
+	X(spinlock_t,		lock)		\
+	X(u32, 			mode)		\
+	X(u32, 			flags)		\
+	X(inode_t, 		inode)		\
+	X(void*,		private_data)	\
+	X(file_operations_i*,	operations)	\
+	X(struct mm_t*,		mapping)	\
+	X(path_t,		path)		\
+	X(file_owner_t*,	owner)		\
+	X(file_credentials_t,	credentials)	\
+	X(u32,			position)	\
+	X(karena_t*,		arena)
 	// file_ref
-	FILE_FIELDS(SOA_DEFINE_FIELD);
+	FILE_FIELDS(SOA_DEFINE_FIELD)
 };
 
 SOA_DEFINE_STRUCT_OF_ARRAYS(file_t, FILE_FIELDS);
 
-typedef struct
+soa_file_t*	file_allocate_soa(karena_t* arena, u32 size);
 
 typedef struct file_handle_t file_handle_t;
 struct file_handle_t
 {
 	u32	handle_bytes_count;
 	s32	handle_type;
-	u8	handle[] __counted_by(handle_bytes_count);
+	u8	handle[]; // __counted_by(handle_bytes_count);
 };
 
 void	fs_init(void);
 file_t*	fs_get_root(void);
+file_t*	fs_get_file(char* addr, u32 addr_len);
 
 #endif
