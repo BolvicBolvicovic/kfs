@@ -171,26 +171,19 @@ struct file_t
 // Note for private_data: socket_t data or directory_t data?
 // TODO: look into f_pos_lock and FMODE_ATOMIC_POS and their relations with f_pipe
 // https://github.com/torvalds/linux/blob/master/include/linux/fs.h#L1258
-#define FILE_FIELDS(X)				\
-	X(spinlock_t,		lock)		\
-	X(u32, 			mode)		\
-	X(u32, 			flags)		\
-	X(inode_t, 		inode)		\
-	X(void*,		private_data)	\
-	X(file_operations_i*,	operations)	\
-	X(struct mm_t*,		mapping)	\
-	X(path_t,		path)		\
-	X(file_owner_t*,	owner)		\
-	X(file_credentials_t,	credentials)	\
-	X(u32,			position)	\
-	X(karena_t*,		arena)
-	// file_ref
-	FILE_FIELDS(SOA_DEFINE_FIELD)
+	spinlock_t		lock;
+	u32 			mode;
+	u32 			flags;
+	inode_t 		inode;
+	void*			private_data;
+	file_operations_i	operations;
+	struct mm_t*		mapping;
+	path_t			path;
+	file_owner_t*		owner;
+	file_credentials_t	credentials;
+	u32			position;
+	karena_t*		arena;
 };
-
-SOA_DEFINE_STRUCT_OF_ARRAYS(file_t, FILE_FIELDS);
-
-soa_file_t*	file_allocate_soa(karena_t* arena, u32 size);
 
 typedef struct file_handle_t file_handle_t;
 struct file_handle_t
@@ -202,6 +195,11 @@ struct file_handle_t
 
 void	fs_init(void);
 file_t*	fs_get_root(void);
-file_t*	fs_get_file(char* addr, u32 addr_len);
+file_t*	fs_get_file_from_addr(char* addr, u32 addr_len);
+file_t*	fs_get_file_from_fd(u32 fd);
+s32	fs_close(s32 fd);
+s32	fs_write(s32 fd, char* buf, u32 buf_size);
+s32	fs_read(s32 fd, char* buf, u32 buf_size);
+// TODO: add fs_mmap
 
 #endif

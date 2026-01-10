@@ -1,6 +1,6 @@
 NET	= net.a
 
-SRCS	= protocol_unix.c
+SRCS	=  socket.c
 OBJS	= $(SRCS:.c=.o)
 
 AR	= ../gcc_kfs/bin/i386-elf-ar rcs

@@ -5,8 +5,7 @@
 #include <compiler.h>
 
 #define BITMAP_CHUNK_FULL	0xffffffff
-#define BITMAP_CHUNK_SIZE	sizeof(u32)
-#define BITMAP_CHUNK_LENGHT	32
+#define BITMAP_CHUNK_SIZE	32
 
 /* Name: bitmap_t
  * Description: bitmap struct with BITMAP_CHUNK_SIZE of 32 bits.
@@ -58,7 +57,6 @@ bitmap_find_next_free_bit(bitmap_t* bitmap)
 	{
 		if (i * BITMAP_CHUNK_SIZE >= bitmap->size) i = 0;
 
-		if (i * BITMAP_CHUNK_SIZE >= bitmap->size) continue;
 		if (bitmap->map[i] == BITMAP_CHUNK_FULL) continue;
 
 		for (u32 j = 0; j < BITMAP_CHUNK_SIZE; j++)

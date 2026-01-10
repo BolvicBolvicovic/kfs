@@ -52,9 +52,6 @@ kernel_main(u32 magic, u32 addr)
 	//init_gpu();
 	//ide_init(0x1F0, 0x3F6, 0x170, 0x376, 0x000);
 
-	karena_t*	kernel_arena = KARENA_ALLOC();
-
-	fd_init(kernel_arena);
 	fs_init();
 
 	init_multitasking();

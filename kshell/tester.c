@@ -1,21 +1,120 @@
 #include "kshell.h"
 #include <kernel/kernel.h>
 #include <memory/allocators/kmalloc.h>
+#include <net/socket.h>
+#include <ringbuffer.h>
 
-#define ASSERT(msg, cond) do { \
-    if (!(cond)) { \
-        printf("ASSERT FAIL: %s\n", msg); \
-        return -1; \
-    } \
+#define ASSERT_MSG(msg, cond)					\
+do {								\
+    if (!(cond)) {						\
+	char	__assert_message[] =				\
+		"ASSERT FAIL: %s at line %d in %s\n";		\
+        printf(__assert_message, msg, __LINE__, __FILE__);	\
+        return -1;						\
+    }								\
 } while(0)
 
+#define ASSERT(cond)	ASSERT_MSG(" ", cond)
+
 #define MAX_TEST_PTRS 1024
+
+static s32
+ringbuffer_test()
+{
+	u32	buf[10] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+
+	for (u32 i = 0; i < 10; i++)
+		ASSERT(RINGBUFFER_R(buf, i, 10) == i);
+
+	for (u32 i = 10; i < 20; i++)
+		ASSERT(RINGBUFFER_R(buf, i, 10) == i - 10);
+
+	for (u32 i = 20; i < 30; i++)
+		RINGBUFFER_W(buf, i, i, 10);
+
+	for (u32 i = 10; i < 20; i++)
+		ASSERT(RINGBUFFER_R(buf, i, 10) == i + 10);
+
+	return 0;
+}
+
+static s32
+socket_protocol_agnostic_test(s32 server, s32 client1, s32 client2)
+{
+	char	serv_addr[]	= "/server";
+	char	serv_buffer[100]= { 0 };
+	char	cli1_addr[]	= "/client1";
+	char	cli2_addr[]	= "/client2";
+	char	message1[]	= "Hello world 1";
+	char	message2[]	= "Hello world 2";
+
+	ASSERT(socket_bind(server, serv_addr, sizeof(serv_addr)) >= 0);
+	ASSERT(socket_bind(client1, cli1_addr, sizeof(cli1_addr)) >= 0);
+	ASSERT(socket_bind(client2, cli2_addr, sizeof(cli2_addr)) >= 0);
+
+	ASSERT(socket_listen(server, 0) >= 0);
+	
+	// THIS PART IS SUPPOSED TO HAPPEN ON DIFFERENT PROCESSES
+	// BUT WE DO THEM SEQUENCIALY FOR TESTING PURPOSES
+	// Here we cannot connect with client 2 because that would create a deadlock.
+	ASSERT(socket_connect(client1, serv_addr, sizeof(serv_addr)) >= 0);
+
+	// Accept first incomming connection
+	s32	conn_1 = socket_accept(server, 0, 0);
+	ASSERT(conn_1 >= 0);
+	
+	ASSERT(socket_connect(client2, serv_addr, sizeof(serv_addr)) >= 0);
+	// Accept second incomming connection
+	s32	conn_2 = socket_accept(server, 0, 0);
+	ASSERT(conn_2 >= 0);
+
+	ASSERT(socket_write(client1, message1, sizeof(message1)) == sizeof(message1));
+	ASSERT(socket_write(client2, message2, sizeof(message2)) == sizeof(message2));
+	
+	ASSERT(socket_read(conn_1, serv_buffer, sizeof(serv_buffer)) == sizeof(message1));
+	ASSERT(strcmp(serv_buffer, message1) == 0);
+	ASSERT(socket_read(conn_2, serv_buffer, sizeof(serv_buffer)) == sizeof(message2));
+	ASSERT(strcmp(serv_buffer, message2) == 0);
+
+	ASSERT(socket_close(conn_1) >= 0);
+	ASSERT(socket_close(conn_2) >= 0);
+	ASSERT(socket_close(client1) >= 0);
+	ASSERT(socket_close(client2) >= 0);
+	ASSERT(socket_close(server) >= 0);
+
+	return 0;
+}
+
+static s32
+socket_unix_test(void)
+{
+	s32	server		= socket_new(AF_UNIX, SOCK_STREAM, 0);
+	s32	client1		= socket_new(AF_UNIX, SOCK_STREAM, 0);
+	s32	client2		= socket_new(AF_UNIX, SOCK_STREAM, 0);
+
+	ASSERT(server >= 0);
+	ASSERT(client1 >= 0);
+	ASSERT(client2 >= 0);
+	ASSERT(server != client1);
+	ASSERT(server != client2);
+	ASSERT(client2 != client1);
+
+	socket_protocol_agnostic_test(server, client1, client2);
+
+	return 0;
+}
+
+static void
+tests_net(void)
+{
+	socket_unix_test();
+}
 
 typedef struct
 {
     void* ptr;
     u32 req_size;
-    u32 u32ype;
+    u32 size_type;
     uint32_t pattern;
 } alloc_rec_t;
 
@@ -115,10 +214,10 @@ tests_processes(void)
 	pid_t	u2 = create_process(&pu);
 	pid_t	f  = KPROC_CREATE((u32)process_forked);
 	pid_t	u3 = create_process(&pu);
-	ASSERT("Error creating a", a > 0);
-	ASSERT("Error creating b", b > 0);
-	ASSERT("Error creating f", f > 0);
-	ASSERT("Error creating u", u > 0);
+	ASSERT_MSG("Error creating a", a > 0);
+	ASSERT_MSG("Error creating b", b > 0);
+	ASSERT_MSG("Error creating f", f > 0);
+	ASSERT_MSG("Error creating u", u > 0);
 
 	return 0;
 }
@@ -169,12 +268,12 @@ test_binning_basic(void)
 	{
         void* p = kmalloc(sizes[si]);
         if (p != 0)
-		ASSERT("binning allocation failed (returned 0)\n", p);
+		ASSERT_MSG("binning allocation failed (returned 0)\n", p);
         uint32_t ks = kget_size(p);
-		ASSERT("binning allocation failed (kget_size too small)\n", ks >= sizes[si]);
+		ASSERT_MSG("binning allocation failed (kget_size too small)\n", ks >= sizes[si]);
         recs[used].ptr = p;
         recs[used].req_size = sizes[si];
-        recs[used].u32ype = ks;
+        recs[used].size_type = ks;
         recs[used].pattern = pattern_for_idx(used);
         fill_pattern(p, sizes[si], recs[used].pattern);
         used++;
@@ -194,7 +293,7 @@ test_binning_basic(void)
         }
     }
     
-    ASSERT("binning uniqueness: failure (overlap detected)\n", !overlap_found);
+    ASSERT_MSG("binning uniqueness: failure (overlap detected)\n", !overlap_found);
     return 0;
 }
 
@@ -205,19 +304,19 @@ test_continuous_basic(void)
 	// Note: 2 pages
 	void* p1 = kmalloc(8192);
     
-	ASSERT("continuous allocation failed (returned 0)\n", p1);
-    ASSERT("continuous page alignment: failure\n", ((uintptr_t)p1 & 0xFFF) == 0);
-    
-    uint32_t ks = kget_size(p1);
-    ASSERT("continuous kget_size: failure\n", ks >= 8192);
-    
-    // Note: fill and check
-    uint32_t pat = 0xDEADBEEF;
-    fill_pattern(p1, 8192, pat);
-    ASSERT("continuous pattern check: failure\n", check_pattern(p1, 8192, pat));
-    
-    kfree(p1);
-    return 0;
+	ASSERT_MSG("continuous allocation failed (returned 0)\n", p1);
+	ASSERT_MSG("continuous page alignment: failure\n", ((uintptr_t)p1 & 0xFFF) == 0);
+	
+	uint32_t ks = kget_size(p1);
+	ASSERT_MSG("continuous kget_size: failure\n", ks >= 8192);
+	
+	// Note: fill and check
+	uint32_t pat = 0xDEADBEEF;
+	fill_pattern(p1, 8192, pat);
+	ASSERT_MSG("continuous pattern check: failure\n", check_pattern(p1, 8192, pat));
+	
+	kfree(p1);
+	return 0;
 }
 
 /* Test 3: invalid free */
@@ -261,13 +360,13 @@ tests_string(void)
     }
 
     // Test strcmp
-	ASSERT("strcmp equal strings: failure\n", strcmp(tester, "TESter") == 0);
-	ASSERT("strcmp different strings: failure\n", strcmp(tester, "tes") != 0);
-	ASSERT("strcmp different length strings: failure\n", strcmp(tester, "TESterrrr") != 0);
+	ASSERT_MSG("strcmp equal strings: failure\n", strcmp(tester, "TESter") == 0);
+	ASSERT_MSG("strcmp different strings: failure\n", strcmp(tester, "tes") != 0);
+	ASSERT_MSG("strcmp different length strings: failure\n", strcmp(tester, "TESterrrr") != 0);
 
     // Test strchr
-	ASSERT("strchr not found: failure\n", strchr(tester, 'a') == 0);
-	ASSERT("strchr found: failure\n", strchr(tester, 'e') == tester + 4);
+	ASSERT_MSG("strchr not found: failure\n", strchr(tester, 'a') == 0);
+	ASSERT_MSG("strchr found: failure\n", strchr(tester, 'e') == tester + 4);
 
     // Test memcpy
     char copy[8] = {0};
@@ -279,11 +378,11 @@ tests_string(void)
     }
 	char copy2[1000] = {0};
 	memcpy(copy2, "jekeiwypmsflwwzndbiagbhjinatuifqqqwxiuojcuuixywvgrzlplnazvuzaodypisgtrnrjwpjuljvpjfabeilgscswxqfojmeanpxkpusejwqagdiomswbeywzowxjzrugdfzsjwdyrenkkfkmv", 150);
-	ASSERT("memcpy long string: failure\n", strcmp(copy2,"jekeiwypmsflwwzndbiagbhjinatuifqqqwxiuojcuuixywvgrzlplnazvuzaodypisgtrnrjwpjuljvpjfabeilgscswxqfojmeanpxkpusejwqagdiomswbeywzowxjzrugdfzsjwdyrenkkfkmv" ) == 0);
+	ASSERT_MSG("memcpy long string: failure\n", strcmp(copy2,"jekeiwypmsflwwzndbiagbhjinatuifqqqwxiuojcuuixywvgrzlplnazvuzaodypisgtrnrjwpjuljvpjfabeilgscswxqfojmeanpxkpusejwqagdiomswbeywzowxjzrugdfzsjwdyrenkkfkmv" ) == 0);
 
     // Test strcpy
     strcpy(copy, tester);
-	ASSERT("strcpy: failure\n", strcmp(copy, tester) == 0);
+	ASSERT_MSG("strcpy: failure\n", strcmp(copy, tester) == 0);
 
     // Test memset
     memset(copy, 'c', 7);
@@ -326,8 +425,10 @@ tests_stdlib()
 void
 run_all_tests(void)
 {
-    tests_string();
-    tests_stdlib();
-    tests_memory();
-    tests_processes();
+	tests_string();
+	tests_stdlib();
+	tests_memory();
+	ringbuffer_test();
+	tests_net();
+//	tests_processes();
 }

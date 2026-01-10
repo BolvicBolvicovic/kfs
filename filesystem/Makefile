@@ -1,6 +1,6 @@
 FS	= filesystem.a
 
-SRCS	= fs.c fdtable.c path.c socket.c
+SRCS	= fs.c fdtable.c path.c
 OBJS	= $(SRCS:.c=.o)
 
 AR	= ../gcc_kfs/bin/i386-elf-ar rcs
