@@ -41,6 +41,7 @@ karena_alloc(karena_parameters_t* params)
 
 	karena_t*	arena		= (karena_t*)base;
 
+	arena->prev			= 0;
 	arena->current			= arena;
 	arena->flags			= params->flags;
 	arena->commit_size		= params->commit_size;

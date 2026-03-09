@@ -443,11 +443,11 @@ tests_stdlib()
 void
 run_all_tests(void)
 {
-//	tests_string();
-//	tests_stdlib();
-//	tests_memory();
+	tests_string();
+	tests_stdlib();
+	tests_memory();
 	ringbuffer_test();
-//	tests_net();
-	tests_processes();
+	tests_net();
+	//tests_processes();
 	socket_unix_test();
 }
