@@ -34,67 +34,73 @@ stack_top:
 .align 0x1000
 boot_page_dir:
 .skip 0x1000
-# If Kernel grows over 3MB, further page table will be needed
 boot_page_table0:
 .skip 0x1000
+# If Kernel grows over 3MB, further page table will be needed
+# boot_page_table1:
+# .skip 0x1000
 bitmap:
-.skip 0x30000
+.skip 0x10000
 
 .section .boot.text, "ax", @progbits
 .global	_start
 #.type _start, @function
 _start:
-    movl $(boot_page_table0 - KERNEL_VIRT_BASE), %edi
-    movl $0, %esi
-    movl $1024, %ecx
+	movl $(boot_page_table0 - KERNEL_VIRT_BASE), %edi
+#	movl $(boot_page_table1 - KERNEL_VIRT_BASE), %ebx
+	movl $0, %esi
+	movl $1024, %ecx
 1:
-    # Select Kernel
-   # cmpl $start_kernel, %esi
-   # jl   2f
-    cmpl $endkernel, %esi
-    jge  3f
-    # Map addr as present and writable
-    movl %esi, %edx
-    orl  $PRIV, %edx
-    movl %edx, (%edi)
+# Select Kernel
+# cmpl $start_kernel, %esi
+# jl   2f
+	cmpl $endkernel, %esi
+	jge  3f
+# Map addr as present and writable
+	movl %esi, %edx
+	orl  $PRIV, %edx
+	movl %edx, (%edi)
+#	movl %edx, (%ebx)
 2:
-    addl $PAGE_SIZE, %esi
-    addl $4, %edi # Move to next entry in table (32 bits entry)
-    loop 1b
+	addl $PAGE_SIZE, %esi
+	addl $4, %edi # Move to next entry in table (32 bits entry)
+	loop 1b
 3:
-    # Map the page table to both address 0x00000000 and 0xC0000000 because enabling paging does not change the next instruction that continues to be physical
-    movl $(boot_page_table0 - KERNEL_VIRT_BASE + PRIV), boot_page_dir - KERNEL_VIRT_BASE
-    movl $(boot_page_table0 - KERNEL_VIRT_BASE + PRIV), boot_page_dir - KERNEL_VIRT_BASE + 768 * 4
+# Map the page table to both address 0x00000000 and 0xC0000000 because enabling paging does not change the next instruction that continues to be physical
+	movl $(boot_page_table0 - KERNEL_VIRT_BASE + PRIV), boot_page_dir - KERNEL_VIRT_BASE
+#	movl $(boot_page_table1 - KERNEL_VIRT_BASE + PRIV), boot_page_dir - KERNEL_VIRT_BASE + 4
+	movl $(boot_page_table0 - KERNEL_VIRT_BASE + PRIV), boot_page_dir - KERNEL_VIRT_BASE + 768 * 4
+#	movl $(boot_page_table1 - KERNEL_VIRT_BASE + PRIV), boot_page_dir - KERNEL_VIRT_BASE + 769 * 4
 
 	# Map the boot pdir to its last entry for recursive paging
-    movl $(boot_page_dir - KERNEL_VIRT_BASE + PRIV), boot_page_dir - KERNEL_VIRT_BASE + 1023 * 4
-
-    # Set page dir to cr3
-    movl $(boot_page_dir - KERNEL_VIRT_BASE), %ecx
-    movl %ecx, %cr3
-    # Enable Paging and write-protect bit (supervisor cannot write on read-only pages)
-    movl %cr0, %ecx
-    or   $0x80010000, %ecx
-    movl %ecx, %cr0
-
-    lea higher_half, %ecx
-    jmp *%ecx
+	movl $(boot_page_dir - KERNEL_VIRT_BASE + PRIV), boot_page_dir - KERNEL_VIRT_BASE + 1023 * 4
+	
+	# Set page dir to cr3
+	movl $(boot_page_dir - KERNEL_VIRT_BASE), %ecx
+	movl %ecx, %cr3
+	# Enable Paging and write-protect bit (supervisor cannot write on read-only pages)
+	movl %cr0, %ecx
+	or   $0x80010000, %ecx
+	movl %ecx, %cr0
+	
+	lea higher_half, %ecx
+	jmp *%ecx
 
 .section .text
 .align 4
 # Higher Half Kernel
 higher_half:
-    # Reload cr3 forces a TLB flush and changes take effect
-    movl %cr3, %ecx
-    movl %ecx, %cr3
-
-    mov  $stack_top, %esp
-
-    pushl   %ebx
-    pushl   %eax
-    cli
-    .extern    kernel_main
-    call       kernel_main
+	# Reload cr3 forces a TLB flush and changes take effect
+	movl %cr3, %ecx
+	movl %ecx, %cr3
+	
+	mov  $stack_top, %esp
+	
+	pushl   %ebx
+	pushl   %eax
+	cli
+	.extern    kernel_main
+	call       kernel_main
 1:
-    hlt
-    jmp 1b
+	hlt
+	jmp 1b

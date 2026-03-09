@@ -282,6 +282,7 @@ vmm_reserve_kblocks(u32 nb_blocks)
 		u32	current_pt_index = pt_index + i % PAGES_PER_TABLE;
 
 		PAGE_TABLES[current_pd_index][current_pt_index] = PE_PRESENT | PE_WRITABLE;
+		flush_tlb_entry((u32)base + i * PAGE_SIZE);
 	}
 
 	mutex_unlock(&kernel_lock);

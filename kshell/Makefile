@@ -8,7 +8,7 @@ CC	= ../gcc_kfs/bin/i386-elf-gcc
 INC	= -I../include -I..
 FLAGS	= -ffreestanding	\
 	  -g \
-	  -O2 \
+	  -O0 \
 	  -nostdlib		
 
 all: $(KSHELL)

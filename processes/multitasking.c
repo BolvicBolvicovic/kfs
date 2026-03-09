@@ -3,6 +3,7 @@
 #include <processes/locks/spinlock.h>
 #include <memory/allocators/kmalloc.h>
 #include <linked_list.h>
+#include <interrupt_macros.h>
 
 #define PT_SIZE		1024
 #define STACK_SIZE	0x2000
@@ -20,70 +21,60 @@ extern void	switch_process_user(u32* new_stack, u32 dir);
 extern void	start_process(u32* new);
 extern void	tss_flush(void);
 
+static tss_t		tss;
+// TODO: Use hash table instead with pid as index
+static process_t	process_table[PT_SIZE]	= {0};
+static process_t*	kernel_process		= 0;
+
 LINKED_LIST_STRUCT(list_processes_t, process_t);
 
 static list_processes_t ready_processes		= { 0, 0 };
 static list_processes_t	awaken_processes	= { 0, 0 };
-
-static tss_t		tss;
-// TODO: Use hash table instead with pid as index
-static process_t*	process_table[PT_SIZE]	= {0};
-static process_t*	kernel_process		= 0;
-static u32		pid_count		= 1;
+static list_processes_t	zombie_processes	= { 0, 0 };
 
 
 // Note: do not need to use a specific lock since it just tells the scheduler to do its work or not.
 static ATOMIC_DEFINE(scheduler_locked);
 
 static SPINLOCK_DEFINE(awaken_processes_lock);
-static SPINLOCK_DEFINE(pid_count_lock);
+static SPINLOCK_DEFINE(zombie_processes_lock);
 
 static inline pid_t
 new_pid(void)
 {
-	spinlock_lock(&pid_count_lock);
-	u32	start_pid = pid_count;
+	if (!zombie_processes.head)
+		return (u32)-1;
 
-	do
-	{
-		if (!process_table[pid_count - 1] || process_table[pid_count - 1]->status == ZOMBIE)
-		{
-			pid_t	pid	= pid_count;
-            		pid_count	= (pid % (PT_SIZE - 1)) + 1;
-
-			spinlock_unlock(&pid_count_lock);
-
-			return pid;
-		}
-		
-		pid_count = (pid_count % (PT_SIZE - 1)) + 1;
-	} while (pid_count != start_pid);
+	spinlock_lock(&zombie_processes_lock);
 	
-	spinlock_unlock(&pid_count_lock);
+	u32	pid = zombie_processes.head->pid;
 
-	return 0;
+	zombie_processes.head = zombie_processes.head->next;
+	
+	if (!zombie_processes.head)
+		zombie_processes.tail = 0;
+
+	spinlock_unlock(&zombie_processes_lock);
+
+	return pid;
 }
 
 static inline process_t*
 get_process(pid_t p)
 {
-	if (p <= 1 || p > PT_SIZE - 1)
-	{
+	if (p < 1 || p > PT_SIZE - 1)
 		return 0;
-	}
 
-	return process_table[p - 1];
+	return &process_table[p - 1];
 }
 
 static void
 exit_process(u32 pid)
 {
-	process_table[pid - 1]->status = ZOMBIE;
+	process_table[pid - 1].status = ZOMBIE;
 	//kfree(ready_processes.head->k_stack_base);
 	for (;;)
-	{
 		asm volatile ("hlt\n\t");
-	}
 }
 
 void
@@ -140,11 +131,9 @@ s32
 queue_signal(pid_t p, u32 sig)
 {
 	if (!p || p > PT_SIZE - 1)
-	{
 		return 0;
-	}
 
-	process_table[p - 1]->pending_signals |= sig;
+	process_table[p - 1].pending_signals |= sig;
 	return 1;
 }
 
@@ -152,11 +141,9 @@ s32
 update_status(pid_t p, process_status s)
 {
 	if (!p || p > PT_SIZE - 1)
-	{
 		return 0;
-	}
 
-	process_table[p - 1]->status = s;
+	process_table[p - 1].status = s;
 	return 1;
 }
 
@@ -165,19 +152,47 @@ fork_process(u32* esp)
 {
 	process_t*	running = ready_processes.head;
 	// TODO: Handle user process
-	pid_t		fork_pid = new_pid();
-	if (!fork_pid) return 0;
+	process_t*	fork	= get_process(new_pid());
+
+	if (!fork)
+		return 0;
 
 	u8*	k_stack_base = (u8*)kmalloc(STACK_SIZE);
-	if (!k_stack_base) return 0;
+
+	if (!k_stack_base)
+		return 0;
 
 	memset(k_stack_base, 0, STACK_SIZE);
 
-	process_t*	fork = (process_t*)k_stack_base;
+	fork->k_stack_base	= k_stack_base;
+	u32 used_k_esp		= (u32)(running->k_stack_base + STACK_SIZE) - (u32)esp;
+	fork->k_esp		= (u32*)(fork->k_stack_base + STACK_SIZE - used_k_esp);
 
-	process_table[fork_pid - 1] = fork;
+	memcpy(fork->k_esp, esp, used_k_esp);
 
-	fork->pid 			= fork_pid;
+	if (running->mm)
+	{
+		// TODO: check how to handle page directory for parent/child
+		fork->mm = memcpy((void*)((u32)(k_stack_base + sizeof(process_t) + 7) & ~3),
+				running->mm,
+				sizeof(mm_t));
+	}
+	else
+	{
+		// Note: For exit_process input pid.
+		*((u32*)(k_stack_base + STACK_SIZE) - 1) = fork->pid;
+	}
+	
+	u32*	old_ebp = (u32*)*(esp + 3);
+
+	*(fork->k_esp + 3)	= (u32)fork->k_stack_base + (u32)old_ebp - (u32)running->k_stack_base; // EBP
+	*(fork->k_esp + 4)	= (u32)fork->k_stack_base + *(esp + 4) - (u32)running->k_stack_base; // ESP
+	*(fork->k_esp + 8)	= 0;	// EAX - child process return value
+
+	// Note: walking the ebp chain to map every one of them to an address of the child stack
+	for (u32* ebp = *(fork->k_esp + 3); old_ebp && *old_ebp; ebp = (u32*)*ebp, old_ebp = (u32*)*old_ebp)
+		*ebp = (u32)fork->k_stack_base + *old_ebp - (u32)running->k_stack_base;
+
 	fork->uid 			= running->uid;
 	fork->parent			= running;
 	fork->self.data			= &fork;
@@ -185,39 +200,21 @@ fork_process(u32* esp)
 	fork->sibilings			= &running->children;
 	fork->children			= 0;
 	fork->children_lock.counter	= 0;
+	fork->pending_signals		= 0;
 
 	spinlock_lock(&running->children_lock);
 	single_ll_push(&running->children, &fork->self);
 	spinlock_unlock(&running->children_lock);
 
-	fork->status		= READY;
-	fork->pending_signals	= 0;
-	fork->next		= kernel_process;
-	fork->k_stack_base	= k_stack_base;
-	u32 used_k_stack	= (u32)(running->k_stack_base + STACK_SIZE) - (u32)esp;
-	fork->k_stack		= (u32*)(fork->k_stack_base + STACK_SIZE - used_k_stack);
+	scheduler_lock();
 
-	memcpy(fork->k_stack, esp, used_k_stack);
+	fork->status	= READY;
+	fork->next	= running->next;
+	running->next	= fork;
+	
+	scheduler_unlock();
 
-	if (running->mm)
-	{
-		// TODO: check how to handle page directory for parent/child
-		fork->mm = memcpy((void*)((u32)(fork->k_stack_base + sizeof(process_t) + 7) & ~3),
-				running->mm,
-				sizeof(mm_t));
-	}
-	else
-	{
-		*(u32*)(fork->k_stack_base + STACK_SIZE - 4) = fork_pid; // Set exit_process input
-	}
-
-	*(fork->k_stack + 8)	= 0;
-	*(fork->k_stack + 3)	= (u32)fork->k_stack_base + *(esp + 3) - (u32)running->k_stack_base;
-	*(fork->k_stack + 4)	= (u32)fork->k_stack;
-
-	awaken_processes_push(fork);
-
-	return fork_pid;
+	return fork->pid;
 }
 
 void
@@ -239,18 +236,21 @@ create_process(proc_info_t* info)
 {
 	process_t*	running = ready_processes.head;
 	// TODO: group R/W to static variable to surround them with spinlock
-	pid_t		pid = new_pid();
-	if (!pid) return 0;
+	process_t*	p	= get_process(new_pid());
+
+	if (!p)
+		return 0;
 
 	u8*	k_stack_base = (u8*)kmalloc(STACK_SIZE);
-	if (!k_stack_base) return 0;
+
+	if (!k_stack_base)
+		return 0;
 
 	memset(k_stack_base, 0, STACK_SIZE);
 
 	/* PROCESS PID & STATUS */
-	process_t*	p	= (process_t*)k_stack_base;
-	process_table[pid - 1]	= p;
-	p->pid			= pid;
+	p->k_stack_base		= k_stack_base;
+	p->status		= 0;
 
 	/* PROCESS MEMORY MANAGEMENT */
 	if (info->type == UPROC)
@@ -274,15 +274,17 @@ create_process(proc_info_t* info)
 		p->mm->stack		= 0xBFFFFFFF;
 		p->mm->stack_base	= PROCESS_STACK_START;
 	}
+	else
+	{
+		p->mm = 0;
+	}
 
 	/* PROCESS KSTACK */
-	p->k_stack_base = k_stack_base;
-
 	u32* stk = (u32*)(p->k_stack_base + STACK_SIZE);
 
 	if (info->type == KPROC)
 	{
-		*(--stk) = pid;
+		*(--stk) = p->pid;
 		// Note: Dummy return address (we pretend that it is a simple ret call)
 		*(--stk) = 0;
 		*(--stk) = (u32)exit_process;
@@ -317,7 +319,7 @@ create_process(proc_info_t* info)
 	// Segment selector (for ds restore)
 	*(--stk) = info->type == UPROC ? 0x23 : 0x10;	// DS (0x23 user data segment, or 0x10 for kernel)
 	
-	p->k_stack = stk;
+	p->k_esp = stk;
 
 	/* PROCESS RELATIONSHIPS */
 	p->parent			= running;
@@ -338,7 +340,7 @@ create_process(proc_info_t* info)
 
 	awaken_processes_push(p);
 
-	return pid;
+	return p->pid;
 }
 
 static void
@@ -354,6 +356,20 @@ ft_kernel_process(void)
 void
 init_multitasking(void)
 {
+	zombie_processes.head = (process_t*)process_table;
+	zombie_processes.tail = (process_t*)process_table + (PT_SIZE - 1);
+
+	process_t*	zombie = zombie_processes.head;
+
+	for (u32 i = 0; i < PT_SIZE; i++, zombie = zombie->next)
+	{
+		zombie->pid	= i + 1;
+		zombie->next	= &process_table[i + 1];
+	}
+
+	// Note: Last member of array
+	zombie->next = 0;
+
 	// Note: Init kernel process
 	proc_info_t	kernel_proc_info=
 	{
@@ -370,14 +386,14 @@ init_multitasking(void)
 	kernel_process->status		= RUNNING;
 	
 	// Note: Init TSS
-	tss.esp0			= (u32)kernel_process->k_stack;
+	tss.esp0			= (u32)kernel_process->k_esp;
 	tss.ss0				= 0x10;
 	tss.io_permission_bitmap	= sizeof(tss);
 
 	set_gdt_gate(5, (u32)&tss, sizeof(tss), 0x89, 0);
 	tss_flush();
 
-	start_process(kernel_process->k_stack);
+	start_process(kernel_process->k_esp);
 }
 
 void
@@ -402,28 +418,59 @@ schedule(u32* old_esp)
 		|| (old == kernel_process && ready_processes.tail == kernel_process))
 		return;
 
-	old->k_stack			= old_esp;
-	ready_processes.head		= old->next;
+	old->k_esp		= old_esp;
+	ready_processes.head	= old->next;
+
+	while (ready_processes.head->status == ZOMBIE)
+	{
+		if (!zombie_processes.head)
+			zombie_processes.head		= ready_processes.head;
+		else
+			zombie_processes.tail->next	= ready_processes.head;
+
+		zombie_processes.tail		= ready_processes.head;
+		ready_processes.head		= ready_processes.head->next;
+		zombie_processes.tail->next	= 0;
+	}
+
 	ready_processes.head->status	= RUNNING;
-	old->next			= kernel_process;
 	
-	if (old->status == RUNNING)
+	switch (old->status)
+	{
+	case RUNNING:
 	{
 		old->status			= READY;
+		old->next			= kernel_process;
 		ready_processes.tail->next	= old;
 		ready_processes.tail		= old;
+	} break;
+	case ZOMBIE:
+	{
+		if (!zombie_processes.head)
+			zombie_processes.head		= old;
+		else
+			zombie_processes.tail->next	= old;
+
+		old->next		= 0;
+		zombie_processes.tail	= old;
+	} break;
+	case SLEEPING:
+	{
+		old->next = 0;
+	} break;
+	default: break;
 	}
 
 	process_t*	running = ready_processes.head;
 
-	tss.esp0 = (u32)running->k_stack;
+	tss.esp0 = (u32)running->k_esp;
 	
 	if (running->mm)
 	{
-		switch_process_user(running->k_stack, (u32)running->mm->dir);
+		switch_process_user(running->k_esp, (u32)running->mm->dir);
 	}
 	else
 	{
-		switch_process(running->k_stack);
+		switch_process(running->k_esp);
 	}
 }

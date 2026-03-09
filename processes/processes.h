@@ -131,7 +131,7 @@ struct process_t
 	// Note: Memory managment
 	// Note: if mm == 0 then kernel process else user process
 	mm_t*			mm;
-	u32*			k_stack;
+	u32*			k_esp;
 	u8*			k_stack_base;
 
 	// Note: Relationships

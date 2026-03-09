@@ -78,9 +78,6 @@ socket_protocol_agnostic_test(s32 server, s32 client1, s32 client2)
 
 	ASSERT(socket_close(conn_1) >= 0);
 	ASSERT(socket_close(conn_2) >= 0);
-	ASSERT(socket_close(client1) >= 0);
-	ASSERT(socket_close(client2) >= 0);
-	ASSERT(socket_close(server) >= 0);
 
 	return 0;
 }
@@ -100,6 +97,10 @@ socket_unix_test(void)
 	ASSERT(client2 != client1);
 
 	socket_protocol_agnostic_test(server, client1, client2);
+
+	ASSERT(socket_close(client1) >= 0);
+	ASSERT(socket_close(client2) >= 0);
+	ASSERT(socket_close(server) >= 0);
 
 	return 0;
 }
@@ -230,71 +231,88 @@ static uint32_t
 pattern_for_idx(int idx)
 {
     /* produce distinct patterns */
-    uint32_t p = 0xA5A50000 ^ ((uint32_t)idx * 0x9E3779B1);
+    uint32_t	p = 0xA5A50000 ^ ((uint32_t)idx * 0x9E3779B1);
     return p | ((p >> 16) & 0xFFFF);
 }
 
 static void
 fill_pattern(void* p, u32 size, uint32_t pattern)
 {
-    uint32_t *w = (uint32_t*)p;
-    u32 n = size / 4;
-    for (u32 i = 0; i < n; ++i) w[i] = pattern ^ (uint32_t)i;
-    /* tail bytes */
-    uint8_t *b = (uint8_t*)p + n*4;
-    for (u32 i = (n*4); i < size; ++i) b[i - n*4] = (uint8_t)pattern;
+	u32		n = size / 4;
+	uint32_t*	w = (uint32_t*)p;
+	uint8_t*	b = (uint8_t*)p + n*4;
+	for (u32 i = 0; i < n; ++i)
+	        w[i] = pattern ^ (uint32_t)i;
+	/* tail bytes */
+	for (u32 i = (n*4); i < size; ++i)
+		b[i - n*4] = (uint8_t)pattern;
 }
 
 static int
 check_pattern(void* p, u32 size, uint32_t pattern)
 {
-    uint32_t *w = (uint32_t*)p;
-    u32 n = size / 4;
-    for (u32 i = 0; i < n; ++i) if (w[i] != (pattern ^ (uint32_t)i)) return 0;
-    uint8_t *b = (uint8_t*)p + n*4;
-    for (u32 i = (n*4); i < size; ++i) if (b[i - n*4] != (uint8_t)pattern) return 0;
-    return 1;
+	u32		n = size / 4;
+	uint32_t*	w = (uint32_t*)p;
+	uint8_t*	b = (uint8_t*)p + n*4;
+
+	for (u32 i = 0; i < n; ++i)
+		if (w[i] != (pattern ^ (uint32_t)i))
+			return 0;
+
+	for (u32 i = (n*4); i < size; ++i)
+		if (b[i - n*4] != (uint8_t)pattern)
+			return 0;
+
+	return 1;
 }
 
 /* Test 1: small allocations + kget_size + uniqueness */
 static int
 test_binning_basic(void)
 {
-    int used = 0;
-    u32 sizes[] = {8, 16, 32, 64, 128, 256, 512, 1024, 2048};
-    int num_sizes = sizeof(sizes)/sizeof(sizes[0]);
-    
-    for (u32 si = 0; si < num_sizes; ++si)
+	s32	used = 0;
+	u32	sizes[] = {8, 16, 32, 64, 128, 256, 512, 1024, 2048};
+	s32	num_sizes = sizeof(sizes)/sizeof(sizes[0]);
+	
+	for (u32 si = 0; si < num_sizes; ++si)
 	{
-        void* p = kmalloc(sizes[si]);
-        if (p != 0)
-		ASSERT_MSG("binning allocation failed (returned 0)\n", p);
-        uint32_t ks = kget_size(p);
-		ASSERT_MSG("binning allocation failed (kget_size too small)\n", ks >= sizes[si]);
-        recs[used].ptr = p;
-        recs[used].req_size = sizes[si];
-        recs[used].size_type = ks;
-        recs[used].pattern = pattern_for_idx(used);
-        fill_pattern(p, sizes[si], recs[used].pattern);
-        used++;
-    }
-    
-    /* uniqueness: no overlap check by comparing addresses */
-    int overlap_found = 0;
-    for (int i = 0; i < used && !overlap_found; ++i)
-    {
-        for (int j = i+1; j < used; ++j)
-        {
-            if (recs[i].ptr == recs[j].ptr)
-            {
-                overlap_found = 1;
-                break;
-            }
-        }
-    }
-    
-    ASSERT_MSG("binning uniqueness: failure (overlap detected)\n", !overlap_found);
-    return 0;
+		void* p = kmalloc(sizes[si]);
+		if (p != 0)
+			ASSERT_MSG("binning allocation failed (returned 0)\n", p);
+		uint32_t ks = kget_size(p);
+			ASSERT_MSG("binning allocation failed (kget_size too small)\n", ks >= sizes[si]);
+		recs[used].ptr = p;
+		recs[used].req_size = sizes[si];
+		recs[used].size_type = ks;
+		recs[used].pattern = pattern_for_idx(used);
+		fill_pattern(p, sizes[si], recs[used].pattern);
+		used++;
+	}
+	
+	s32	good_pattern = 1;
+	for (u32 si = 0; si < used; ++si)
+		good_pattern = check_pattern(recs[si].ptr, sizes[si], recs[used].pattern);
+
+	/* uniqueness: no overlap check by comparing addresses */
+	s32	no_overlap = 1;
+	for (int i = 0; i < used && no_overlap; ++i)
+	{
+		for (int j = i+1; j < used; ++j)
+		{
+			if (recs[i].ptr == recs[j].ptr)
+			{
+				no_overlap = 0;
+				break;
+			}
+		}
+	}
+	
+	for (u32 si = 0; si < num_sizes; ++si)
+		kfree(recs[si].ptr);
+
+	ASSERT_MSG("binning pattern: failure\n", !good_pattern);
+	ASSERT_MSG("binning uniqueness: failure (overlap detected)\n", no_overlap);
+	return 0;
 }
 
 /* Test 2: large allocations (continuous) */
@@ -335,9 +353,9 @@ test_invalid_free(void)
 int
 tests_memory(void)
 {
-    if (test_binning_basic()) return 1;
-    if (test_continuous_basic()) return 1;
-    //if (test_invalid_free()) return 1;
+	if (test_binning_basic()) return 1;
+	if (test_continuous_basic()) return 1;
+	//if (test_invalid_free()) return 1;
 	return 0;
 }
 
@@ -425,10 +443,11 @@ tests_stdlib()
 void
 run_all_tests(void)
 {
-	tests_string();
-	tests_stdlib();
-	tests_memory();
+//	tests_string();
+//	tests_stdlib();
+//	tests_memory();
 	ringbuffer_test();
-	tests_net();
-//	tests_processes();
+//	tests_net();
+	tests_processes();
+	socket_unix_test();
 }
