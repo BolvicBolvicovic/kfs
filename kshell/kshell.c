@@ -1,8 +1,8 @@
 #include "kshell.h"
 #include <processes/processes.h>
 
-static char		line[256];
-static u32		index = 0;
+static char		line[2][128]	= { { 0 }, { 0 } };
+static u32		index[2]	= { 0, 0 };
 extern current_screen_t	current_screen;
 
 const char*  color_list[16] =
@@ -67,6 +67,17 @@ init_kshell(enum vga_color fg, enum vga_color bg)
 }
 
 static void
+split_screen()
+{
+	if (current_screen.type == SHELL_DOUBLE)
+		return;
+
+	draw_line("________________________________________________________________________________", VGA_ROWS - 1, 0);
+
+	current_screen.type = SHELL_DOUBLE;
+}
+
+static void
 set()
 {
 	term_clear();
@@ -85,7 +96,8 @@ set()
 		((VGA_ROWS * 3) / 4) * 2, 10, 34);
 
 	// TODO: maybe improve the error handling here
-	if (background.null == 0 || foreground.null == 0 || keyboard.null == 0) return;
+	if (background.null == 0 || foreground.null == 0 || keyboard.null == 0)
+		return;
 
 	disable_cursor();
 
@@ -99,14 +111,17 @@ set()
 }
 
 inline void
-cmd_add_char(uint8_t c)
+cmd_add_char(u8 c)
 {
-	if (c == 0x7F && index - 1 >= 0)
-		index--;
-	else if (index < 256)
-		line[index++] = c;
+	index[current_screen.shell_id];
 
-	if (index >= VGA_COLS) index = 0;
+	if (c == 0x7F && index[current_screen.shell_id] - 1 >= 0)
+		index[current_screen.shell_id]--;
+	else if (index[current_screen.shell_id] < 256)
+		line[current_screen.shell_id][index[current_screen.shell_id]++] = c;
+
+	if (index[current_screen.shell_id] >= VGA_COLS)
+		index[current_screen.shell_id] = 0;
 }
 
 void
@@ -228,19 +243,22 @@ shut_down()
 void
 exec_command()
 {
-	char	words[4][256];
+	char	words[4][32];
 	u32	i = 0;
 	u32	j;
+	char*	current_line	= line[current_screen.shell_id];
 
-	line[index] = 0;
-	index = 0;
+	current_line[index[current_screen.shell_id]] = 0;
+	index[current_screen.shell_id] = 0;
 
 	for (u32 k = 0; k < 4; k++)
 	{
-		while (line[i] == ' ') i++;
+		while (current_line[i] == ' ') i++;
 
-		for (j = 0; line[i] >= 0x21 && line[i] <= 0x7E; j++) words[k][j] = line[i++];
-			words[k][j] = 0;
+		for (j = 0; current_line[i] >= 0x21 && current_line[i] <= 0x7E; j++)
+			words[k][j] = current_line[i++];
+		
+		words[k][j] = 0;
 	}
 	
 	if (!strcmp(words[0], "TEST"))
@@ -253,6 +271,8 @@ exec_command()
 
 		create_process(&tests);
 	}
+	// TODO: fix split screen
+	// else if (!strcmp(words[0], "SPLIT"))	split_screen();
 	else if (!strcmp(words[0], "SET")) 	set();
 	else if (!strcmp(words[0], "CLEAR"))	term_clear();
 	else if (!strcmp(words[0], "REBOOT"))	reboot();

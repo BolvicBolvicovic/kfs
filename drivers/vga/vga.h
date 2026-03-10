@@ -4,23 +4,26 @@
 #include <c_types.h>
 #include <stdio.h>
 #include "../utils.h"
-enum vga_color {
-	BLACK = 0,
-	BLUE = 1,
-	GREEN = 2,
-	CYAN = 3,
-	RED = 4,
-	MAGENTA = 5,
-	BROWN = 6,
-	WHITE = 7,
-	GREY = 8,
-	LIGHT_BLUE = 9,
-	LIGHT_GREEN = 10,
-	LIGHT_CYAN = 11,
-	LIGHT_RED = 12,
-	PINK = 13,
-	YELLOW = 14,
-	BRIGHT_WHITE = 15
+
+typedef enum vga_color vga_color;
+enum vga_color
+{
+	BLACK		= 0,
+	BLUE		= 1,
+	GREEN		= 2,
+	CYAN		= 3,
+	RED		= 4,
+	MAGENTA 	= 5,
+	BROWN		= 6,
+	WHITE		= 7,
+	GREY		= 8,
+	LIGHT_BLUE	= 9,
+	LIGHT_GREEN	= 10,
+	LIGHT_CYAN	= 11,
+	LIGHT_RED	= 12,
+	PINK		= 13,
+	YELLOW		= 14,
+	BRIGHT_WHITE	= 15,
 };
 
 #define VGA_CTRL_REGISTER	0x3D4
@@ -31,19 +34,20 @@ enum vga_color {
 #define VGA_COLS		0x50
 #define VGA_ROWS		0x19
 
-#define CURSOR_START 0
-#define CURSOR_END 15
-#define CURSOR_START_REGISTER 0x0A
-#define CURSOR_END_REGISTER 0x0B
-#define CURSOR_DISABLE_BIT 0x20
+#define CURSOR_START		0
+#define CURSOR_END		15
+#define CURSOR_START_REGISTER	0x0A
+#define CURSOR_END_REGISTER	0x0B
+#define CURSOR_DISABLE_BIT	0x20
 
-uint8_t vga_entry_color(enum vga_color fg, enum vga_color bg);
-void	term_set_color(uint8_t color);
-uint8_t term_get_color();
+u8	vga_entry_color(enum vga_color fg, enum vga_color bg);
+void	term_set_color(u8 color);
+u8	term_get_color();
 void	term_clear();
 void	term_print(const char* str, u32 n);
 void    term_backspace();
-int     start_of_line(int offset);
+void	term_set_offsets(u32 base, u32 end);
+s32     start_of_line(s32 offset);
 void    disable_cursor();
 void    enable_cursor();
 

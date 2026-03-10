@@ -190,7 +190,7 @@ fork_process(u32* esp)
 	*(fork->k_esp + 8)	= 0;	// EAX - child process return value
 
 	// Note: walking the ebp chain to map every one of them to an address of the child stack
-	for (u32* ebp = *(fork->k_esp + 3); old_ebp && *old_ebp; ebp = (u32*)*ebp, old_ebp = (u32*)*old_ebp)
+	for (u32* ebp = (u32*)*(fork->k_esp + 3); old_ebp && *old_ebp; ebp = (u32*)*ebp, old_ebp = (u32*)*old_ebp)
 		*ebp = (u32)fork->k_stack_base + *old_ebp - (u32)running->k_stack_base;
 
 	fork->uid 			= running->uid;
