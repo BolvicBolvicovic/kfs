@@ -1,5 +1,6 @@
 #include "kshell.h"
 #include <processes/processes.h>
+#include <net/socket.h>
 
 static char		line[2][128]	= { { 0 }, { 0 } };
 static u32		index[2]	= { 0, 0 };
@@ -240,6 +241,61 @@ shut_down()
 	);
 }
 
+static void
+ping()
+{
+	char*	msg;
+	asm volatile("mov %%edi, %0" : "=r"(msg));
+
+	s32	client		= socket_new(AF_UNIX, SOCK_STREAM, 0);
+	char	serv_addr[]	= "/pong";
+	s32	err		= socket_connect(client, serv_addr, sizeof(serv_addr));
+	u32	msg_len		= strlen(msg);
+	u32	written		= 0;
+
+	if (err < 0)
+	{
+		printf("Error connecting socket to /pong: %d\n", err);
+		return;
+	}
+
+	printf("Sending to /pong: %s\n", msg);
+
+	while ((written = socket_write(client, msg, msg_len)) != msg_len);
+	
+	printf("Message sent to /pong!\n");
+	socket_close(client);
+}
+
+static void
+pong()
+{
+	s32	server		= socket_new(AF_UNIX, SOCK_STREAM, 0);
+	char	serv_addr[]	= "/pong";
+	char	buff[128]	= { 0 };
+	s32	conn		= ERR_UNIX_NOENT;
+	
+	socket_bind(server, serv_addr, sizeof(serv_addr));
+	socket_listen(server, 0);
+	printf("I am /pong, I only answer to PING.\n");
+
+	while ((conn = socket_accept(server, 0, 0)) <= 0);
+
+	if (conn < 0)
+	{
+		printf("Error accepting PING: %d\n", conn);
+		return;
+	}
+	
+	printf("PING is connected to /pong\n", server);
+
+	while (socket_read(conn, buff, sizeof(buff)) <= 0);
+
+	printf("PING wrote %d bytes: %s\n", strlen(buff), buff);
+	socket_close(conn);
+	socket_close(server);
+}
+
 void
 exec_command()
 {
@@ -261,18 +317,39 @@ exec_command()
 		words[k][j] = 0;
 	}
 	
-	if (!strcmp(words[0], "TEST"))
+	if (!strcmp(words[0], "TESTS"))
 	{
 		proc_info_t	tests =
 		{
-			KPROC,0,0,0,0,
-			(u32)run_all_tests
+			.type=KPROC,
+			.entry=(u32)run_all_tests
 		};
 
 		create_process(&tests);
 	}
 	// TODO: fix split screen
 	// else if (!strcmp(words[0], "SPLIT"))	split_screen();
+	else if (!strcmp(words[0], "PONG"))
+	{
+		proc_info_t	pong_p =
+		{
+			.type=KPROC,
+			.entry=(u32)pong,
+		};
+
+		create_process(&pong_p);
+	}
+	else if (!strcmp(words[0], "PING"))
+	{
+		proc_info_t	ping_p =
+		{
+			.type=KPROC,
+			.data=(u32*)words[1],
+			.entry=(u32)ping,
+		};
+
+		create_process(&ping_p);
+	}
 	else if (!strcmp(words[0], "SET")) 	set();
 	else if (!strcmp(words[0], "CLEAR"))	term_clear();
 	else if (!strcmp(words[0], "REBOOT"))	reboot();
@@ -293,6 +370,6 @@ COMMANDS AVAILABLE:\n\
   HALT         : HALTS THE KERNEL\n\
   STACK        : PRINTS STACK\n\
   INT   [NUM]  : DOES INTERRUPTION [NUM]\n\
-  TEST         : EXECUTES A TEST SUITE FOR THE KERNEL\n\
+  TESTS        : EXECUTES A TEST SUITE FOR THE KERNEL\n\
   HELP         : PRINTS THIS MESSAGE\n");
 }

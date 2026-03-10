@@ -314,7 +314,8 @@ create_process(proc_info_t* info)
 							// User process exits with syscall exit
 	*(--stk) = 0;					// EBP
 	*(--stk) = 0;					// ESI
-	*(--stk) = 0;					// EDI
+	*(--stk) = info->type == KPROC			// EDI - Can hold a pointer to some external data.
+		? (u32)info->data : 0;
 	
 	// Segment selector (for ds restore)
 	*(--stk) = info->type == UPROC ? 0x23 : 0x10;	// DS (0x23 user data segment, or 0x10 for kernel)

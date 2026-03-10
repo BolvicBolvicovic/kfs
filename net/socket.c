@@ -113,34 +113,32 @@ socket_listen(s32 socket, s32 backlog)
 	if (!bitmap_test_bit(&_sockets_bm, socket))
 		return ERR_UNIX_NOENT;
 
-	if (_sockets[socket].bucket & SOCK_BUCKET_UNIX_STREAM_DEF)
-	{
-		_sockets[socket].bucket = SOCK_BUCKET_UNIX_STREAM_DEF_LISTEN;
+	if (!(_sockets[socket].bucket & SOCK_BUCKET_UNIX_STREAM_DEF))
+		return ERR_UNIX_ISCONN;
+	
+	_sockets[socket].bucket = SOCK_BUCKET_UNIX_STREAM_DEF_LISTEN;
 
-		spinlock_lock(&_sockets_unix_stream_def_lock);
+	spinlock_lock(&_sockets_unix_stream_def_lock);
 
-		if (socket == _sockets_unix_stream_def_head)
-			_sockets_unix_stream_def_head		= _sockets[socket].next;
-		else
-			_sockets[_sockets[socket].prev].next	= _sockets[socket].next;
+	if (socket == _sockets_unix_stream_def_head)
+		_sockets_unix_stream_def_head		= _sockets[socket].next;
+	else
+		_sockets[_sockets[socket].prev].next	= _sockets[socket].next;
 
-		if (_sockets[socket].next != -1)
-			_sockets[_sockets[socket].next].prev	= _sockets[socket].prev;
+	if (_sockets[socket].next != -1)
+		_sockets[_sockets[socket].next].prev	= _sockets[socket].prev;
 
-		spinlock_unlock(&_sockets_unix_stream_def_lock);
+	spinlock_unlock(&_sockets_unix_stream_def_lock);
 
-		spinlock_lock(&_sockets_unix_stream_def_listen_lock);
+	spinlock_lock(&_sockets_unix_stream_def_listen_lock);
 
-		_sockets[socket].next = _sockets_unix_stream_def_listen_head;
-		_sockets[socket].prev = -1;
-		_sockets_unix_stream_def_listen_head = socket;
+	_sockets[socket].next = _sockets_unix_stream_def_listen_head;
+	_sockets[socket].prev = -1;
+	_sockets_unix_stream_def_listen_head = socket;
 
-		spinlock_unlock(&_sockets_unix_stream_def_listen_lock);
+	spinlock_unlock(&_sockets_unix_stream_def_listen_lock);
 
-		return 0;
-	}
-
-	return ERR_UNIX_ISCONN;
+	return 0;
 }
 
 s32
@@ -152,45 +150,43 @@ socket_connect(s32 socket, char* addr, u32 addr_size)
 	if (!bitmap_test_bit(&_sockets_bm, socket))
 		return ERR_UNIX_NOENT;
 	
-	if (_sockets[socket].bucket & SOCK_BUCKET_UNIX_STREAM_DEF)
+	if (!(_sockets[socket].bucket & SOCK_BUCKET_UNIX_STREAM_DEF))
+		return ERR_UNIX_ISCONN;
+
+	// TODO: add a perm check when filesystem is ON
+	bool	is_valid_conn = 0;
+
+	spinlock_lock(&_sockets_unix_stream_def_listen_lock);
+
+	s32	sock = _sockets_unix_stream_def_listen_head;
+
+	for (; sock != -1; sock = _sockets[sock].next)
 	{
-		// TODO: add a perm check when filesystem is ON
-		bool	is_valid_conn = 0;
+		if (_sockets[sock].addr_size != addr_size)
+			continue;
 
-		spinlock_lock(&_sockets_unix_stream_def_listen_lock);
+		char*	conn_addr = _sockets_addresses + SOCK_ADDR_SIZE_MAX * sock;
 
-		s32	sock = _sockets_unix_stream_def_listen_head;
-
-		for (; sock != -1; sock = _sockets[sock].next)
+		if (strcmp(conn_addr, addr) == 0)
 		{
-			if (_sockets[sock].addr_size != addr_size)
-				continue;
-
-			char*	conn_addr = _sockets_addresses + SOCK_ADDR_SIZE_MAX * sock;
-
-			if (strcmp(conn_addr, addr) == 0)
-			{
-				is_valid_conn = 1;
-				break;
-			}
+			is_valid_conn = 1;
+			break;
 		}
-		
-		spinlock_unlock(&_sockets_unix_stream_def_listen_lock);
-
-		if (!is_valid_conn)
-			return ERR_UNIX_NOTCONN;
-
-		spinlock_lock(&_sockets[sock].lock);
-
-		_sockets[sock].pair = socket;
-
-		// Note: I am not unlocking there, but I do in accept
-		// I don't want to block the client
-		// However, I could make a queue to be even less blocking
-		return 0;
 	}
+	
+	spinlock_unlock(&_sockets_unix_stream_def_listen_lock);
 
-	return ERR_UNIX_ISCONN;
+	if (!is_valid_conn)
+		return ERR_UNIX_NOTCONN;
+
+	spinlock_lock(&_sockets[sock].lock);
+
+	_sockets[sock].pair = socket;
+
+	// Note: I am not unlocking there, but I do in accept
+	// I don't want to block the client
+	// However, I could make a queue to be even less blocking
+	return 0;
 }
 
 s32
@@ -248,17 +244,11 @@ socket_read(s32 socket, char* buffer, u32 buffer_size)
 			? buffer_size
 			: _sockets[socket].write - _sockets[socket].read;
 
-	if (w_size > 0)
-	{
-		memcpy(buffer, _sockets[socket].rcv + _sockets[socket].read, w_size);
-		_sockets[socket].read += w_size;
+	memcpy(buffer, _sockets[socket].rcv + _sockets[socket].read, w_size);
+	_sockets[socket].read += w_size;
+	spinlock_unlock(&_sockets[socket].lock);
 
-		spinlock_unlock(&_sockets[socket].lock);
-
-		return w_size;
-	}
-
-	return 0;
+	return w_size;
 }
 
 s32
@@ -278,19 +268,11 @@ socket_write(s32 socket, char* buffer, u32 buffer_size)
 			? buffer_size
 			: SOCK_QUEUE_SIZE - _sockets[pair].write;
 
-	if (w_size > 0)
-	{
-		memcpy(_sockets[pair].rcv + _sockets[pair].write, buffer, w_size);
-		_sockets[pair].write += w_size;
-
-		spinlock_unlock(&_sockets[pair].lock);
-
-		return w_size;
-	}
-
+	memcpy(_sockets[pair].rcv + _sockets[pair].write, buffer, w_size);
+	_sockets[pair].write += w_size;
 	spinlock_unlock(&_sockets[pair].lock);
 
-	return 0;
+	return w_size;
 }
 
 s32

@@ -172,12 +172,7 @@ pid_t		create_process(proc_info_t*);
 		.data		= 0,				\
 		.data_size	= 0,				\
 		.entry		= (func)})
-	proc_type	type;
-	u32*		code;
-	u32		code_size;
-	u32*		data;
-	u32		data_size;
-	u32		entry;
+
 pid_t		fork_process(u32* esp);
 void		exit_user_process(u32 status, u32* esp);
 
